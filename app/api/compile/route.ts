@@ -23,6 +23,72 @@ import { promisify } from 'util'
 const writeFile = promisify(fs.writeFile)
 const mkdir = promisify(fs.mkdir)
 
+type NormalizedComponent = {
+  name: string
+  description: string
+}
+
+type NormalizedInteraction = {
+  title: string
+  summary: string
+  entryPoints: string[]
+  primaryActions: string[]
+  feedbackStates: string[]
+  successCriteria: string[]
+}
+
+function toRouteRoute(pathname: string, purpose?: string) {
+  return {
+    method: 'GET',
+    path: pathname,
+    description: purpose || `Fetch data for ${pathname}`,
+  }
+}
+
+function buildComponentsFromDesign(design: { pageStructure: { name: string; purpose: string }[] }) {
+  const components: NormalizedComponent[] = [
+    { name: 'AppShell', description: 'Global shell, navigation, and layout scaffolding' },
+  ]
+
+  for (const page of design.pageStructure || []) {
+    components.push({
+      name: `${page.name.replace(/\s+/g, '')}Page`,
+      description: page.purpose,
+    })
+  }
+
+  return components
+}
+
+function buildInteractionPlan(prompt: string, intent: { userRoles: string[]; primaryFeatures: string[]; appType: string }, design: { pageStructure: { name: string; purpose: string }[] }): NormalizedInteraction {
+  const roles = intent.userRoles.length > 0 ? intent.userRoles : ['user']
+  const entryPoints = design.pageStructure.length > 0 ? design.pageStructure.map((page) => page.name) : ['Dashboard']
+  const primaryActions = [
+    `Review ${roles[0]}-focused content`,
+    'Create a new record from the main form',
+    'Inspect generated output and export it',
+  ]
+
+  const feedbackStates = [
+    'Empty state when no generation has been selected',
+    'Loading state while compilation is in progress',
+    'Success state with export and download actions',
+  ]
+
+  return {
+    title: `${intent.appType.charAt(0).toUpperCase() + intent.appType.slice(1)} interaction flow`,
+    summary: `The interface should guide ${roles.join(', ')} users from prompt entry to review and export, with clear transitions and readable feedback at each step.`,
+    entryPoints,
+    primaryActions,
+    feedbackStates,
+    successCriteria: [
+      'The user can understand what to do next without reading implementation details.',
+      'Generated content is visible immediately after compilation.',
+      'Export and download actions are always clearly discoverable.',
+    ],
+  }
+}
+
 interface CompileRequest {
   prompt: string
   mode?: 'fast' | 'balanced' | 'precise'
@@ -121,6 +187,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       console.log(`[dev-fallback] Detected snake prompt, returning built-in implementation`)
 
       const design = { pageStructure: [{ id: 'snake', title: 'Snake Game' }] }
+      const snakeIntent = {
+        appType: 'crud' as const,
+        userRoles: ['player', 'tester'],
+        primaryFeatures: ['gameplay', 'score tracking', 'restart flow'],
+      }
       const refined = {
         database: { tables: [{ name: 'SnakeGame' }, { name: 'SnakeScore' }] },
         api: { endpoints: [{ method: 'GET', path: '/api/snake/score' }] },
@@ -372,12 +443,34 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       } catch (err) {
         console.warn('Failed to persist snake artifacts', err)
       }
+      const normalizedConfig = {
+        metadata: {
+          name: 'Snake Game',
+          description: 'A generated snake-game starter with persisted docs and route stubs.',
+        },
+        intent: {
+          ...snakeIntent,
+          dataModels: ['snakeGame', 'snakeScore'],
+          complexities: ['real-time gameplay', 'collision handling'],
+          assumptions: ['Single-player browser game', 'Grid-based movement'],
+        },
+        design: {
+          pageStructure: [{ name: 'Snake', purpose: 'Playable snake game surface' }],
+          apiEndpoints: [{ path: '/api/snake/score', method: 'GET', purpose: 'Fetch score data' }],
+        },
+        database: refined.database,
+        api: { routes: [toRouteRoute('/api/snake/score', 'Fetch score data')] },
+        ui: { pages: [{ route: '/snake', components: ['GameBoard', 'ScorePanel', 'Controls'], dataSource: 'GET /api/snake/score' }] },
+        components: buildComponentsFromDesign({ pageStructure: [{ name: 'Snake', purpose: 'Playable snake game surface' }] }),
+        interaction: buildInteractionPlan(prompt, snakeIntent, { pageStructure: [{ name: 'Snake', purpose: 'Playable snake game surface' }] }),
+      }
+
       // Attach results to the generation record and create an AppConfig for UI
       try {
         await prisma.appConfig.create({
           data: {
             generationId: generation.id,
-            config: refined as any,
+            config: normalizedConfig as any,
             validationPassed: true,
           },
         })
@@ -393,7 +486,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       return NextResponse.json({
         success: true,
         jobId: generation.id,
-        config: refined,
+        config: normalizedConfig,
         docs,
         implementationPlan: {
           summary: 'Snake game (generated fallback)',
@@ -474,6 +567,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
 
     const implementationPlan = buildImplementationPlan(refined, design)
     const docs = buildPlanningDocs(prompt, intent, design, refined, implementationPlan)
+
+    const interaction = buildInteractionPlan(prompt, intent, design)
+    const normalizedConfig = {
+      metadata: {
+        name: intent.dataModels[0] ? `${intent.dataModels[0].replace(/\b\w/g, (match) => match.toUpperCase())} App` : 'AppForge App',
+        description: `Generated ${intent.appType} blueprint with ${design.pageStructure.length} pages and ${design.apiEndpoints.length} endpoints.`,
+      },
+      intent,
+      design,
+      database: refined.database,
+      api: {
+        endpoints: refined.api.endpoints,
+        routes: design.apiEndpoints.map((endpoint) => ({
+          method: endpoint.method,
+          path: endpoint.path,
+          description: endpoint.purpose,
+        })),
+      },
+      ui: refined.ui,
+      components: buildComponentsFromDesign(design),
+      interaction,
+    }
 
     const totalLatency = Date.now() - startTime
 
@@ -561,7 +676,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       await prisma.appConfig.create({
         data: {
           generationId: generation.id,
-          config: refined as any,
+          config: normalizedConfig as any,
           validationPassed: validation.valid,
         },
       })
@@ -577,7 +692,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     return NextResponse.json({
       success: true,
       jobId: generation.id,
-      config: refined,
+      config: normalizedConfig,
       docs,
       implementationPlan,
       downloadUrl,
