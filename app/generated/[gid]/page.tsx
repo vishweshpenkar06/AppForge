@@ -134,7 +134,7 @@ export default async function GeneratedPage({ params }: GeneratedPageProps) {
           </div>
         </div>
 
-        <section className="grid gap-5 pt-2 md:grid-cols-2 xl:grid-cols-3">
+        <section className="grid gap-5 pt-3 md:grid-cols-2 xl:grid-cols-3">
           {artifacts.map((artifact) => (
             <article key={artifact.name} className="rounded-2xl border border-white/10 bg-black/20 p-5 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]">
               <div className="mb-4 flex items-center justify-between gap-3">
