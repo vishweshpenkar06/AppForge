@@ -1,0 +1,123 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  email         String   @unique
+  displayName   String?
+  plan          String   @default("free") // free | pro
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  generations   Generation[]
+  evalRuns      EvalRun[]
+
+  @@map("users")
+}
+
+model Generation {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  prompt          String
+  mode            String   @default("balanced") // fast | balanced | precise
+  status          String   @default("pending") // pending | running | success | failed
+  errorMessage    String?
+  
+  assumptions     Json?
+  totalLatencyMs  Int?
+  retryCount      Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  pipelineStages  PipelineStage[]
+  appConfig       AppConfig?
+  evalResults     EvalResult[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("generations")
+}
+
+model PipelineStage {
+  id              String   @id @default(cuid())
+  generationId    String
+  generation      Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  
+  stageName       String   // intent | design | schema | validation | repair
+  stageOrder      Int
+  status          String   @default("pending") // pending | running | success | failed
+  
+  inputTokens     Int?
+  outputTokens    Int?
+  latencyMs       Int?
+  rawOutput       Json?
+  errors          Json?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([generationId])
+  @@map("pipeline_stages")
+}
+
+model AppConfig {
+  id              String   @id @default(cuid())
+  generationId    String   @unique
+  generation      Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  
+  config          Json     @default("{}")
+  validationPassed Boolean
+  repairsApplied  Json?    // array of { field, before, after }
+  schemaVersion   String   @default("1.0")
+  
+  createdAt       DateTime @default(now())
+
+  @@map("app_configs")
+}
+
+model EvalRun {
+  id              String   @id @default(cuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  
+  name            String
+  description     String?
+  createdAt       DateTime @default(now())
+
+  results         EvalResult[]
+
+  @@map("eval_runs")
+}
+
+model EvalResult {
+  id              String   @id @default(cuid())
+  evalRunId       String
+  evalRun         EvalRun  @relation(fields: [evalRunId], references: [id], onDelete: Cascade)
+  
+  generationId    String?
+  generation      Generation? @relation(fields: [generationId], references: [id])
+  
+  promptCategory  String?  // standard | vague | conflicting | incomplete
+  success         Boolean
+  retryCount      Int      @default(0)
+  latencyMs       Int?
+  failureReason   String?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([evalRunId])
+  @@map("eval_results")
+}
