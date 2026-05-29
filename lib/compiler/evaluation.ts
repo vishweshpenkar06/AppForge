@@ -332,3 +332,20 @@ ${report.results
   .join('\n')}
 `
 }
+
+// If run directly (via ts-node), execute evaluation in deterministic mode
+if (require.main === module) {
+  ;(async () => {
+    process.env.DETERMINISTIC_LLM = '1'
+    try {
+      const report = await runEvaluation()
+      console.log(formatReport(report))
+      console.log('JSON_REPORT_START')
+      console.log(JSON.stringify(report, null, 2))
+      console.log('JSON_REPORT_END')
+    } catch (err) {
+      console.error('Evaluation execution failed:', err)
+      process.exitCode = 1
+    }
+  })()
+}

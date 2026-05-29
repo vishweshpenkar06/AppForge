@@ -2,7 +2,8 @@
 const FEATHERLESS_API_KEY = process.env.FEATHERLESS_API_KEY
 const FEATHERLESS_BASE_URL = process.env.FEATHERLESS_BASE_URL || 'https://api.featherless.ai/v1'
 
-if (!FEATHERLESS_API_KEY) {
+// Allow running in deterministic test mode without an external API key
+if (!FEATHERLESS_API_KEY && process.env.DETERMINISTIC_LLM !== '1') {
   throw new Error('FEATHERLESS_API_KEY environment variable is required')
 }
 
@@ -236,6 +237,161 @@ export async function callLLM(options: LLMCallOptions) {
       latencyMs,
     }
   }
+}
+
+/**
+ * Wrapper returning raw assistant text. Supports deterministic stub when
+ * `DETERMINISTIC_LLM` env var is set to `1`.
+ */
+export async function callLLMText({ system, prompt, model }: { system: string; prompt: string; model: string }) {
+  // Deterministic stub for tests / evaluation without external API
+  if (process.env.DETERMINISTIC_LLM === '1') {
+    // Very small heuristic-based deterministic responses per stage
+    const sys = system.toLowerCase()
+
+    // Intent extraction
+    if (sys.includes('parse') || sys.includes('extract') || sys.includes('product architect')) {
+      const lower = prompt.toLowerCase()
+      const appType = lower.includes('crm')
+        ? 'crm'
+        : lower.includes('marketplace')
+        ? 'marketplace'
+        : lower.includes('blog') || lower.includes('blogging')
+        ? 'content'
+        : lower.includes('ecommerce')
+        ? 'ecommerce'
+        : lower.includes('analytics')
+        ? 'analytics'
+        : 'other'
+
+      const features = [] as string[]
+      if (lower.includes('login') || lower.includes('auth')) features.push('authentication')
+      if (lower.includes('contacts')) features.push('contacts')
+      if (lower.includes('dashboard')) features.push('dashboard')
+      if (lower.includes('payment') || lower.includes('premium')) features.push('payments')
+      if (lower.includes('analytics') || lower.includes('charts')) features.push('analytics')
+      if (!features.length) features.push('basic_crud')
+
+      const roles = [] as string[]
+      if (lower.includes('admin')) roles.push('admin')
+      if (lower.includes('seller')) roles.push('seller')
+      if (lower.includes('buyer')) roles.push('buyer')
+      if (!roles.length) roles.push('user')
+
+      const intent = {
+        appType,
+        primaryFeatures: features,
+        userRoles: roles,
+        authRequired: lower.includes('login') || lower.includes('auth') || roles.includes('admin'),
+        paymentRequired: lower.includes('payment') || lower.includes('premium'),
+        dataModels: roles.includes('seller') ? ['users', 'products', 'orders'] : ['users', 'items'],
+        complexities: [],
+        assumptions: [],
+      }
+
+      return JSON.stringify(intent)
+    }
+
+    // Design stage
+    if (sys.includes('system architect') || sys.includes('convert app intent')) {
+      // try to parse minimal intent from prompt
+      let parsed: any = {}
+      try {
+        parsed = JSON.parse(prompt)
+      } catch {
+        parsed = { primaryFeatures: ['basic_crud'], userRoles: ['user'] }
+      }
+
+      const pages = [] as any[]
+      const endpoints = [] as any[]
+      const dataEntities = [] as any[]
+
+      // basic mapping
+      pages.push({ name: 'Home', purpose: 'Landing', requiredData: [] });
+      pages.push({ name: 'Dashboard', purpose: 'Main app view', requiredData: parsed.primaryFeatures || [] });
+
+      (parsed.dataModels || ['users']).forEach((m: string) => {
+        dataEntities.push({ name: m, relationships: [] })
+        endpoints.push({ path: `/api/${m.toLowerCase()}`, method: 'GET', purpose: `List ${m}` })
+      })
+
+      const design = {
+        architecture: 'monolith',
+        pageStructure: pages,
+        apiEndpoints: endpoints,
+        dataEntities,
+        accessControl: { roles: parsed.userRoles || ['user'], rolePermissions: { user: ['read'], admin: ['read', 'write'] } },
+      }
+
+      return JSON.stringify(design)
+    }
+
+    // Schema generation
+    if (sys.includes('generate database') || sys.includes('produce precise, executable schemas') || sys.includes('generate database, api, and ui schemas')) {
+      // best-effort: try to parse design
+      let design: any = {}
+      try {
+        design = JSON.parse(prompt)
+      } catch {
+        design = {}
+      }
+
+      // simple default tables
+      const tables: any[] = [
+        { name: 'users', columns: [{ name: 'id', type: 'uuid', required: true }, { name: 'email', type: 'string', required: true }], relationships: [] },
+      ]
+
+      if (prompt.toLowerCase().includes('contact') || prompt.toLowerCase().includes('contacts')) {
+        tables.push({ name: 'contacts', columns: [{ name: 'id', type: 'uuid', required: true }, { name: 'name', type: 'string', required: true }, { name: 'userId', type: 'uuid', required: true }], relationships: ['users'] })
+      }
+
+      if (prompt.toLowerCase().includes('payment') || prompt.toLowerCase().includes('premium')) {
+        tables.push({ name: 'payments', columns: [{ name: 'id', type: 'uuid', required: true }, { name: 'amount', type: 'decimal', required: true }, { name: 'userId', type: 'uuid', required: true }], relationships: ['users'] })
+      }
+
+      const endpoints = tables.map((t) => ({ path: `/api/${t.name}`, method: 'GET', requestSchema: {}, responseSchema: { type: 'array', items: { type: 'object' } } }))
+      const uiPages = [{ route: '/dashboard', components: ['Header', 'Main'], dataSource: `GET /api/${tables[0].name}` }]
+
+      const out = { database: { tables }, api: { endpoints }, ui: { pages: uiPages } }
+      return JSON.stringify(out)
+    }
+
+    // Refinement stage: just echo back schemas or ensure id exists
+    if (sys.includes('refine schemas') || sys.includes('consistency auditor')) {
+      try {
+        const schemas = JSON.parse(prompt)
+        // ensure id columns
+        schemas.database = schemas.database || { tables: [] }
+        schemas.database.tables.forEach((t: any) => {
+          if (!t.columns.some((c: any) => c.name === 'id')) {
+            t.columns.unshift({ name: 'id', type: 'uuid', required: true })
+          }
+        })
+        return JSON.stringify(schemas)
+      } catch {
+        return JSON.stringify({ database: { tables: [] }, api: { endpoints: [] }, ui: { pages: [] } })
+      }
+    }
+
+    // Repair stage
+    if (sys.includes('fix') || sys.includes('repair')) {
+      try {
+        const req = JSON.parse(prompt)
+        // naive repair: if errors mention missing endpoint, add it
+        const repairedSection = req.config || {}
+        return JSON.stringify({ repairedSection, changes: [] })
+      } catch {
+        return JSON.stringify({ repairedSection: {}, changes: [] })
+      }
+    }
+
+    // Fallback deterministic empty JSON
+    return JSON.stringify({})
+  }
+
+  // Otherwise call real LLM
+  const result = await callLLM({ model, max_tokens: 2000, temperature: 0.1, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
+  return result.output
 }
 
 // ============================================================================

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "eval:deterministic": "ts-node scripts/deterministic-eval.ts",
+    "smoke:export": "node scripts/smoke-test-export.cjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.2",

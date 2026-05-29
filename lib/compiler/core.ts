@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod'
+import { callLLMText } from '@/lib/ai'
 
 // ============================================================================
 // STAGE 1: INTENT EXTRACTION
@@ -59,7 +60,8 @@ Be concise. Document assumptions about ambiguous requirements.`
   })
 
   try {
-    return IntentSchema.parse(JSON.parse(response))
+    const text = await callLLMText({ system: systemPrompt, prompt, model: 'claude-3.5-sonnet' })
+    return IntentSchema.parse(JSON.parse(text))
   } catch (error) {
     throw new Error(`Intent extraction failed: ${error instanceof Error ? error.message : 'Invalid JSON'}`)
   }
@@ -144,7 +146,8 @@ Key Entities: ${intent.dataModels.join(', ')}`
   })
 
   try {
-    return SystemDesignSchema.parse(JSON.parse(response))
+    const text = await callLLMText({ system: systemPrompt, prompt, model: 'Qwen/Qwen3.6-35B-A3B' })
+    return SystemDesignSchema.parse(JSON.parse(text))
   } catch (error) {
     throw new Error(`System design failed: ${error instanceof Error ? error.message : 'Invalid schema'}`)
   }
@@ -248,7 +251,8 @@ Requirements:
   })
 
   try {
-    return SchemaOutputSchema.parse(JSON.parse(response))
+    const text = await callLLMText({ system: systemPrompt, prompt, model: 'Qwen/Qwen3.6-35B-A3B' })
+    return SchemaOutputSchema.parse(JSON.parse(text))
   } catch (error) {
     throw new Error(`Schema generation failed: ${error instanceof Error ? error.message : 'Invalid structure'}`)
   }
@@ -284,7 +288,8 @@ Output the corrected, complete schema as valid JSON.`
   })
 
   try {
-    return SchemaOutputSchema.parse(JSON.parse(response))
+    const text = await callLLMText({ system: systemPrompt, prompt: schemasJson, model: 'Qwen/Qwen3.6-35B-A3B' })
+    return SchemaOutputSchema.parse(JSON.parse(text))
   } catch (error) {
     throw new Error(`Refinement failed: ${error instanceof Error ? error.message : 'Could not repair'}`)
   }
@@ -411,40 +416,4 @@ export function checkExecutability(schemas: SchemaOutput, validation: Validation
 // HELPER: LLM CALL
 // ============================================================================
 
-async function callLLM({
-  system,
-  prompt,
-  model,
-}: {
-  system: string
-  prompt: string
-  model: string
-}): Promise<string> {
-  const apiKey = process.env.FEATHERLESS_API_KEY
-  const baseUrl = process.env.FEATHERLESS_BASE_URL || 'https://api.featherless.ai/v1'
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.1, // Low temperature for determinism
-      max_tokens: 2000,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`LLM call failed: ${response.status} - ${error}`)
-  }
-
-  const data = await response.json()
-  return data.choices[0].message.content
-}
+// callLLMText in `lib/ai.ts` is used for LLM interactions, including deterministic stub mode.
