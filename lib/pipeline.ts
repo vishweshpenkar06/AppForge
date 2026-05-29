@@ -2,6 +2,7 @@ import { prisma } from './db'
 import { callLLM, STAGE_CONFIGS, SYSTEM_PROMPTS, getConfigsByMode, extractJSON } from './ai'
 import { validateAppConfig, repairAppConfig } from './validation'
 import { AppConfig, appConfigSchema } from './schemas'
+import { buildImplementationPlan } from './compiler/export'
 
 export interface PipelineStageResult {
   stage: string
@@ -231,6 +232,19 @@ export async function generateApplication(
     }
 
     // ========================================
+    // STAGE 6: EXPORT TO IMPLEMENTATION PLAN
+    // ========================================
+    console.log('[Pipeline] Stage 6: Build implementation plan')
+    let implementationPlan = null
+    try {
+      implementationPlan = buildImplementationPlan(appConfig as any, design)
+      // attach to appConfig for persistence
+      ;(appConfig as any).implementationPlan = implementationPlan
+    } catch (err) {
+      console.warn('[Pipeline] Failed to build implementation plan:', err)
+    }
+
+    // ========================================
     // SAVE RESULTS
     // ========================================
     console.log('[Pipeline] Saving results to database')
@@ -257,6 +271,7 @@ export async function generateApplication(
       jobId,
       success: true,
       appConfig,
+      implementationPlan,
       stages,
       totalLatencyMs,
       totalTokens,

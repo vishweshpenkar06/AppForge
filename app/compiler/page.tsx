@@ -10,6 +10,22 @@ import { Activity, ChevronRight, Sparkles, Target } from 'lucide-react'
 interface CompileResult {
   success: boolean
   config?: any
+  docs?: {
+    prd: string
+    trd: string
+    appFlow: string
+    uiUxBrief: string
+    backendSchema: string
+    implementationPlan: string
+  }
+  implementationPlan?: {
+    summary: string
+    prismaSchema: string
+    apiHandlers: { path: string; content: string }[]
+    uiPages: { path: string; content: string }[]
+    rbac: Record<string, string[]>
+    checklist: string[]
+  }
   validation?: {
     valid: boolean
     errors: string[]
@@ -170,9 +186,11 @@ export default function CompilerPage() {
                     </div>
 
                     <Tabs defaultValue="validation" className="w-full">
-                      <TabsList className="grid w-full grid-cols-4 bg-black/20 border border-white/10">
+                      <TabsList className="grid w-full grid-cols-6 bg-black/20 border border-white/10">
                         <TabsTrigger value="validation">Validation</TabsTrigger>
                         <TabsTrigger value="schema">Schema</TabsTrigger>
+                        <TabsTrigger value="docs">Docs</TabsTrigger>
+                        <TabsTrigger value="plan">Plan</TabsTrigger>
                         <TabsTrigger value="metrics">Metrics</TabsTrigger>
                         <TabsTrigger value="execution">Execution</TabsTrigger>
                       </TabsList>
@@ -232,10 +250,91 @@ export default function CompilerPage() {
                         )}
                       </TabsContent>
 
+                      {result.downloadUrl && (
+                        <div className="mt-4 flex gap-2">
+                          <a
+                            href={result.downloadUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 rounded px-3 py-2 bg-sky-600 hover:bg-sky-700 text-sm"
+                          >
+                            Download Generated Files
+                          </a>
+                        </div>
+                      )}
+
                       <TabsContent value="schema" className="mt-4">
                         <pre className="bg-[#0b0d12] p-4 rounded-2xl text-xs overflow-auto max-h-64 text-gray-300 border border-white/10">
                           {JSON.stringify(result.config, null, 2)}
                         </pre>
+                      </TabsContent>
+
+                      <TabsContent value="docs" className="mt-4 space-y-4">
+                        {result.docs ? (
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <DocCard title="PRD" content={result.docs.prd} />
+                            <DocCard title="TRD" content={result.docs.trd} />
+                            <DocCard title="App Flow" content={result.docs.appFlow} />
+                            <DocCard title="UI/UX Brief" content={result.docs.uiUxBrief} />
+                            <DocCard title="Backend Schema" content={result.docs.backendSchema} />
+                            <DocCard title="Implementation Plan" content={result.docs.implementationPlan} />
+                          </div>
+                        ) : (
+                          <p className="text-sm text-zinc-400">No docs were generated for this run.</p>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="plan" className="mt-4 space-y-4">
+                        {result.implementationPlan ? (
+                          <div className="space-y-4">
+                            <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">Summary</p>
+                              <p className="text-sm text-zinc-300">{result.implementationPlan.summary}</p>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">Prisma Schema</p>
+                              <pre className="text-xs text-zinc-300 overflow-auto max-h-56 whitespace-pre-wrap">{result.implementationPlan.prismaSchema}</pre>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
+                                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">API Handlers</p>
+                                <ul className="space-y-2 text-sm text-zinc-300">
+                                  {result.implementationPlan.apiHandlers.map((item) => (
+                                    <li key={item.path} className="rounded-lg border border-white/5 px-3 py-2">
+                                      {item.path}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
+                                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">UI Pages</p>
+                                <ul className="space-y-2 text-sm text-zinc-300">
+                                  {result.implementationPlan.uiPages.map((item) => (
+                                    <li key={item.path} className="rounded-lg border border-white/5 px-3 py-2">
+                                      {item.path}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
+                              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">Checklist</p>
+                              <ul className="space-y-2 text-sm text-zinc-300">
+                                {result.implementationPlan.checklist.map((item) => (
+                                  <li key={item} className="flex gap-2">
+                                    <span className="text-sky-300">•</span>
+                                    <span>{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-zinc-400">No implementation plan was generated for this run.</p>
+                        )}
                       </TabsContent>
 
                       <TabsContent value="metrics" className="mt-4 space-y-3">
@@ -390,6 +489,17 @@ function HeroStat({
         {title}
       </div>
       <div className="mt-2 text-sm font-medium text-white">{value}</div>
+    </div>
+  )
+}
+
+function DocCard({ title, content }: { title: string; content: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">{title}</p>
+      </div>
+      <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-xs leading-6 text-zinc-300">{content}</pre>
     </div>
   )
 }

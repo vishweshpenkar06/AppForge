@@ -156,7 +156,13 @@ export async function getUserMetrics(userId: string) {
         mode: true,
         createdAt: true,
         completedAt: true,
-        metadata: true,
+        totalLatencyMs: true,
+        pipelineStages: {
+          select: {
+            inputTokens: true,
+            outputTokens: true,
+          },
+        },
       },
     })
 
@@ -180,10 +186,16 @@ export async function getUserMetrics(userId: string) {
         modes[gen.mode as keyof typeof modes]++
       }
 
-      if (gen.metadata) {
-        const meta = gen.metadata as any
-        if (meta.totalTokens) totalTokens += meta.totalTokens
-        if (meta.totalLatencyMs) totalDuration += meta.totalLatencyMs
+      // Sum tokens from pipeline stages when available
+      if (gen.pipelineStages && gen.pipelineStages.length > 0) {
+        gen.pipelineStages.forEach((s: any) => {
+          if (s.inputTokens) totalTokens += s.inputTokens
+          if (s.outputTokens) totalTokens += s.outputTokens
+        })
+      }
+
+      if (typeof gen.totalLatencyMs === 'number') {
+        totalDuration += gen.totalLatencyMs
       }
     })
 
@@ -218,7 +230,12 @@ export async function getSystemMetrics() {
     const generations = await prisma.generation.findMany({
       select: {
         mode: true,
-        metadata: true,
+        pipelineStages: {
+          select: {
+            inputTokens: true,
+            outputTokens: true,
+          },
+        },
       },
     })
 
@@ -234,9 +251,11 @@ export async function getSystemMetrics() {
       if (gen.mode) {
         modes[gen.mode as keyof typeof modes]++
       }
-      if (gen.metadata) {
-        const meta = gen.metadata as any
-        if (meta.totalTokens) totalTokens += meta.totalTokens
+      if (gen.pipelineStages && gen.pipelineStages.length > 0) {
+        gen.pipelineStages.forEach((s: any) => {
+          if (s.inputTokens) totalTokens += s.inputTokens
+          if (s.outputTokens) totalTokens += s.outputTokens
+        })
       }
     })
 
