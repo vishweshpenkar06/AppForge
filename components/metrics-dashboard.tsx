@@ -100,7 +100,7 @@ export function MetricsDashboard() {
   const modeTotal = modeEntries.reduce((sum, [, count]) => sum + count, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 sm:px-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Total Generations"
@@ -131,25 +131,30 @@ export function MetricsDashboard() {
         />
       </div>
 
-      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] via-white/[0.03] to-transparent p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-        <div className="flex items-center justify-between gap-4 mb-5">
+      <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] via-white/[0.03] to-transparent p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
+        <div className="mb-5 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-zinc-500">Mode Mix</p>
+            <p className="text-sm font-medium tracking-[0.18em] text-zinc-400">Mode mix</p>
             <h3 className="text-lg font-semibold text-white">How generations are being compiled</h3>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setRefreshKey((value) => value + 1)}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRefreshKey((value) => value + 1)}
+            className="shrink-0 self-center"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 px-2 sm:px-3">
           {modeEntries.map(([mode, count]) => {
             const percentage = modeTotal > 0 ? (count / modeTotal) * 100 : 0
 
             return (
               <div key={mode} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-zinc-300 capitalize">{mode}</span>
                   <span className="text-zinc-500">{count} runs</span>
                 </div>
@@ -189,13 +194,13 @@ function MetricCard({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] px-6 py-5 sm:px-7 sm:py-6">
       <div className={`absolute inset-0 bg-gradient-to-br ${accentClasses[accent]} opacity-50`} />
-      <div className="relative flex items-start justify-between gap-4">
-        <div>
+      <div className="relative flex min-h-[136px] items-center justify-between gap-4">
+        <div className="space-y-2 py-1">
           <p className="text-sm text-zinc-400">{title}</p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-white">{value}</p>
-          <p className="mt-2 text-xs text-zinc-500">{note}</p>
+          <p className="text-3xl font-semibold tracking-tight text-white">{value}</p>
+          <p className="text-sm text-zinc-500">{note}</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-black/20 p-2 text-white/90">
           {icon}

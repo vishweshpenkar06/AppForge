@@ -58,10 +58,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Metrics Section */}
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-sm p-6 sm:p-8 mb-8">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-sm px-5 py-6 sm:px-8 sm:py-8 mb-8">
           <div className="mb-6">
             <h2 className="text-2xl font-bold">Your Statistics</h2>
-            <p className="text-sm text-zinc-500 mt-1">Live performance and usage signals from your recent generations.</p>
+            <p className="mt-2 max-w-2xl text-base leading-7 text-zinc-400">
+              Live performance and usage signals from your recent generations.
+            </p>
           </div>
           <MetricsDashboard />
         </div>
@@ -108,7 +110,7 @@ function MiniStat({
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-3 min-w-[96px]">
-      <div className="flex items-center gap-2 text-zinc-400 text-xs uppercase tracking-[0.24em]">
+      <div className="flex items-center gap-2 text-[0.7rem] font-medium tracking-[0.18em] text-zinc-400">
         {icon}
         {label}
       </div>
