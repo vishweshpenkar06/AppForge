@@ -301,8 +301,8 @@ export default function CompilerPage() {
                               <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
                                 <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">API Handlers</p>
                                 <ul className="space-y-2 text-sm text-zinc-300">
-                                  {result.implementationPlan.apiHandlers.map((item) => (
-                                    <li key={item.path} className="rounded-lg border border-white/5 px-3 py-2">
+                                    {result.implementationPlan.apiHandlers.map((item, index) => (
+                                      <li key={`${item.path}-${index}`} className="rounded-lg border border-white/5 px-3 py-2">
                                       {item.path}
                                     </li>
                                   ))}
@@ -311,8 +311,8 @@ export default function CompilerPage() {
                               <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
                                 <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">UI Pages</p>
                                 <ul className="space-y-2 text-sm text-zinc-300">
-                                  {result.implementationPlan.uiPages.map((item) => (
-                                    <li key={item.path} className="rounded-lg border border-white/5 px-3 py-2">
+                                    {result.implementationPlan.uiPages.map((item, index) => (
+                                      <li key={`${item.path}-${index}`} className="rounded-lg border border-white/5 px-3 py-2">
                                       {item.path}
                                     </li>
                                   ))}
@@ -323,8 +323,8 @@ export default function CompilerPage() {
                             <div className="rounded-2xl border border-white/10 bg-[#0b0d12] p-4">
                               <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">Checklist</p>
                               <ul className="space-y-2 text-sm text-zinc-300">
-                                {result.implementationPlan.checklist.map((item) => (
-                                  <li key={item} className="flex gap-2">
+                                {result.implementationPlan.checklist.map((item, index) => (
+                                  <li key={`${item}-${index}`} className="flex gap-2">
                                     <span className="text-sky-300">•</span>
                                     <span>{item}</span>
                                   </li>
