@@ -12,7 +12,7 @@ export default function Page() {
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      router.push('/dashboard')
+      router.replace('/dashboard')
     }
   }, [isLoaded, isSignedIn, router])
 

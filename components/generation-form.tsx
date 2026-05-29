@@ -4,6 +4,13 @@ import { useState } from 'react'
 import { WandSparkles, TimerReset, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface GenerationFormProps {
   onGenerationCreated?: (jobId: string) => void
@@ -39,7 +46,6 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
       }
 
       const data = await response.json()
-      setPrompt('')
       onGenerationCreated?.(data.jobId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -77,17 +83,16 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
             Compilation Mode
           </label>
         </div>
-        <select
-          id="mode"
-          value={mode}
-          onChange={(e) => setMode(e.target.value as any)}
-          disabled={loading}
-          className="w-full px-4 py-3 bg-white/[0.03] border border-white/10 rounded-2xl text-white focus:outline-none focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 transition"
-        >
-          <option value="fast">Fast (Lower quality, faster)</option>
-          <option value="balanced">Balanced (Recommended)</option>
-          <option value="precise">Precise (Higher quality, slower)</option>
-        </select>
+        <Select value={mode} onValueChange={(value) => setMode(value as typeof mode)} disabled={loading}>
+          <SelectTrigger className="w-full h-14 rounded-2xl border-white/10 bg-white/[0.03] text-left text-white">
+            <SelectValue placeholder="Select a compilation mode" />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-[#111318] text-white">
+            <SelectItem value="fast">Fast (Lower quality, faster)</SelectItem>
+            <SelectItem value="balanced">Balanced (Recommended)</SelectItem>
+            <SelectItem value="precise">Precise (Higher quality, slower)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3 text-sm text-zinc-400">

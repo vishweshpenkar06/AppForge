@@ -65,9 +65,6 @@ export default function RootLayout({
                 <Link href="/compiler" className="hidden rounded-full px-3 py-2 text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white md:inline-flex">
                   Compiler
                 </Link>
-                <Link href="/dashboard" className="hidden rounded-full px-3 py-2 text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white md:inline-flex">
-                  Dashboard
-                </Link>
                 <AuthControls />
               </nav>
             </div>

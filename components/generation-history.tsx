@@ -29,12 +29,14 @@ export function GenerationHistory({ onSelect, selectedId }: GenerationHistoryPro
   useEffect(() => {
     let cancelled = false
 
-    if (!user) return
+    if (!user?.id) return
 
     const fetchGenerations = async () => {
       try {
         setError(null)
-        setLoading(true)
+        if (generations.length === 0) {
+          setLoading(true)
+        }
         const response = await fetch('/api/generations')
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
@@ -56,13 +58,10 @@ export function GenerationHistory({ onSelect, selectedId }: GenerationHistoryPro
     }
 
     fetchGenerations()
-    // Poll for updates every 2 seconds
-    const interval = setInterval(fetchGenerations, 2000)
     return () => {
       cancelled = true
-      clearInterval(interval)
     }
-  }, [user, refreshKey])
+  }, [user?.id, refreshKey])
 
   if (loading && generations.length === 0) {
     return (

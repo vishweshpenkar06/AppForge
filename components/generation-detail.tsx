@@ -24,30 +24,40 @@ export function GenerationDetail({ generationId }: GenerationDetailProps) {
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
 
-  useEffect(() => {
-    const fetchGeneration = async () => {
-      try {
+  const fetchGeneration = async (options?: { silent?: boolean }) => {
+    try {
+      if (!options?.silent) {
         setLoading(true)
-        const response = await fetch(`/api/generations/${generationId}`)
-        if (!response.ok) throw new Error('Failed to fetch generation')
-        const data = await response.json()
-        setGeneration(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load generation')
-      } finally {
-        setLoading(false)
       }
+      const response = await fetch(`/api/generations/${generationId}`)
+      if (!response.ok) throw new Error('Failed to fetch generation')
+      const data = await response.json()
+      setGeneration(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load generation')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    setGeneration(null)
+    setError(null)
+    setLoading(true)
+    void fetchGeneration()
+  }, [generationId])
+
+  useEffect(() => {
+    if (generation?.status !== 'pending') {
+      return
     }
 
-    fetchGeneration()
-
-    // Poll if still pending
     const interval = setInterval(() => {
-      fetchGeneration()
+      void fetchGeneration({ silent: true })
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [generationId])
+  }, [generation?.status, generationId])
 
   const handleExport = async (format: 'json' | 'yaml') => {
     try {
