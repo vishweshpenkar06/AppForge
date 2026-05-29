@@ -1,10 +1,11 @@
-// Featherless API Configuration
-const FEATHERLESS_API_KEY = process.env.FEATHERLESS_API_KEY
-const FEATHERLESS_BASE_URL = process.env.FEATHERLESS_BASE_URL || 'https://api.featherless.ai/v1'
+// LLM / API Configuration
+// Primary: Featherless (used for LLM). Fallbacks: allow using Clerk-provided env names
+const API_KEY = process.env.FEATHERLESS_API_KEY || process.env.CLERK_API_KEY || process.env.CLERK_SECRET_KEY
+const API_BASE_URL = process.env.FEATHERLESS_BASE_URL || process.env.CLERK_BASE_URL || process.env.CLERK_API_BASE_URL || 'https://api.featherless.ai/v1'
 
 // Allow running in deterministic test mode without an external API key
-if (!FEATHERLESS_API_KEY && process.env.DETERMINISTIC_LLM !== '1') {
-  throw new Error('FEATHERLESS_API_KEY environment variable is required')
+if (!API_KEY && process.env.DETERMINISTIC_LLM !== '1') {
+  throw new Error('LLM API key is required (set FEATHERLESS_API_KEY or CLERK_API_KEY).')
 }
 
 // ============================================================================
@@ -200,11 +201,11 @@ export async function callLLM(options: LLMCallOptions) {
       ? [{ role: 'system' as const, content: options.system }, ...options.messages]
       : options.messages
 
-    const response = await fetch(`${FEATHERLESS_BASE_URL}/chat/completions`, {
+    const response = await fetch(`${API_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${FEATHERLESS_API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
       },
       body: JSON.stringify({
         model: options.model,
