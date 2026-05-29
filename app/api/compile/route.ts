@@ -15,6 +15,8 @@ import {
   type SchemaOutput,
 } from '@/lib/compiler/core'
 import { buildImplementationPlan, buildPlanningDocs } from '@/lib/compiler/export'
+import { prisma } from '@/lib/db'
+import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
@@ -92,6 +94,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
 
     const startTime = Date.now()
     const stageTimes: Record<string, number> = {}
+
+    // Ensure we have a DB user record to attach this generation to
+    const user = await getOrCreateCurrentUserRecord()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'User record not found' }, { status: 404 })
+    }
+
+    // Create a generation record so the frontend can poll and display results
+    const generation = await prisma.generation.create({
+      data: {
+        userId: user.id,
+        prompt: prompt.slice(0, 2000),
+        mode,
+        status: 'pending',
+      },
+    })
 
     // QUICK RULE-BASED FALLBACK: If the user asked for a Snake game (common test case),
     // produce a concrete implementation plan without calling LLMs so the project
@@ -318,9 +336,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       } catch (err) {
         console.warn('Failed to persist snake artifacts', err)
       }
+      // Attach results to the generation record and create an AppConfig for UI
+      try {
+        await prisma.appConfig.create({
+          data: {
+            generationId: generation.id,
+            config: refined as any,
+            validationPassed: true,
+          },
+        })
+
+        await prisma.generation.update({
+          where: { id: generation.id },
+          data: { status: 'success', completedAt: new Date(), totalLatencyMs: Date.now() - startTime },
+        })
+      } catch (err) {
+        console.warn('Failed to persist generation/appConfig for snake fallback', err)
+      }
 
       return NextResponse.json({
         success: true,
+        jobId: generation.id,
         config: refined,
         docs,
         implementationPlan: {
@@ -447,8 +483,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       `[${userId}] Compilation complete in ${totalLatency}ms. Executable: ${execution.executable}`
     )
 
+    // Persist app config into AppConfig table and update generation status
+    try {
+      await prisma.appConfig.create({
+        data: {
+          generationId: generation.id,
+          config: refined as any,
+          validationPassed: validation.valid,
+        },
+      })
+
+      await prisma.generation.update({
+        where: { id: generation.id },
+        data: { status: execution.executable ? 'completed' : 'failed', completedAt: new Date(), totalLatencyMs: totalLatency },
+      })
+    } catch (err) {
+      console.warn('Failed to persist generation/appConfig', err)
+    }
+
     return NextResponse.json({
       success: true,
+      jobId: generation.id,
       config: refined,
       docs,
       implementationPlan,
@@ -475,6 +530,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     const errorMessage = error instanceof Error ? error.message : 'Unknown error during compilation'
 
     console.error(`[${userId}] Compilation error:`, errorMessage)
+
+    try {
+      if (typeof generation !== 'undefined' && generation?.id) {
+        await prisma.generation.update({
+          where: { id: generation.id },
+          data: { status: 'failed', errorMessage },
+        })
+      }
+    } catch (e) {
+      console.warn('Failed to mark generation as failed', e)
+    }
 
     return NextResponse.json(
       {

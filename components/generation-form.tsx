@@ -33,6 +33,14 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
 
     setLoading(true)
 
+    // Open a blank window synchronously to avoid popup blockers; we'll navigate it once we have a URL.
+    let artifactWindow: Window | null = null
+    try {
+      artifactWindow = window.open('', '_blank')
+    } catch (e) {
+      artifactWindow = null
+    }
+
     try {
       const response = await fetch('/api/compile', {
         method: 'POST',
@@ -46,9 +54,37 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
       }
 
       const data = await response.json()
-      onGenerationCreated?.(data.jobId)
+
+      // Navigate the pre-opened window to the artifact URL if available; otherwise close it.
+      if (data.downloadUrl && artifactWindow) {
+        try {
+          artifactWindow.location.href = data.downloadUrl
+        } catch (e) {
+          // ignore navigation errors
+        }
+      } else if (artifactWindow) {
+        try {
+          artifactWindow.close()
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const jobId = data.jobId || data.id || null
+      if (jobId) {
+        onGenerationCreated?.(jobId)
+      } else {
+        setError('Generation completed but no job id returned')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
+      if (artifactWindow) {
+        try {
+          artifactWindow.close()
+        } catch (e) {
+          // ignore
+        }
+      }
     } finally {
       setLoading(false)
     }

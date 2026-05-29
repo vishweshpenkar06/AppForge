@@ -27,6 +27,10 @@ export async function GET(
 
     const generation = await prisma.generation.findUnique({
       where: { id },
+      include: {
+        appConfig: true,
+        pipelineStages: true,
+      },
     })
 
     if (!generation) {
@@ -44,7 +48,22 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(generation)
+    // Expose a `config` key for the frontend that maps to the AppConfig record
+    const out = {
+      ...generation,
+      config: generation?.appConfig?.config ?? null,
+      metadata: {
+        stages: generation?.pipelineStages?.map((s) => ({
+          stage: s.stageName,
+          success: s.status === 'success',
+          latencyMs: s.latencyMs,
+        })) || [],
+        totalLatencyMs: generation?.totalLatencyMs ?? null,
+        totalTokens: null,
+      },
+    }
+
+    return NextResponse.json(out)
   } catch (error) {
     console.error('[API Error] /api/generations/[id]:', error)
     return NextResponse.json(
