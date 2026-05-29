@@ -120,6 +120,7 @@ export function GenerationDetail({ generationId }: GenerationDetailProps) {
     )
   }
 
+  const isCompleted = ['completed', 'success'].includes(generation.status)
   const config = generation.config
 
   return (
@@ -130,10 +131,10 @@ export function GenerationDetail({ generationId }: GenerationDetailProps) {
           <p className="text-gray-400 text-sm">{config?.metadata?.description}</p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="px-3 py-1 bg-green-900/30 text-green-300 rounded-lg text-sm font-medium">
-            Compiled
+          <span className="px-3 py-1 bg-emerald-500/15 text-emerald-300 rounded-lg text-sm font-medium">
+            {isCompleted ? 'Compiled' : generation.status}
           </span>
-          {generation.status === 'completed' && (
+          {isCompleted && (
             <div className="flex gap-2">
               <Button
                 onClick={() => handleExport('json')}

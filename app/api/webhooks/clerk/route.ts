@@ -52,7 +52,7 @@ export async function POST(req: Request) {
         data: {
           clerkId: id,
           email,
-          name: `${first_name || ''} ${last_name || ''}`.trim() || email,
+          displayName: `${first_name || ''} ${last_name || ''}`.trim() || email,
         },
       })
       console.log(`[Webhook] User created: ${id}`)

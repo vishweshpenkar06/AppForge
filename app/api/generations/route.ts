@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,11 +11,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    })
+    const user = await getOrCreateCurrentUserRecord()
 
-    if (!user) {
+    if (!user || user.clerkId !== userId) {
       return NextResponse.json(
         { error: 'User not found in database' },
         { status: 404 }

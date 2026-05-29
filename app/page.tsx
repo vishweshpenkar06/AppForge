@@ -4,79 +4,123 @@ import { useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { ArrowRight, Sparkles, ShieldCheck, Boxes, WandSparkles, LayoutDashboard } from 'lucide-react'
 
 export default function Page() {
-  const { user, isLoaded } = useUser()
+  const { isSignedIn, isLoaded } = useUser()
   const router = useRouter()
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (isLoaded && isSignedIn) {
       router.push('/dashboard')
     }
-  }, [isLoaded, user, router])
-
-  if (!isLoaded) {
-    return null
-  }
+  }, [isLoaded, isSignedIn, router])
 
   return (
-    <main className="min-h-screen bg-[#09090b] text-white flex flex-col items-center justify-center px-4">
-      <div className="max-w-2xl text-center space-y-8">
-        {/* Logo/Branding */}
-        <div className="space-y-4">
-          <h1 className="text-6xl font-bold tracking-tight">
-            AppForge
-          </h1>
-          <p className="text-2xl font-semibold text-gray-300">
-            Describe it. Compile it. Ship it.
-          </p>
-        </div>
+    <main className="px-4 py-8 sm:px-6 lg:px-8">
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] p-6 sm:p-10 lg:p-14">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_26%)]" />
 
-        {/* Tagline */}
-        <p className="text-lg text-gray-400 leading-relaxed">
-          Transform natural language descriptions into production-ready application configurations.
-          AppForge uses advanced AI to understand your requirements and generate complete,
-          validated blueprints for your next project.
-        </p>
+        <div className="relative grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+          <div className="space-y-8">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-xs font-medium uppercase tracking-[0.28em] text-sky-200">
+              <Sparkles className="h-3.5 w-3.5" />
+              Product-to-platform compiler
+            </div>
 
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-12">
-          <div className="p-6 bg-[#1a1a1f] border border-gray-800 rounded-lg">
-            <div className="text-3xl mb-3">🤖</div>
-            <h3 className="font-semibold mb-2">AI-Powered</h3>
-            <p className="text-sm text-gray-400">
-              Leverages state-of-the-art LLMs to understand complex requirements
-            </p>
-          </div>
-          <div className="p-6 bg-[#1a1a1f] border border-gray-800 rounded-lg">
-            <div className="text-3xl mb-3">✓</div>
-            <h3 className="font-semibold mb-2">Validated</h3>
-            <p className="text-sm text-gray-400">
-              Cross-layer consistency checking ensures architectural soundness
-            </p>
-          </div>
-          <div className="p-6 bg-[#1a1a1f] border border-gray-800 rounded-lg">
-            <div className="text-3xl mb-3">⚡</div>
-            <h3 className="font-semibold mb-2">Production-Ready</h3>
-            <p className="text-sm text-gray-400">
-              Generate complete schemas, APIs, and component blueprints instantly
-            </p>
-          </div>
-        </div>
+            <div className="space-y-5 max-w-3xl">
+              <h1 className="text-5xl font-black tracking-tight sm:text-6xl lg:text-7xl">
+                Ship structured apps from a single prompt.
+              </h1>
+              <p className="text-base leading-7 text-zinc-400 sm:text-lg">
+                AppForge turns product ideas into validated application blueprints, complete with schemas, APIs, components, metrics, and exports. No scaffolding roulette. No dead-end prototypes.
+              </p>
+            </div>
 
-        {/* Call to Action */}
-        <div className="space-y-4 pt-8">
-          <Button
-            onClick={() => router.push('/sign-in')}
-            className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg font-semibold"
-          >
-            Get Started
-          </Button>
-          <p className="text-sm text-gray-500">
-            No credit card required • Free tier available
-          </p>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => router.push('/sign-in')} className="rounded-full px-6 h-11">
+                Get Started
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" onClick={() => router.push('/compiler')} className="rounded-full px-6 h-11">
+                Open Compiler
+              </Button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <FeaturePill icon={<WandSparkles className="h-4 w-4" />} title="AI guided" text="Intent, schema, and validation in one flow." />
+              <FeaturePill icon={<ShieldCheck className="h-4 w-4" />} title="Validated" text="Cross-layer checks catch structural issues early." />
+              <FeaturePill icon={<LayoutDashboard className="h-4 w-4" />} title="Observable" text="Metrics and generation history stay visible." />
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#0b0d12]/90 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Preview</p>
+                  <h2 className="mt-1 text-lg font-semibold">What AppForge generates</h2>
+                </div>
+                <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+                  Live
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <PreviewCard title="Product shape" value="Feature map, roles, and system boundaries" />
+                <PreviewCard title="Output layers" value="Database, APIs, components, validation" />
+                <PreviewCard title="Workflow" value="Prompt → compile → inspect → export" />
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Example prompt</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Build a client portal with authentication, analytics, role-based access, and a polished admin dashboard.
+                </p>
+              </div>
+            </div>
+
+            <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-white/10 bg-black/60 px-4 py-3 backdrop-blur md:block">
+              <div className="flex items-center gap-3">
+                <Boxes className="h-5 w-5 text-sky-300" />
+                <div>
+                  <p className="text-sm font-medium">Blueprint first</p>
+                  <p className="text-xs text-zinc-500">No code until the structure is right.</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </main>
+  )
+}
+
+function FeaturePill({
+  icon,
+  title,
+  text,
+}: {
+  icon: React.ReactNode
+  title: string
+  text: string
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-white">
+        <span className="text-sky-300">{icon}</span>
+        {title}
+      </div>
+      <p className="mt-2 text-sm leading-6 text-zinc-500">{text}</p>
+    </div>
+  )
+}
+
+function PreviewCard({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">{title}</p>
+      <p className="mt-2 text-sm text-white/90">{value}</p>
+    </div>
   )
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { GenerationForm } from '@/components/generation-form'
 import { LoadingSpinner } from '@/components/loading-spinner'
+import { Activity, ChevronRight, Sparkles, Target } from 'lucide-react'
 
 interface CompileResult {
   success: boolean
@@ -68,21 +69,37 @@ export default function CompilerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#09090b] text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold mb-4">AppForge Compiler</h1>
-          <p className="text-gray-400">
-            Multi-stage, validated app config generation system
-          </p>
+    <main className="px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-8">
+        <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-6 sm:p-10">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-3 max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-xs uppercase tracking-[0.28em] text-sky-200">
+                <Sparkles className="h-3.5 w-3.5" />
+                AppForge Compiler
+              </div>
+              <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
+                Multi-stage generation with validation built in.
+              </h1>
+              <p className="max-w-2xl text-base leading-7 text-zinc-400 sm:text-lg">
+                Enter a product idea, compile it into structured artifacts, and inspect the result across validation, schema, metrics, and execution layers.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <HeroStat title="Validate" value="Schema + rules" icon={<Target className="h-4 w-4" />} />
+              <HeroStat title="Inspect" value="Live JSON + metrics" icon={<Activity className="h-4 w-4" />} />
+              <HeroStat title="Ship" value="Export-ready output" icon={<ChevronRight className="h-4 w-4" />} />
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Input Section */}
           <div className="lg:col-span-1">
-            <div className="bg-[#1a1a1f] border border-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-6">New Compilation</h2>
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm">
+              <h2 className="text-xl font-semibold mb-2">New Compilation</h2>
+              <p className="text-sm text-zinc-500 mb-6">Generate a structured blueprint from a single description.</p>
 
               <form
                 onSubmit={(e) => {
@@ -138,7 +155,7 @@ export default function CompilerPage() {
           {/* Results Section */}
           <div className="lg:col-span-2">
             {!result && !evaluationReport && (
-              <div className="bg-[#1a1a1f] border border-gray-800 rounded-lg p-12 text-center">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-12 text-center backdrop-blur-sm">
                 <p className="text-gray-400">Enter a prompt to compile an application</p>
               </div>
             )}
@@ -146,14 +163,14 @@ export default function CompilerPage() {
             {result && (
               <div className="space-y-4">
                 {result.success ? (
-                  <div className="bg-[#1a1a1f] border border-green-900 rounded-lg p-6">
+                  <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-6 backdrop-blur-sm">
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <div className="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.45)]"></div>
                       <h3 className="text-lg font-semibold">Compilation Successful</h3>
                     </div>
 
                     <Tabs defaultValue="validation" className="w-full">
-                      <TabsList className="grid w-full grid-cols-4">
+                      <TabsList className="grid w-full grid-cols-4 bg-black/20 border border-white/10">
                         <TabsTrigger value="validation">Validation</TabsTrigger>
                         <TabsTrigger value="schema">Schema</TabsTrigger>
                         <TabsTrigger value="metrics">Metrics</TabsTrigger>
@@ -216,7 +233,7 @@ export default function CompilerPage() {
                       </TabsContent>
 
                       <TabsContent value="schema" className="mt-4">
-                        <pre className="bg-[#0f0f13] p-4 rounded text-xs overflow-auto max-h-64 text-gray-300">
+                        <pre className="bg-[#0b0d12] p-4 rounded-2xl text-xs overflow-auto max-h-64 text-gray-300 border border-white/10">
                           {JSON.stringify(result.config, null, 2)}
                         </pre>
                       </TabsContent>
@@ -354,5 +371,25 @@ export default function CompilerPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+function HeroStat({
+  title,
+  value,
+  icon,
+}: {
+  title: string
+  value: string
+  icon: React.ReactNode
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 min-w-[120px]">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-zinc-500">
+        {icon}
+        {title}
+      </div>
+      <div className="mt-2 text-sm font-medium text-white">{value}</div>
+    </div>
   )
 }

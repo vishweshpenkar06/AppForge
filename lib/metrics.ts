@@ -161,7 +161,9 @@ export async function getUserMetrics(userId: string) {
     })
 
     const totalGenerations = generations.length
-    const completedGenerations = generations.filter((g) => g.status === 'completed').length
+    const completedGenerations = generations.filter((g) =>
+      ['completed', 'success'].includes(g.status)
+    ).length
     const failedGenerations = generations.filter((g) => g.status === 'failed').length
 
     const modes = {
@@ -207,7 +209,7 @@ export async function getSystemMetrics() {
   try {
     const totalGenerations = await prisma.generation.count()
     const completedGenerations = await prisma.generation.count({
-      where: { status: 'completed' },
+      where: { status: { in: ['completed', 'success'] } },
     })
     const failedGenerations = await prisma.generation.count({
       where: { status: 'failed' },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getUserMetrics, getSystemMetrics } from '@/lib/metrics'
+import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,7 +19,13 @@ export async function GET(request: NextRequest) {
       metrics = await getSystemMetrics()
     } else {
       // User metrics
-      metrics = await getUserMetrics(userId)
+      const user = await getOrCreateCurrentUserRecord()
+
+      if (!user || user.clerkId !== userId) {
+        return NextResponse.json({ error: 'User not found in database' }, { status: 404 })
+      }
+
+      metrics = await getUserMetrics(user.id)
     }
 
     if (!metrics) {

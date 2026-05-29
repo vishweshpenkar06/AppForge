@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
+import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { generateApplication } from '@/lib/pipeline'
 
 export async function POST(request: NextRequest) {
@@ -27,12 +28,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create a database record for tracking
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    })
+    // Create or sync the database user on demand so webhooks are not a hard dependency.
+    const user = await getOrCreateCurrentUserRecord()
 
-    if (!user) {
+    if (!user || user.clerkId !== userId) {
       return NextResponse.json(
         { error: 'User not found in database' },
         { status: 404 }

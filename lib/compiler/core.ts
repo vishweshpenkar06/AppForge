@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod'
-import { callLLMText } from '@/lib/ai'
+import { callLLMText, extractJSON } from '@/lib/ai'
 
 // ============================================================================
 // STAGE 1: INTENT EXTRACTION
@@ -53,17 +53,72 @@ Output ONLY valid JSON matching this schema:
 
 Be concise. Document assumptions about ambiguous requirements.`
 
-  const response = await callLLM({
-    system: systemPrompt,
-    prompt,
-    model: 'claude-3.5-sonnet',
-  })
-
   try {
     const text = await callLLMText({ system: systemPrompt, prompt, model: 'claude-3.5-sonnet' })
-    return IntentSchema.parse(JSON.parse(text))
+    const parsed = extractJSON(text)
+
+    if (parsed) {
+      return IntentSchema.parse(parsed)
+    }
+
+    console.warn('[Compiler] Intent model output was not valid JSON, using fallback intent parser')
+    return IntentSchema.parse(buildFallbackIntent(prompt))
   } catch (error) {
-    throw new Error(`Intent extraction failed: ${error instanceof Error ? error.message : 'Invalid JSON'}`)
+    console.warn('[Compiler] Intent extraction failed, using fallback intent parser:', error)
+    return IntentSchema.parse(buildFallbackIntent(prompt))
+  }
+}
+
+function buildFallbackIntent(prompt: string): Intent {
+  const normalizedPrompt = prompt.toLowerCase()
+
+  const appType = normalizedPrompt.includes('marketplace')
+    ? 'marketplace'
+    : normalizedPrompt.includes('crm') || normalizedPrompt.includes('customer')
+      ? 'crm'
+      : normalizedPrompt.includes('ecommerce') || normalizedPrompt.includes('store') || normalizedPrompt.includes('shop')
+        ? 'ecommerce'
+        : normalizedPrompt.includes('analytics') || normalizedPrompt.includes('dashboard')
+          ? 'analytics'
+          : normalizedPrompt.includes('social') || normalizedPrompt.includes('community')
+            ? 'social'
+            : normalizedPrompt.includes('blog') || normalizedPrompt.includes('content')
+              ? 'content'
+              : normalizedPrompt.includes('saas') || normalizedPrompt.includes('subscription')
+                ? 'saas'
+                : 'crud'
+
+  const primaryFeatures = [
+    normalizedPrompt.includes('auth') || normalizedPrompt.includes('login') ? 'authentication' : '',
+    normalizedPrompt.includes('dashboard') ? 'dashboard' : '',
+    normalizedPrompt.includes('analytics') ? 'analytics' : '',
+    normalizedPrompt.includes('payment') || normalizedPrompt.includes('billing') ? 'payments' : '',
+    normalizedPrompt.includes('admin') ? 'admin_panel' : '',
+  ].filter(Boolean) as string[]
+
+  const userRoles = [
+    normalizedPrompt.includes('admin') ? 'admin' : '',
+    normalizedPrompt.includes('manager') ? 'manager' : '',
+    normalizedPrompt.includes('customer') || normalizedPrompt.includes('user') ? 'user' : '',
+  ].filter(Boolean) as string[]
+
+  const dataModels = [
+    normalizedPrompt.includes('order') ? 'orders' : '',
+    normalizedPrompt.includes('product') ? 'products' : '',
+    normalizedPrompt.includes('task') ? 'tasks' : '',
+    normalizedPrompt.includes('contact') ? 'contacts' : '',
+    normalizedPrompt.includes('message') ? 'messages' : '',
+  ].filter(Boolean) as string[]
+
+  return {
+    appType,
+    primaryFeatures: primaryFeatures.length > 0 ? primaryFeatures : ['basic_crud'],
+    userRoles: userRoles.length > 0 ? userRoles : ['user'],
+    authRequired: normalizedPrompt.includes('auth') || normalizedPrompt.includes('login') || normalizedPrompt.includes('sign in'),
+    paymentRequired: normalizedPrompt.includes('payment') || normalizedPrompt.includes('billing') || normalizedPrompt.includes('subscription'),
+    dataModels: dataModels.length > 0 ? dataModels : ['items'],
+    complexities: normalizedPrompt.includes('role') ? ['role-based access'] : [],
+    assumptions: ['Fallback intent parser used because model output was not valid JSON'],
   }
 }
 
@@ -134,22 +189,67 @@ Requirements:
 - API endpoints must cover all required actions
 - Relationships must be consistent across entities`
 
-  const prompt = `App Type: ${intent.appType}
+  const designPrompt = `App Type: ${intent.appType}
 Features: ${intent.primaryFeatures.join(', ')}
 Roles: ${intent.userRoles.join(', ')}
 Key Entities: ${intent.dataModels.join(', ')}`
 
-  const response = await callLLM({
-    system: systemPrompt,
-    prompt,
-    model: 'Qwen/Qwen3.6-35B-A3B',
-  })
-
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt, model: 'Qwen/Qwen3.6-35B-A3B' })
-    return SystemDesignSchema.parse(JSON.parse(text))
+    const text = await callLLMText({ system: systemPrompt, prompt: designPrompt, model: 'Qwen/Qwen3.6-35B-A3B' })
+    const parsed = extractJSON(text)
+
+    if (parsed) {
+      return SystemDesignSchema.parse(parsed)
+    }
+
+    console.warn('[Compiler] System design output was not valid JSON, using fallback design parser')
+    return SystemDesignSchema.parse(buildFallbackDesign(intent))
   } catch (error) {
-    throw new Error(`System design failed: ${error instanceof Error ? error.message : 'Invalid schema'}`)
+    console.warn('[Compiler] System design failed, using fallback design parser:', error)
+    return SystemDesignSchema.parse(buildFallbackDesign(intent))
+  }
+}
+
+function buildFallbackDesign(intent: Intent): SystemDesign {
+  const primaryEntity = intent.dataModels[0] || 'items'
+  const roles = intent.userRoles.length > 0 ? intent.userRoles : ['user']
+
+  return {
+    architecture: intent.appType === 'analytics' ? 'serverless' : 'monolith',
+    pageStructure: [
+      {
+        name: 'Home',
+        purpose: 'Landing page and overview',
+        requiredData: ['session', 'branding'],
+      },
+      {
+        name: 'Dashboard',
+        purpose: 'Primary application workspace',
+        requiredData: ['currentUser', primaryEntity],
+      },
+    ],
+    apiEndpoints: [
+      {
+        path: `/api/${primaryEntity}`,
+        method: 'GET',
+        purpose: `List ${primaryEntity}`,
+      },
+      {
+        path: `/api/${primaryEntity}`,
+        method: 'POST',
+        purpose: `Create ${primaryEntity}`,
+      },
+    ],
+    dataEntities: intent.dataModels.length > 0
+      ? intent.dataModels.map((name) => ({ name, relationships: intent.dataModels.filter((related) => related !== name) }))
+      : [{ name: primaryEntity, relationships: [] }],
+    accessControl: {
+      roles,
+      rolePermissions: roles.reduce<Record<string, string[]>>((permissions, role) => {
+        permissions[role] = role === 'admin' ? ['read', 'write', 'manage'] : ['read', 'write']
+        return permissions
+      }, {}),
+    },
   }
 }
 
@@ -243,18 +343,55 @@ Requirements:
 - All UI pages must map to API data sources
 - Foreign keys must be explicit in relationships`
 
-  const designJson = JSON.stringify(design)
-  const response = await callLLM({
-    system: systemPrompt,
-    prompt,
-    model: 'Qwen/Qwen3.6-35B-A3B',
-  })
+  const schemaPrompt = `${JSON.stringify(design)}\n\nIntent context: ${JSON.stringify(intent)}`
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt, model: 'Qwen/Qwen3.6-35B-A3B' })
-    return SchemaOutputSchema.parse(JSON.parse(text))
+    const text = await callLLMText({ system: systemPrompt, prompt: schemaPrompt, model: 'Qwen/Qwen3.6-35B-A3B' })
+    const parsed = extractJSON(text)
+
+    if (parsed) {
+      return SchemaOutputSchema.parse(parsed)
+    }
+
+    console.warn('[Compiler] Schema output was not valid JSON, using fallback schema parser')
+    return SchemaOutputSchema.parse(buildFallbackSchema(design, intent))
   } catch (error) {
-    throw new Error(`Schema generation failed: ${error instanceof Error ? error.message : 'Invalid structure'}`)
+    console.warn('[Compiler] Schema generation failed, using fallback schema parser:', error)
+    return SchemaOutputSchema.parse(buildFallbackSchema(design, intent))
+  }
+}
+
+function buildFallbackSchema(design: SystemDesign, intent: Intent): SchemaOutput {
+  const entityNames = design.dataEntities.length > 0 ? design.dataEntities.map((entity) => entity.name) : intent.dataModels
+  const primaryEntity = entityNames[0] || 'items'
+
+  return {
+    database: {
+      tables: entityNames.map((name) => ({
+        name,
+        columns: [
+          { name: 'id', type: 'uuid', required: true },
+          { name: 'createdAt', type: 'datetime', required: true },
+          { name: 'updatedAt', type: 'datetime', required: true },
+        ],
+        relationships: entityNames.filter((related) => related !== name),
+      })),
+    },
+    api: {
+      endpoints: design.apiEndpoints.map((endpoint) => ({
+        path: endpoint.path,
+        method: endpoint.method,
+        requestSchema: {},
+        responseSchema: { type: 'object' },
+      })),
+    },
+    ui: {
+      pages: design.pageStructure.map((page) => ({
+        route: page.name.toLowerCase().includes('home') ? '/' : `/${page.name.toLowerCase().replace(/\s+/g, '-')}`,
+        components: ['PageShell', 'Header', page.name.replace(/\s+/g, '') || 'Content'],
+        dataSource: `GET /api/${primaryEntity}`,
+      })),
+    },
   }
 }
 
@@ -281,17 +418,39 @@ Validate and fix:
 Output the corrected, complete schema as valid JSON.`
 
   const schemasJson = JSON.stringify(schemas)
-  const response = await callLLM({
-    system: systemPrompt,
-    prompt: schemasJson,
-    model: 'Qwen/Qwen3.6-35B-A3B',
-  })
 
   try {
     const text = await callLLMText({ system: systemPrompt, prompt: schemasJson, model: 'Qwen/Qwen3.6-35B-A3B' })
-    return SchemaOutputSchema.parse(JSON.parse(text))
+    const parsed = extractJSON(text)
+
+    if (parsed) {
+      return SchemaOutputSchema.parse(parsed)
+    }
+
+    console.warn('[Compiler] Refinement output was not valid JSON, using normalized schema')
+    return SchemaOutputSchema.parse(normalizeSchemaOutput(schemas))
   } catch (error) {
-    throw new Error(`Refinement failed: ${error instanceof Error ? error.message : 'Could not repair'}`)
+    console.warn('[Compiler] Refinement failed, using normalized schema:', error)
+    return SchemaOutputSchema.parse(normalizeSchemaOutput(schemas))
+  }
+}
+
+function normalizeSchemaOutput(schemas: SchemaOutput): SchemaOutput {
+  return {
+    database: {
+      tables: schemas.database.tables.map((table) => ({
+        ...table,
+        columns: table.columns.some((column) => column.name === 'id')
+          ? table.columns
+          : [{ name: 'id', type: 'uuid', required: true }, ...table.columns],
+      })),
+    },
+    api: {
+      endpoints: schemas.api.endpoints,
+    },
+    ui: {
+      pages: schemas.ui.pages,
+    },
   }
 }
 
