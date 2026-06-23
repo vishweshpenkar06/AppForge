@@ -147,6 +147,39 @@ export function analyzePromptClarity(prompt: string): PromptAnalysis {
     confidence -= 0.1
   }
 
+  // ── Conflict Detection ──────────────────────────────────────────────
+  const lower = prompt.toLowerCase()
+
+  // Simple vs Advanced conflict
+  const hasSimple = /\b(simple|minimal|basic|easy|lightweight)\b/.test(lower)
+  const hasAdvanced = /\b(advanced|complex|sophisticated|intelligent|AI|ML|machine learning|blockchain|IoT|real-time)\b/.test(lower)
+  if (hasSimple && hasAdvanced) {
+    issues.push('Conflicting requirements: "simple/minimal" vs "advanced/complex" features')
+    confidence -= 0.25
+  }
+
+  // Offline vs Real-time conflict
+  const hasOffline = /\b(offline|no internet|without connection)\b/.test(lower)
+  const hasRealtime = /\b(real-time|realtime|live|websocket|streaming)\b/.test(lower)
+  if (hasOffline && hasRealtime) {
+    issues.push('Conflicting requirements: "offline" vs "real-time" capabilities')
+    confidence -= 0.2
+  }
+
+  // Scalability conflict
+  const hasScale = /\b(1M|million|millions|massive|scale|high traffic)\b/.test(lower)
+  const hasSimpleInfra = /\b(single|one) (database|server|instance|db)\b/.test(lower)
+  if (hasScale && hasSimpleInfra) {
+    issues.push('Conflicting requirements: high scalability with single database instance')
+    confidence -= 0.15
+  }
+
+  // Missing essential info
+  if (prompt.length < 50 && !/(build|create|make|develop)/i.test(prompt)) {
+    issues.push('Prompt may not be a build request')
+    confidence -= 0.1
+  }
+
   const needsClarification = confidence < 0.6
   const clarificationQuestions = needsClarification
     ? [

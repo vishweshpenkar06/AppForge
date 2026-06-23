@@ -176,10 +176,15 @@ export interface TestResult {
   latency: number
   errors: string[]
   warnings: string[]
+  repairs: string[]
   validationScore: number
   executionScore: boolean
   retries: number
   costEstimate: number
+  dbTableCount: number
+  apiEndpointCount: number
+  uiPageCount: number
+  category?: string
 }
 
 export interface EvaluationReport {
@@ -192,6 +197,9 @@ export interface EvaluationReport {
   executionRate: number
   averageRetries: number
   totalCost: number
+  avgDbTables: number
+  avgApiEndpoints: number
+  avgUiPages: number
   results: TestResult[]
 }
 
@@ -238,10 +246,15 @@ async function runSingleTest(test: any): Promise<TestResult> {
         latency,
         errors: validation.errors,
         warnings: validation.warnings,
+        repairs: validation.repairs,
         validationScore: validation.score,
         executionScore: execution.executable,
         retries,
         costEstimate: estimateCost(latency),
+        dbTableCount: refined.database.tables.length,
+        apiEndpointCount: refined.api.endpoints.length,
+        uiPageCount: refined.ui.pages.length,
+        category: test.category,
       }
     } catch (error) {
       lastError = error instanceof Error ? error.message : 'Unknown error'
@@ -261,10 +274,15 @@ async function runSingleTest(test: any): Promise<TestResult> {
     latency: Date.now() - startTime,
     errors: [lastError || 'Failed after retries'],
     warnings: [],
+    repairs: [],
     validationScore: 0,
     executionScore: false,
     retries,
     costEstimate: estimateCost(Date.now() - startTime),
+    dbTableCount: 0,
+    apiEndpointCount: 0,
+    uiPageCount: 0,
+    category: test.category,
   }
 }
 
@@ -277,6 +295,7 @@ function estimateCost(latencyMs: number): number {
 function generateReport(results: TestResult[]): EvaluationReport {
   const passed = results.filter((r) => r.success).length
   const failed = results.length - passed
+  const successfulResults = results.filter((r) => r.success)
 
   return {
     totalTests: results.length,
@@ -288,6 +307,15 @@ function generateReport(results: TestResult[]): EvaluationReport {
     executionRate: (results.filter((r) => r.executionScore).length / results.length) * 100,
     averageRetries: results.reduce((sum, r) => sum + r.retries, 0) / results.length,
     totalCost: results.reduce((sum, r) => sum + r.costEstimate, 0),
+    avgDbTables: successfulResults.length > 0
+      ? successfulResults.reduce((sum, r) => sum + r.dbTableCount, 0) / successfulResults.length
+      : 0,
+    avgApiEndpoints: successfulResults.length > 0
+      ? successfulResults.reduce((sum, r) => sum + r.apiEndpointCount, 0) / successfulResults.length
+      : 0,
+    avgUiPages: successfulResults.length > 0
+      ? successfulResults.reduce((sum, r) => sum + r.uiPageCount, 0) / successfulResults.length
+      : 0,
     results,
   }
 }
@@ -308,6 +336,10 @@ export function formatReport(report: EvaluationReport): string {
 │ Execution Ready:   ${report.executionRate.toFixed(1)}%
 │ Avg Retries:       ${report.averageRetries.toFixed(2)}
 │ Total Cost:        $${report.totalCost.toFixed(4)}
+│
+│ Avg DB Tables:     ${report.avgDbTables.toFixed(1)}
+│ Avg API Endpoints: ${report.avgApiEndpoints.toFixed(1)}
+│ Avg UI Pages:      ${report.avgUiPages.toFixed(1)}
 └──────────────────────────────────────────────┘
 
 FAILURES:

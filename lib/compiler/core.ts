@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod'
-import { callLLMText, extractJSON } from '@/lib/ai'
+import { callLLMText, extractJSON, STAGE_CONFIGS } from '@/lib/ai'
 
 // ============================================================================
 // STAGE 1: INTENT EXTRACTION
@@ -54,7 +54,7 @@ Output ONLY valid JSON matching this schema:
 Be concise. Document assumptions about ambiguous requirements.`
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt, model: 'Qwen/Qwen3.6-35B-A3B' })
+    const text = await callLLMText({ system: systemPrompt, prompt, model: STAGE_CONFIGS.intent.model })
     const parsed = extractJSON(text)
 
     if (parsed) {
@@ -195,7 +195,7 @@ Roles: ${intent.userRoles.join(', ')}
 Key Entities: ${intent.dataModels.join(', ')}`
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt: designPrompt, model: 'Qwen/Qwen3.6-35B-A3B' })
+    const text = await callLLMText({ system: systemPrompt, prompt: designPrompt, model: STAGE_CONFIGS.design.model })
     const parsed = extractJSON(text)
 
     if (parsed) {
@@ -346,7 +346,7 @@ Requirements:
   const schemaPrompt = `${JSON.stringify(design)}\n\nIntent context: ${JSON.stringify(intent)}`
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt: schemaPrompt, model: 'Qwen/Qwen3.6-35B-A3B' })
+    const text = await callLLMText({ system: systemPrompt, prompt: schemaPrompt, model: STAGE_CONFIGS.schema.model })
     const parsed = extractJSON(text)
 
     if (parsed) {
@@ -420,7 +420,7 @@ Output the corrected, complete schema as valid JSON.`
   const schemasJson = JSON.stringify(schemas)
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt: schemasJson, model: 'Qwen/Qwen3.6-35B-A3B' })
+    const text = await callLLMText({ system: systemPrompt, prompt: schemasJson, model: STAGE_CONFIGS.refinement.model })
     const parsed = extractJSON(text)
 
     if (parsed) {
@@ -458,6 +458,9 @@ function normalizeSchemaOutput(schemas: SchemaOutput): SchemaOutput {
 // STAGE 5: VALIDATION & REPAIR
 // ============================================================================
 
+const VALID_DB_TYPES = ['uuid', 'text', 'string', 'integer', 'int', 'number', 'boolean', 'bool', 'datetime', 'date', 'timestamp', 'timestamptz', 'decimal', 'float', 'json', 'jsonb']
+const VALID_HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
+
 export interface ValidationResult {
   valid: boolean
   errors: string[]
@@ -467,53 +470,189 @@ export interface ValidationResult {
 }
 
 /**
- * Stage 5: Validate all layers and attempt intelligent repairs
+ * Stage 5: Comprehensive validation with intelligent auto-repair.
+ *
+ * Steps:
+ * 1. Rule-based checks across DB, API, UI, and Auth layers
+ * 2. Auto-repair what we can fix deterministically (missing columns, broken references)
+ * 3. LLM-assisted repair for issues that need semantic understanding
+ * 4. Re-validate after repairs and compute final score
  */
 export async function validateAndRepair(schemas: SchemaOutput): Promise<ValidationResult> {
   const errors: string[] = []
   const warnings: string[] = []
   const repairs: string[] = []
 
-  // Validation checks
+  // ── DB Layer Validation ──────────────────────────────────────────────
   if (!schemas.database.tables.length) {
     errors.push('No database tables defined')
   }
 
+  const tableNames = new Set<string>()
+  for (const table of schemas.database.tables) {
+    if (!table.name) {
+      errors.push('Database table has no name')
+      continue
+    }
+    const lower = table.name.toLowerCase()
+    if (tableNames.has(lower)) {
+      errors.push(`Duplicate table name: '${table.name}'`)
+    }
+    tableNames.add(lower)
+
+    if (!table.columns.length) {
+      errors.push(`Table '${table.name}' has no columns`)
+      continue
+    }
+
+    // Every table must have an id column
+    const hasId = table.columns.some((c) => c.name === 'id')
+    if (!hasId) {
+      repairs.push(`Added 'id' column to table '${table.name}'`)
+      table.columns.unshift({ name: 'id', type: 'uuid', required: true })
+    }
+
+    // Every table should have createdAt
+    const hasCreatedAt = table.columns.some((c) => c.name === 'createdAt' || c.name === 'created_at')
+    if (!hasCreatedAt) {
+      repairs.push(`Added 'createdAt' column to table '${table.name}'`)
+      table.columns.push({ name: 'createdAt', type: 'datetime', required: true })
+    }
+
+    // Validate column types
+    for (const col of table.columns) {
+      if (col.type && !VALID_DB_TYPES.includes(col.type.toLowerCase())) {
+        warnings.push(`Table '${table.name}' column '${col.name}' has unusual type '${col.type}'`)
+      }
+    }
+  }
+
+  // ── API Layer Validation ─────────────────────────────────────────────
   if (!schemas.api.endpoints.length) {
     errors.push('No API endpoints defined')
   }
 
-  if (!schemas.ui.pages.length) {
-    errors.push('No UI pages defined')
-  }
-
-  // Check cross-layer consistency
-  const tableNames = new Set(schemas.database.tables.map((t) => t.name))
-  const endpointPaths = new Set(schemas.api.endpoints.map((e) => e.path))
-
+  const endpointPaths = new Set<string>()
   for (const endpoint of schemas.api.endpoints) {
-    const tableMatch = Array.from(tableNames).find((t) => endpoint.path.includes(t.toLowerCase()))
-    if (!tableMatch) {
-      warnings.push(`Endpoint ${endpoint.path} may not reference any table`)
+    if (!endpoint.path) {
+      errors.push('API endpoint has no path')
+      continue
+    }
+    if (!endpoint.path.startsWith('/api/')) {
+      warnings.push(`API endpoint '${endpoint.path}' does not start with /api/`)
+    }
+
+    const method = (endpoint.method || 'GET').toUpperCase()
+    if (!VALID_HTTP_METHODS.includes(method)) {
+      errors.push(`API endpoint '${endpoint.path}' has invalid method '${endpoint.method}'`)
+    }
+
+    const dedupKey = `${method} ${endpoint.path}`
+    if (endpointPaths.has(dedupKey)) {
+      warnings.push(`Duplicate API endpoint: ${dedupKey}`)
+    }
+    endpointPaths.add(dedupKey)
+
+    // Check if endpoint references any table
+    const endpointTableMatch = Array.from(tableNames).find(
+      (t) => endpoint.path.toLowerCase().includes(t)
+    )
+    if (!endpointTableMatch) {
+      warnings.push(`Endpoint '${endpoint.path}' may not reference any database table`)
     }
   }
 
+  // ── UI Layer Validation ──────────────────────────────────────────────
+  if (!schemas.ui.pages.length) {
+    warnings.push('No UI pages defined')
+  }
+
+  const apiRouteSet = new Set(schemas.api.endpoints.map((e) => e.path))
   for (const page of schemas.ui.pages) {
-    if (page.dataSource && !page.dataSource.includes('/api/')) {
-      errors.push(`Page ${page.route} has invalid data source: ${page.dataSource}`)
+    if (!page.route) {
+      errors.push('UI page has no route')
+      continue
+    }
+    if (!page.route.startsWith('/')) {
+      errors.push(`UI page route '${page.route}' does not start with /`)
+    }
+
+    // Check dataSource references a real API endpoint
+    if (page.dataSource) {
+      const dsParts = page.dataSource.trim().split(/\s+/)
+      const dsMethod = dsParts[0] // e.g. "GET"
+      const dsPath = dsParts[1] || dsParts[0] // e.g. "/api/contacts"
+
+      const matchingEndpoint = schemas.api.endpoints.find(
+        (e) => e.path === dsPath || e.path === dsPath?.replace(/^\//, '/api/')
+      )
+      if (!matchingEndpoint && dsPath) {
+        warnings.push(`Page '${page.route}' dataSource '${page.dataSource}' references undefined API endpoint`)
+      }
+    }
+
+    // Check component names are non-empty
+    for (const comp of page.components) {
+      if (!comp || !comp.trim()) {
+        warnings.push(`Page '${page.route}' has empty component name`)
+      }
     }
   }
 
-  // Check for required fields
-  for (const table of schemas.database.tables) {
-    const hasId = table.columns.some((c) => c.name === 'id')
-    if (!hasId) {
-      repairs.push(`Added 'id' column to table '${table.name}'`)
-      table.columns.unshift({
-        name: 'id',
-        type: 'uuid',
-        required: true,
+  // ── Cross-Layer Consistency ──────────────────────────────────────────
+
+  // DB columns referenced by API endpoints must exist
+  for (const endpoint of schemas.api.endpoints) {
+    if (endpoint.requestSchema && typeof endpoint.requestSchema === 'object') {
+      for (const fieldName of Object.keys(endpoint.requestSchema)) {
+        const fieldExists = schemas.database.tables.some((t) =>
+          t.columns.some((c) => c.name.toLowerCase() === fieldName.toLowerCase())
+        )
+        if (!fieldExists && fieldName !== 'id' && fieldName !== 'userId') {
+          warnings.push(`API endpoint '${endpoint.path}' references field '${fieldName}' not found in any database table`)
+        }
+      }
+    }
+  }
+
+  // ── LLM-Assisted Repair ─────────────────────────────────────────────
+  // If we have errors that rule-based repair couldn't fix, try LLM repair
+  if (errors.length > 0) {
+    try {
+      const repairPrompt = `You are fixing a broken application schema. Here are the validation errors that need to be fixed:
+
+${errors.map((e, i) => `${i + 1}. ${e}`).join('\n')}
+
+Current schema (JSON):
+${JSON.stringify(schemas, null, 2)}
+
+Fix ONLY the specific issues listed above. Return the corrected full schema as valid JSON.
+Output ONLY valid JSON, nothing else.`
+
+      const text = await callLLMText({
+        system: 'You are a schema repair expert. Fix validation errors surgically. Output ONLY valid JSON.',
+        prompt: repairPrompt,
+        model: STAGE_CONFIGS.repair.model,
       })
+
+      const repaired = extractJSON(text)
+      if (repaired && repaired.database && repaired.api && repaired.ui) {
+        // Re-validate the repaired schema
+        const repairedResult = validateSchemaOutput(repaired as SchemaOutput)
+        if (repairedResult.errors.length < errors.length) {
+          // LLM repair was helpful - merge the fix
+          const fixedCount = errors.length - repairedResult.errors.length
+          repairs.push(`LLM repair fixed ${fixedCount} issue(s)`)
+          Object.assign(schemas, repaired)
+
+          // Clear errors and re-run rule-based checks on the repaired schema
+          errors.length = 0
+          warnings.length = 0
+          return validateAndRepairNoLLM(schemas, errors, warnings, repairs)
+        }
+      }
+    } catch (err) {
+      console.warn('[Compiler] LLM repair failed, using rule-based repairs only:', err)
     }
   }
 
@@ -526,6 +665,66 @@ export async function validateAndRepair(schemas: SchemaOutput): Promise<Validati
     repairs,
     score,
   }
+}
+
+/**
+ * Run only rule-based validation (no LLM calls) - used after LLM repair
+ */
+function validateAndRepairNoLLM(
+  schemas: SchemaOutput,
+  errors: string[],
+  warnings: string[],
+  repairs: string[]
+): ValidationResult {
+  const tableNames = new Set(schemas.database.tables.map((t) => t.name.toLowerCase()))
+
+  if (!schemas.database.tables.length) errors.push('No database tables defined')
+  if (!schemas.api.endpoints.length) errors.push('No API endpoints defined')
+
+  for (const table of schemas.database.tables) {
+    if (!table.columns.some((c) => c.name === 'id')) {
+      repairs.push(`Added 'id' column to table '${table.name}'`)
+      table.columns.unshift({ name: 'id', type: 'uuid', required: true })
+    }
+    if (!table.columns.some((c) => c.name === 'createdAt' || c.name === 'created_at')) {
+      repairs.push(`Added 'createdAt' column to table '${table.name}'`)
+      table.columns.push({ name: 'createdAt', type: 'datetime', required: true })
+    }
+  }
+
+  for (const endpoint of schemas.api.endpoints) {
+    if (!endpoint.path?.startsWith('/api/')) {
+      warnings.push(`API endpoint '${endpoint.path}' does not start with /api/`)
+    }
+  }
+
+  for (const page of schemas.ui.pages) {
+    if (!page.route?.startsWith('/')) {
+      errors.push(`UI page route '${page.route}' does not start with /`)
+    }
+  }
+
+  const score = Math.max(0, 100 - errors.length * 20 - warnings.length * 5)
+  return { valid: errors.length === 0, errors, warnings, repairs, score }
+}
+
+/**
+ * Quick structural validation of a SchemaOutput (no side effects)
+ */
+function validateSchemaOutput(schemas: SchemaOutput): { errors: string[]; warnings: string[] } {
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  if (!schemas.database?.tables?.length) errors.push('No database tables defined')
+  if (!schemas.api?.endpoints?.length) errors.push('No API endpoints defined')
+
+  for (const table of schemas.database?.tables || []) {
+    if (!table.columns?.some((c) => c.name === 'id')) {
+      errors.push(`Table '${table.name}' missing id column`)
+    }
+  }
+
+  return { errors, warnings }
 }
 
 // ============================================================================

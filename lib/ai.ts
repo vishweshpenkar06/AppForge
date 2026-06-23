@@ -1,11 +1,12 @@
 // LLM / API Configuration
-// Primary: Featherless (used for LLM). Fallbacks: allow using Clerk-provided env names
-const API_KEY = process.env.FEATHERLESS_API_KEY || process.env.CLERK_API_KEY || process.env.CLERK_SECRET_KEY
-const API_BASE_URL = process.env.FEATHERLESS_BASE_URL || process.env.CLERK_BASE_URL || process.env.CLERK_API_BASE_URL || 'https://api.featherless.ai/v1'
+// Supports: Groq, Featherless, or any OpenAI-compatible API
+const API_KEY = process.env.GROQ_API_KEY || process.env.FEATHERLESS_API_KEY || process.env.CLERK_SECRET_KEY
+const API_BASE_URL = process.env.GROQ_API_BASE_URL || process.env.FEATHERLESS_BASE_URL || 'https://api.groq.com/openai/v1'
+const DEFAULT_MODEL = process.env.LLM_MODEL || 'llama-3.3-70b-versatile'
 
 // Allow running in deterministic test mode without an external API key
 if (!API_KEY && process.env.DETERMINISTIC_LLM !== '1') {
-  throw new Error('LLM API key is required (set FEATHERLESS_API_KEY or CLERK_API_KEY).')
+  throw new Error('LLM API key is required (set GROQ_API_KEY, FEATHERLESS_API_KEY, or use DETERMINISTIC_LLM=1).')
 }
 
 // ============================================================================
@@ -14,27 +15,27 @@ if (!API_KEY && process.env.DETERMINISTIC_LLM !== '1') {
 
 export const STAGE_CONFIGS = {
   intent: {
-    model: 'Qwen/Qwen3.6-35B-A3B',
+    model: DEFAULT_MODEL,
     max_tokens: 1500,
     temperature: 0.2,
   },
   design: {
-    model: 'Qwen/Qwen3.6-35B-A3B',
+    model: DEFAULT_MODEL,
     max_tokens: 2500,
     temperature: 0.1,
   },
   schema: {
-    model: 'Qwen/Qwen3.6-35B-A3B',
+    model: DEFAULT_MODEL,
     max_tokens: 4000,
     temperature: 0,
   },
   refinement: {
-    model: 'Qwen/Qwen3.6-35B-A3B',
+    model: DEFAULT_MODEL,
     max_tokens: 4000,
     temperature: 0,
   },
   repair: {
-    model: 'Qwen/Qwen3.6-35B-A3B',
+    model: DEFAULT_MODEL,
     max_tokens: 2500,
     temperature: 0,
   },
@@ -391,7 +392,7 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
   }
 
   // Otherwise call real LLM
-  const result = await callLLM({ model, max_tokens: 2000, temperature: 0.1, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
+  const result = await callLLM({ model: model || DEFAULT_MODEL, max_tokens: 2000, temperature: 0.1, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
   return result.output
 }
 

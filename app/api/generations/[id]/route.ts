@@ -8,13 +8,44 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+
+    // Dev mode: skip auth checks
+    if (process.env.NODE_ENV !== 'production') {
+      const generation = await prisma.generation.findUnique({
+        where: { id },
+        include: {
+          appConfig: true,
+          pipelineStages: true,
+        },
+      })
+
+      if (!generation) {
+        return NextResponse.json({ error: 'Generation not found' }, { status: 404 })
+      }
+
+      const out = {
+        ...generation,
+        config: generation?.appConfig?.config ?? null,
+        metadata: {
+          stages: generation?.pipelineStages?.map((s) => ({
+            stage: s.stageName,
+            success: s.status === 'success',
+            latencyMs: s.latencyMs,
+          })) || [],
+          totalLatencyMs: generation?.totalLatencyMs ?? null,
+          totalTokens: null,
+        },
+      }
+
+      return NextResponse.json(out)
+    }
+
     const { userId } = await auth()
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const { id } = await params
 
     const user = await getOrCreateCurrentUserRecord()
 
@@ -40,7 +71,6 @@ export async function GET(
       )
     }
 
-    // Ensure user owns this generation
     if (generation.userId !== user.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -48,7 +78,6 @@ export async function GET(
       )
     }
 
-    // Expose a `config` key for the frontend that maps to the AppConfig record
     const out = {
       ...generation,
       config: generation?.appConfig?.config ?? null,

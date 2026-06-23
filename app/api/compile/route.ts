@@ -17,6 +17,7 @@ import {
 import { buildImplementationPlan, buildPlanningDocs } from '@/lib/compiler/export'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import { analyzePromptClarity } from '@/lib/validation'
 
 type NormalizedComponent = {
   name: string
@@ -91,6 +92,7 @@ interface CompileRequest {
 
 interface CompileResponse {
   success: boolean
+  status?: string
   config?: any
   docs?: {
     prd: string
@@ -113,6 +115,7 @@ interface CompileResponse {
     valid: boolean
     errors: string[]
     warnings: string[]
+    repairs?: string[]
     score: number
   }
   execution?: {
@@ -126,12 +129,24 @@ interface CompileResponse {
     outputTokens: number
     stageTimes: Record<string, number>
   }
+  assumptions?: string[]
+  confidence?: number
+  detectedIssues?: string[]
+  clarificationQuestions?: string[]
   error?: string
   jobId?: string
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<CompileResponse>> {
-  const { userId } = await auth()
+  // In development, allow unauthenticated access for testing
+  let userId: string | null = null
+  if (process.env.NODE_ENV === 'production') {
+    const authResult = await auth()
+    userId = authResult.userId
+  } else {
+    // Dev mode: use a default user ID
+    userId = 'dev-user'
+  }
 
   if (!userId) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -160,7 +175,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     const stageTimes: Record<string, number> = {}
 
     // Ensure we have a DB user record to attach this generation to
-    const user = await getOrCreateCurrentUserRecord()
+    let user
+    if (process.env.NODE_ENV === 'production') {
+      user = await getOrCreateCurrentUserRecord()
+    } else {
+      // Dev mode: find or create a dev user
+      user = await prisma.user.upsert({
+        where: { clerkId: 'dev-user' },
+        update: {},
+        create: { clerkId: 'dev-user', email: 'dev@appforge.local', displayName: 'Dev User' },
+      })
+    }
+
     if (!user) {
       return NextResponse.json({ success: false, error: 'User record not found' }, { status: 404 })
     }
@@ -174,6 +200,36 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         status: 'pending',
       },
     })
+
+    // ========================================================================
+    // PROMPT ANALYSIS GATE
+    // ========================================================================
+    const promptAnalysis = analyzePromptClarity(prompt)
+    if (promptAnalysis.needsClarification) {
+      console.log(`[${userId}] Prompt needs clarification (confidence: ${promptAnalysis.confidence})`)
+
+      await prisma.generation.update({
+        where: { id: generation.id },
+        data: {
+          status: 'failed',
+          errorMessage: 'Prompt needs clarification',
+          metadata: {
+            promptAnalysis,
+            confidence: promptAnalysis.confidence,
+            detectedIssues: promptAnalysis.detectedIssues,
+          } as any,
+        },
+      })
+
+      return NextResponse.json({
+        success: false,
+        status: 'needs_clarification',
+        confidence: promptAnalysis.confidence,
+        detectedIssues: promptAnalysis.detectedIssues,
+        clarificationQuestions: promptAnalysis.clarificationQuestions,
+        metrics: { latency: Date.now() - startTime, inputTokens: 0, outputTokens: 0, stageTimes: {} },
+      })
+    }
 
     // QUICK RULE-BASED FALLBACK: If the user asked for a Snake game (common test case),
     // produce a concrete implementation plan without calling LLMs so the project
@@ -590,10 +646,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       docs,
       implementationPlan,
       downloadUrl: `/api/generations/${generation.id}/export?format=zip`,
+      assumptions: intent.assumptions,
       validation: {
         valid: validation.valid,
         errors: validation.errors,
         warnings: validation.warnings,
+        repairs: validation.repairs,
         score: validation.score,
       },
       execution: {

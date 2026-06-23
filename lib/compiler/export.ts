@@ -69,26 +69,62 @@ function mapTypeToPrisma(type: string) {
   return 'String'
 }
 
-function generatePrismaModel(table: any) {
+function generatePrismaModel(table: any, allTables: any[]) {
   const modelName = table.name[0].toUpperCase() + table.name.slice(1)
   const lines: string[] = [`model ${modelName} {`]
   const hasId = table.columns.some((column: any) => column.name === 'id')
   const hasCreatedAt = table.columns.some((column: any) => column.name === 'createdAt')
   const hasUpdatedAt = table.columns.some((column: any) => column.name === 'updatedAt')
 
-  if (!hasId) lines.push('  id String @id @default(cuid())')
-  if (!hasCreatedAt) lines.push('  createdAt DateTime @default(now())')
-  if (!hasUpdatedAt) lines.push('  updatedAt DateTime @updatedAt')
+  if (!hasId) lines.push('  id        String   @id @default(cuid())')
 
+  // Add regular columns
   for (const column of table.columns) {
     if (column.name === 'id' || column.name === 'createdAt' || column.name === 'updatedAt') continue
     const prismaType = mapTypeToPrisma(column.type || 'string')
     const optional = column.required ? '' : '?'
-    lines.push(`  ${column.name} ${prismaType}${optional}`)
+    lines.push(`  ${column.name.padEnd(12)} ${prismaType}${optional}`)
   }
 
+  if (!hasCreatedAt) lines.push('  createdAt DateTime @default(now())')
+  if (!hasUpdatedAt) lines.push('  updatedAt DateTime @updatedAt')
+
+  // Add relation fields and reverse relations
   for (const relation of table.relationships || []) {
-    lines.push(`  ${relation}Id String?`)
+    const relatedModelName = relation[0].toUpperCase() + relation.slice(1)
+    const relatedTable = allTables.find((t: any) => t.name.toLowerCase() === relation.toLowerCase())
+
+    if (relatedTable) {
+      // Check if the related table has a FK back to this table
+      const hasBackRef = relatedTable.columns?.some(
+        (c: any) => c.name.toLowerCase() === `${table.name.toLowerCase()}id`
+      ) || relatedTable.relationships?.some(
+        (r: string) => r.toLowerCase() === table.name.toLowerCase()
+      )
+
+      if (hasBackRef) {
+        // This is the "one" side - add a reverse relation field
+        const pluralName = relatedModelName.endsWith('s')
+          ? `${relatedModelName}es`
+          : `${relatedModelName}s`
+        lines.push(`  ${pluralName.padEnd(12)} ${relatedModelName}[]`)
+      } else {
+        // This is the "many" side - add FK + relation
+        const fkCol = `${relation.toLowerCase()}Id`
+        const hasFkCol = table.columns.some((c: any) => c.name === fkCol)
+        if (!hasFkCol) {
+          lines.push(`  ${fkCol.padEnd(12)} String`)
+        }
+        lines.push(`  ${relation.toLowerCase().padEnd(12)} ${relatedModelName}  @relation(fields: [${fkCol}], references: [id])`)
+      }
+    } else {
+      // Just add a basic FK column
+      const fkCol = `${relation.toLowerCase()}Id`
+      const hasFkCol = table.columns.some((c: any) => c.name === fkCol)
+      if (!hasFkCol) {
+        lines.push(`  ${fkCol.padEnd(12)} String?`)
+      }
+    }
   }
 
   lines.push('}')
@@ -97,36 +133,199 @@ function generatePrismaModel(table: any) {
 
 function generateApiHandler(group: { route: string; endpoints: EndpointLike[] }) {
   const methods = [...new Set(group.endpoints.map((endpoint) => (endpoint.method || 'GET').toUpperCase()))]
+  const entityName = group.route.replace(/-/g, '_').split('/').filter(Boolean).pop() || 'item'
+  const modelName = entityName.charAt(0).toUpperCase() + entityName.slice(1)
+  const pluralModelName = modelName.endsWith('s') ? `${modelName}es` : `${modelName}s`
 
   const methodBlocks = methods.map((method) => {
-    const endpoint = group.endpoints.find((item) => (item.method || 'GET').toUpperCase() === method) || group.endpoints[0]
-    return `export async function ${method}(request: Request) {
-  // Route: ${group.route}
-  // Purpose: ${endpoint?.purpose || 'Generated route handler'}
-  // Request schema: ${JSON.stringify(endpoint?.requestSchema || {}, null, 2)}
-  // Response schema: ${JSON.stringify(endpoint?.responseSchema || {}, null, 2)}
-  return NextResponse.json({ ok: true, route: '${group.route}', method: '${method}' })
+    switch (method) {
+      case 'GET':
+        return `export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (id) {
+      const item = await prisma.${entityName}.findUnique({ where: { id } })
+      if (!item) {
+        return NextResponse.json({ error: '${modelName} not found' }, { status: 404 })
+      }
+      return NextResponse.json(item)
+    }
+
+    const items = await prisma.${entityName}.findMany({
+      orderBy: { createdAt: 'desc' },
+    })
+    return NextResponse.json(items)
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to fetch ${pluralModelName}' },
+      { status: 500 }
+    )
+  }
 }`
+      case 'POST':
+        return `export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+
+    const item = await prisma.${entityName}.create({
+      data: body,
+    })
+    return NextResponse.json(item, { status: 201 })
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to create ${modelName}' },
+      { status: 500 }
+    )
+  }
+}`
+      case 'PUT':
+        return `export async function PUT(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const item = await prisma.${entityName}.update({
+      where: { id },
+      data: body,
+    })
+    return NextResponse.json(item)
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to update ${modelName}' },
+      { status: 500 }
+    )
+  }
+}`
+      case 'DELETE':
+        return `export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+    }
+
+    await prisma.${entityName}.delete({ where: { id } })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to delete ${modelName}' },
+      { status: 500 }
+    )
+  }
+}`
+      default:
+        return `export async function ${method}(request: Request) {
+  return NextResponse.json({ error: 'Method ${method} not implemented' }, { status: 501 })
+}`
+    }
   })
 
   return {
     path: routeToFilePath(group.route),
-    content: `import { NextResponse } from 'next/server'\n\n${methodBlocks.join('\n\n')}`,
+    content: `import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+
+${methodBlocks.join('\n\n')}`,
   }
 }
 
 function generateUiPage(page: any) {
   const route = page.route || '/'
   const path = route === '/' ? 'app/page.tsx' : `app${route}/page.tsx`
-  const content = `export default function Page() {
+  const entityName = route.replace(/^\//, '').replace(/-/g, '_').split('/').filter(Boolean).pop() || 'item'
+  const displayName = entityName.charAt(0).toUpperCase() + entityName.slice(1)
+  const apiPath = `/api/${entityName}`
+  const componentName = `${displayName}Page`
+
+  const content = `'use client'
+
+import { useEffect, useState } from 'react'
+
+interface ${displayName} {
+  id: string
+  [key: string]: any
+}
+
+export default function ${componentName}() {
+  const [items, setItems] = useState<${displayName}[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('${apiPath}')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.json()
+      })
+      .then((data) => {
+        setItems(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err.message)
+        setLoading(false)
+      })
+  }, [])
+
+  if (loading) {
+    return (
+      <main style={{ padding: '2rem' }}>
+        <p>Loading ${displayName}s...</p>
+      </main>
+    )
+  }
+
+  if (error) {
+    return (
+      <main style={{ padding: '2rem' }}>
+        <p style={{ color: 'red' }}>Error: {error}</p>
+      </main>
+    )
+  }
+
   return (
-    <main>
-      <h1>${page.route} (stub)</h1>
-      <p>Components: ${JSON.stringify(page.components || [])}</p>
-      <p>DataSource: ${page.dataSource || 'N/A'}</p>
+    <main style={{ padding: '2rem' }}>
+      <h1>${displayName}s</h1>
+      <p>Route: ${route}</p>
+      <p>Data source: ${page.dataSource || `GET ${apiPath}`}</p>
+
+      {items.length === 0 ? (
+        <p>No ${displayName.toLowerCase()}s found.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              {Object.keys(items[0] || {}).filter(k => k !== 'id').map((key) => (
+                <th key={key} style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>
+                  {key}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id}>
+                {Object.entries(item).filter(([k]) => k !== 'id').map(([key, value]) => (
+                  <td key={key} style={{ border: '1px solid #ddd', padding: '8px' }}>
+                    {String(value ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </main>
   )
 }`
+
   return { path, content }
 }
 
@@ -148,7 +347,7 @@ function joinedOrFallback(items: string[], fallback: string) {
 
 export function buildImplementationPlan(schemas: SchemaOutput, design?: SystemDesign): ImplementationPlan {
   const summary = `Concrete implementation plan for ${design?.architecture || 'app'} with ${schemas.database.tables.length} tables, ${schemas.api.endpoints.length} endpoints, and ${schemas.ui.pages.length} pages.`
-  const prismaParts = schemas.database.tables.map((table) => generatePrismaModel(table))
+  const prismaParts = schemas.database.tables.map((table) => generatePrismaModel(table, schemas.database.tables))
   const prismaSchema = `generator client {
   provider = "prisma-client-js"
 }
