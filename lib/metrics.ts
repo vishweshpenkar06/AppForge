@@ -33,8 +33,8 @@ export function calculateQualityScore(config: any): QualityScore {
 
   // Check 1: Name Consistency
   const tables = config.database?.tables || []
-  const apiRoutes = config.api?.routes || []
-  const components = config.components || []
+  const apiEndpoints = config.api?.endpoints || config.api?.routes || []
+  const components = config.components || config.ui?.pages || []
 
   const allNames = new Set<string>()
   tables.forEach((t: any) => {
@@ -42,8 +42,8 @@ export function calculateQualityScore(config: any): QualityScore {
     t.columns?.forEach((c: any) => allNames.add(c.name.toLowerCase()))
   })
 
-  apiRoutes.forEach((r: any) => {
-    const matches = r.path.match(/\{(\w+)\}/g) || []
+  apiEndpoints.forEach((r: any) => {
+    const matches = (r.path || r.route || '').match(/\{(\w+)\}/g) || []
     matches.forEach((m: string) => {
       const paramName = m.replace(/[{}]/g, '').toLowerCase()
       if (!allNames.has(paramName)) {

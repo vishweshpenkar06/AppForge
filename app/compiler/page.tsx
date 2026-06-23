@@ -26,6 +26,7 @@ interface CompileResult {
     rbac: Record<string, string[]>
     checklist: string[]
   }
+  downloadUrl?: string
   validation?: {
     valid: boolean
     errors: string[]

@@ -17,11 +17,6 @@ import {
 import { buildImplementationPlan, buildPlanningDocs } from '@/lib/compiler/export'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
-import fs from 'fs'
-import path from 'path'
-import { promisify } from 'util'
-const writeFile = promisify(fs.writeFile)
-const mkdir = promisify(fs.mkdir)
 
 type NormalizedComponent = {
   name: string
@@ -96,7 +91,7 @@ interface CompileRequest {
 
 interface CompileResponse {
   success: boolean
-  config?: SchemaOutput
+  config?: any
   docs?: {
     prd: string
     trd: string
@@ -132,6 +127,7 @@ interface CompileResponse {
     stageTimes: Record<string, number>
   }
   error?: string
+  jobId?: string
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<CompileResponse>> {
@@ -140,6 +136,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
   if (!userId) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
+
+  let generation: { id: string } | null = null
 
   try {
     const { prompt, mode = 'balanced' } = (await request.json()) as CompileRequest
@@ -168,7 +166,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     }
 
     // Create a generation record so the frontend can poll and display results
-    const generation = await prisma.generation.create({
+    generation = await prisma.generation.create({
       data: {
         userId: user.id,
         prompt: prompt.slice(0, 2000),
@@ -379,69 +377,21 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       `,
       }
 
-      // Persist the generated artifacts so the UI can link to them
-      let downloadUrl: string | undefined
-      try {
-        const gid = `gen-snake-${Date.now()}`
-        const outDir = path.join(process.cwd(), 'public', 'generated', gid)
-        await mkdir(outDir, { recursive: true })
-        const indexHtml = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AppForge Generation ${gid}</title>
-  <style>
-    body{font-family:Inter,system-ui,sans-serif;background:#09090b;color:#f4f4f5;margin:0;padding:32px}
-    .card{max-width:980px;margin:0 auto;background:#111318;border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:24px}
-    a{color:#7dd3fc;text-decoration:none}
-    pre{white-space:pre-wrap;word-break:break-word;background:#0b0b10;padding:16px;border-radius:16px;border:1px solid rgba(255,255,255,.08)}
-    .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-    .panel{background:#0f1115;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <p><a href="/dashboard">&larr; Back to dashboard</a></p>
-    <h1>AppForge Generation</h1>
-    <p>This folder contains the generated blueprint, docs, and implementation stubs.</p>
-    <div class="grid">
-      <div class="panel"><strong>PRD</strong><br><a href="./PRD.md">PRD.md</a></div>
-      <div class="panel"><strong>TRD</strong><br><a href="./TRD.md">TRD.md</a></div>
-      <div class="panel"><strong>App Flow</strong><br><a href="./AppFlow.md">AppFlow.md</a></div>
-      <div class="panel"><strong>UI / UX Brief</strong><br><a href="./UI-UX-BRIEF.md">UI-UX-BRIEF.md</a></div>
-      <div class="panel"><strong>Backend Schema</strong><br><a href="./BACKEND-SCHEMA.md">BACKEND-SCHEMA.md</a></div>
-      <div class="panel"><strong>Implementation Plan</strong><br><a href="./IMPLEMENTATION-PLAN.md">IMPLEMENTATION-PLAN.md</a></div>
-      <div class="panel"><strong>Prisma Schema</strong><br><a href="./prisma.schema">prisma.schema</a></div>
-    </div>
-    <h2 style="margin-top:24px">Prompt</h2>
-    <pre>${prompt.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] as string))}</pre>
-    <p><a href="/api/generated/${gid}/download">Download ZIP</a></p>
-  </div>
-</body>
-</html>`
-        await writeFile(path.join(outDir, 'index.html'), indexHtml, 'utf8')
-        await writeFile(path.join(outDir, 'PRD.md'), docs.prd, 'utf8')
-        await writeFile(path.join(outDir, 'TRD.md'), docs.trd, 'utf8')
-        await writeFile(path.join(outDir, 'AppFlow.md'), docs.appFlow, 'utf8')
-        await writeFile(path.join(outDir, 'UI-UX-BRIEF.md'), docs.uiUxBrief, 'utf8')
-        await writeFile(path.join(outDir, 'BACKEND-SCHEMA.md'), docs.backendSchema, 'utf8')
-        await writeFile(path.join(outDir, 'IMPLEMENTATION-PLAN.md'), docs.implementationPlan, 'utf8')
-        await writeFile(path.join(outDir, 'prisma.schema'), prismaSchema, 'utf8')
-
-        for (const h of apiHandlers) {
-          const target = path.join(outDir, h.path)
-          await mkdir(path.dirname(target), { recursive: true })
-          await writeFile(target, h.content, 'utf8')
-        }
-        for (const p of uiPages) {
-          const target = path.join(outDir, p.path)
-          await mkdir(path.dirname(target), { recursive: true })
-          await writeFile(target, p.content, 'utf8')
-        }
-        downloadUrl = `/generated/${gid}/`
-      } catch (err) {
-        console.warn('Failed to persist snake artifacts', err)
+      // Persist the generated artifacts in the database
+      const snakeArtifacts: Record<string, string> = {
+        'PRD.md': docs.prd,
+        'TRD.md': docs.trd,
+        'AppFlow.md': docs.appFlow,
+        'UI-UX-BRIEF.md': docs.uiUxBrief,
+        'BACKEND-SCHEMA.md': docs.backendSchema,
+        'IMPLEMENTATION-PLAN.md': docs.implementationPlan,
+        'prisma.schema': prismaSchema,
+      }
+      for (const h of apiHandlers) {
+        snakeArtifacts[h.path] = h.content
+      }
+      for (const p of uiPages) {
+        snakeArtifacts[p.path] = p.content
       }
       const normalizedConfig = {
         metadata: {
@@ -471,6 +421,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
           data: {
             generationId: generation.id,
             config: normalizedConfig as any,
+            artifacts: snakeArtifacts as any,
             validationPassed: true,
           },
         })
@@ -496,7 +447,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
           rbac: {},
           checklist: ['Wire UI canvas', 'Hook up score API', 'Persist scores'],
         },
-        downloadUrl,
+        downloadUrl: `/api/generations/${generation.id}/export?format=zip`,
         validation: { valid: true, errors: [], warnings: [], score: 1 },
         execution: { executable: true, issues: [], readyForDeployment: false },
         metrics: { latency: Date.now() - startTime, inputTokens: 0, outputTokens: 0, stageTimes: {} },
@@ -592,79 +543,21 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
 
     const totalLatency = Date.now() - startTime
 
-    // Persist generated docs and stubs under public/generated/<id>/ so user can download
-    let downloadUrl: string | undefined = undefined
-    try {
-      const gid = `gen-${Date.now()}`
-      const outDir = path.join(process.cwd(), 'public', 'generated', gid)
-      await mkdir(outDir, { recursive: true })
-
-      const indexHtml = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AppForge Generation ${gid}</title>
-  <style>
-    body{font-family:Inter,system-ui,sans-serif;background:#09090b;color:#f4f4f5;margin:0;padding:32px}
-    .card{max-width:980px;margin:0 auto;background:#111318;border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:24px}
-    a{color:#7dd3fc;text-decoration:none}
-    pre{white-space:pre-wrap;word-break:break-word;background:#0b0b10;padding:16px;border-radius:16px;border:1px solid rgba(255,255,255,.08)}
-    .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-    .panel{background:#0f1115;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <p><a href="/dashboard">&larr; Back to dashboard</a></p>
-    <h1>AppForge Generation</h1>
-    <p>This folder contains the generated blueprint, docs, and implementation stubs.</p>
-    <div class="grid">
-      <div class="panel"><strong>PRD</strong><br><a href="./PRD.md">PRD.md</a></div>
-      <div class="panel"><strong>TRD</strong><br><a href="./TRD.md">TRD.md</a></div>
-      <div class="panel"><strong>App Flow</strong><br><a href="./AppFlow.md">AppFlow.md</a></div>
-      <div class="panel"><strong>UI / UX Brief</strong><br><a href="./UI-UX-BRIEF.md">UI-UX-BRIEF.md</a></div>
-      <div class="panel"><strong>Backend Schema</strong><br><a href="./BACKEND-SCHEMA.md">BACKEND-SCHEMA.md</a></div>
-      <div class="panel"><strong>Implementation Plan</strong><br><a href="./IMPLEMENTATION-PLAN.md">IMPLEMENTATION-PLAN.md</a></div>
-      <div class="panel"><strong>Prisma Schema</strong><br><a href="./prisma.schema">prisma.schema</a></div>
-    </div>
-    <h2 style="margin-top:24px">Prompt</h2>
-    <pre>${prompt.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch] as string))}</pre>
-    <p><a href="/api/generated/${gid}/download">Download ZIP</a></p>
-  </div>
-</body>
-</html>`
-      await writeFile(path.join(outDir, 'index.html'), indexHtml, 'utf8')
-
-      // write docs
-      await writeFile(path.join(outDir, 'PRD.md'), docs.prd, 'utf8')
-      await writeFile(path.join(outDir, 'TRD.md'), docs.trd, 'utf8')
-      await writeFile(path.join(outDir, 'AppFlow.md'), docs.appFlow, 'utf8')
-      await writeFile(path.join(outDir, 'UI-UX-BRIEF.md'), docs.uiUxBrief, 'utf8')
-      await writeFile(path.join(outDir, 'BACKEND-SCHEMA.md'), docs.backendSchema, 'utf8')
-      await writeFile(path.join(outDir, 'IMPLEMENTATION-PLAN.md'), docs.implementationPlan, 'utf8')
-
-      // write implementation artifacts
-      await writeFile(path.join(outDir, 'prisma.schema'), implementationPlan.prismaSchema, 'utf8')
-
-      // API handlers
-      const apiDir = path.join(outDir, 'app', 'api')
-      for (const h of implementationPlan.apiHandlers) {
-        const target = path.join(outDir, h.path)
-        await mkdir(path.dirname(target), { recursive: true })
-        await writeFile(target, h.content, 'utf8')
-      }
-
-      // UI pages
-      for (const p of implementationPlan.uiPages) {
-        const target = path.join(outDir, p.path)
-        await mkdir(path.dirname(target), { recursive: true })
-        await writeFile(target, p.content, 'utf8')
-      }
-
-      downloadUrl = `/generated/${gid}/`
-    } catch (err) {
-      console.warn('Failed to persist generated artifacts:', err)
+    // Persist generated artifacts in the database instead of filesystem
+    const artifacts: Record<string, string> = {
+      'PRD.md': docs.prd,
+      'TRD.md': docs.trd,
+      'AppFlow.md': docs.appFlow,
+      'UI-UX-BRIEF.md': docs.uiUxBrief,
+      'BACKEND-SCHEMA.md': docs.backendSchema,
+      'IMPLEMENTATION-PLAN.md': docs.implementationPlan,
+      'prisma.schema': implementationPlan.prismaSchema,
+    }
+    for (const h of implementationPlan.apiHandlers) {
+      artifacts[h.path] = h.content
+    }
+    for (const p of implementationPlan.uiPages) {
+      artifacts[p.path] = p.content
     }
 
     console.log(
@@ -677,6 +570,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         data: {
           generationId: generation.id,
           config: normalizedConfig as any,
+          artifacts: artifacts as any,
           validationPassed: validation.valid,
         },
       })
@@ -695,7 +589,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       config: normalizedConfig,
       docs,
       implementationPlan,
-      downloadUrl,
+      downloadUrl: `/api/generations/${generation.id}/export?format=zip`,
       validation: {
         valid: validation.valid,
         errors: validation.errors,
@@ -709,7 +603,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       },
       metrics: {
         latency: totalLatency,
-        inputTokens: 0, // Would need to track from LLM calls
+        inputTokens: 0,
         outputTokens: 0,
         stageTimes,
       },
@@ -720,7 +614,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     console.error(`[${userId}] Compilation error:`, errorMessage)
 
     try {
-      if (typeof generation !== 'undefined' && generation?.id) {
+      if (generation?.id) {
         await prisma.generation.update({
           where: { id: generation.id },
           data: { status: 'failed', errorMessage },

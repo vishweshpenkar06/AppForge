@@ -1,1 +1,0 @@
-1) Serve UI page 2) Add score API 3) Persist scores with Prisma

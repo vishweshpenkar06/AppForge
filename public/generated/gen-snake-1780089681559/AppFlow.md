@@ -1,1 +1,0 @@
-Player opens /snake -> plays -> score POSTed to /api/snake/score

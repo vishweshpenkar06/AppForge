@@ -226,3 +226,76 @@ export function assessRepairDifficulty(errors: ValidationError[]): {
     isAutoRepairFeasible,
   }
 }
+
+// ============================================================================
+// APP CONFIG VALIDATION
+// ============================================================================
+
+export interface AppConfigValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+  warnings: string[]
+}
+
+export function validateAppConfig(config: any): AppConfigValidationResult {
+  const errors: ValidationError[] = []
+  const warnings: string[] = []
+
+  if (!config) {
+    errors.push({ type: 'schema_error', message: 'Config is null or undefined' })
+    return { valid: false, errors, warnings }
+  }
+
+  if (!config.meta && !config.metadata) {
+    warnings.push('Config is missing metadata')
+  }
+
+  if (!config.database?.tables || config.database.tables.length === 0) {
+    errors.push({ type: 'schema_error', field: 'database.tables', message: 'No database tables defined' })
+  }
+
+  if (!config.api?.endpoints && !config.api?.routes) {
+    errors.push({ type: 'schema_error', field: 'api.endpoints', message: 'No API endpoints defined' })
+  }
+
+  if (!config.ui?.pages || config.ui.pages.length === 0) {
+    warnings.push('No UI pages defined')
+  }
+
+  const crossLayer = validateCrossLayerConsistency(config)
+  errors.push(...crossLayer.errors)
+  if (crossLayer.warnings) {
+    warnings.push(...crossLayer.warnings)
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  }
+}
+
+export function repairAppConfig(
+  config: any,
+  errors: ValidationError[]
+): { repairedConfig: any; changes: Array<{ field: string; before: any; after: any }> } {
+  const changes: Array<{ field: string; before: any; after: any }> = []
+  const repaired = JSON.parse(JSON.stringify(config))
+
+  for (const error of errors) {
+    if (error.field?.includes('foreign_key') || error.field?.includes('foreignKey')) {
+      const match = error.field.match(/tables\.(\w+)\.columns\.(\w+)/)
+      if (match) {
+        const [, tableName, colName] = match
+        const table = repaired.database?.tables?.find((t: any) => t.name === tableName)
+        const col = table?.columns?.find((c: any) => c.name === colName)
+        if (col?.foreign_key) {
+          changes.push({ field: error.field, before: col.foreign_key, after: null })
+          delete col.foreign_key
+        }
+      }
+    }
+  }
+
+  return { repairedConfig: repaired, changes }
+}

@@ -401,7 +401,7 @@ export function buildPlanningDocs(
       .join('\n'),
     '',
     '## API Contract Summary',
-    numberedList(schemas.api.endpoints.map((endpoint) => `${endpoint.method} ${endpoint.path} - ${endpoint.purpose}`)),
+    numberedList(schemas.api.endpoints.map((endpoint) => `${endpoint.method} ${endpoint.path}`)),
     '',
     '## Schema Guidance',
     '- Include stable IDs and timestamp fields where appropriate.',

@@ -1,44 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
-import archiver from 'archiver'
-import { PassThrough } from 'stream'
+import { prisma } from '@/lib/db'
 import { auth } from '@clerk/nextjs/server'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const archiver = require('archiver')
 
-export async function GET(request: NextRequest, { params }: { params: { gid: string } }) {
-  const { gid } = params
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ gid: string }> }
+) {
+  const { gid } = await params
 
-  // allow dev-only unauthenticated access for convenience
   if (process.env.NODE_ENV === 'production') {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const base = path.join(process.cwd(), 'public', 'generated')
-  const target = path.join(base, gid)
+  const generation = await prisma.generation.findUnique({
+    where: { id: gid },
+    include: { appConfig: true },
+  })
 
-  if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
+  if (!generation?.appConfig?.artifacts) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const archive = archiver('zip', { zlib: { level: 9 } })
-  const pass = new PassThrough()
+  const artifacts = generation.appConfig.artifacts as Record<string, string>
 
-  archive.on('error', (err) => {
-    console.error('Archive error', err)
-    pass.emit('error', err)
+  const chunks: Buffer[] = []
+  const archive = archiver('zip', { zlib: { level: 9 } })
+
+  await new Promise<void>((resolve, reject) => {
+    archive.on('data', (chunk: Buffer) => chunks.push(chunk))
+    archive.on('end', resolve)
+    archive.on('error', reject)
+
+    for (const [filePath, content] of Object.entries(artifacts)) {
+      archive.append(content, { name: filePath })
+    }
+    archive.finalize()
   })
 
-  // pipe archive data to the PassThrough stream which will be returned as Response body
-  archive.directory(target, false)
-  archive.finalize()
-  archive.pipe(pass)
+  const zipBuffer = Buffer.concat(chunks)
 
-  const headers = new Headers()
-  headers.set('Content-Type', 'application/zip')
-  headers.set('Content-Disposition', `attachment; filename="${gid}.zip"`)
-
-  return new Response(pass, { headers })
+  return new Response(zipBuffer, {
+    headers: {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${gid}.zip"`,
+    },
+  })
 }
 
 export const runtime = 'nodejs'

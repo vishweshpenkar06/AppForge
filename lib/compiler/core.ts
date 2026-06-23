@@ -54,7 +54,7 @@ Output ONLY valid JSON matching this schema:
 Be concise. Document assumptions about ambiguous requirements.`
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt, model: 'claude-3.5-sonnet' })
+    const text = await callLLMText({ system: systemPrompt, prompt, model: 'Qwen/Qwen3.6-35B-A3B' })
     const parsed = extractJSON(text)
 
     if (parsed) {

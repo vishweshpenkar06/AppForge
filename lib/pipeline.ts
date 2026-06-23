@@ -1,7 +1,7 @@
 import { prisma } from './db'
 import { callLLM, STAGE_CONFIGS, SYSTEM_PROMPTS, getConfigsByMode, extractJSON } from './ai'
 import { validateAppConfig, repairAppConfig } from './validation'
-import { AppConfig, appConfigSchema } from './schemas'
+import { AppConfig } from './schemas'
 import { buildImplementationPlan } from './compiler/export'
 
 export interface PipelineStageResult {
@@ -17,7 +17,8 @@ export interface PipelineStageResult {
 export interface PipelineExecutionResult {
   jobId: string
   success: boolean
-  appConfig?: AppConfig
+  appConfig?: AppConfig | null
+  implementationPlan?: any
   stages: PipelineStageResult[]
   totalLatencyMs: number
   totalTokens: number
@@ -141,27 +142,30 @@ export async function generateApplication(
     
     // Construct AppConfig from all schemas
     appConfig = {
-      metadata: {
-        name: intent.appType || 'Application',
+      meta: {
+        appName: intent.appType || 'Application',
         description: intent.description || '',
         version: '1.0.0',
-        createdAt: new Date(),
+        generatedAt: new Date().toISOString(),
+        assumptions: intent.assumptions || [],
       },
       intent,
       design,
       database: {
         tables: dbTables || [],
-        relationships: [], // Will be populated in refinement
       },
       api: {
-        routes: apiRoutes || [],
+        endpoints: apiRoutes || [],
       },
-      components,
-      deployment: {
-        platform: 'vercel',
-        environment: 'production',
+      ui: {
+        pages: components || [],
       },
-    }
+      auth: {
+        provider: 'clerk',
+        roles: design?.accessControl?.roles?.map((r: string) => ({ name: r, permissions: [] })) || [],
+        session_strategy: 'jwt',
+      },
+    } as any
 
     const refinementResult = await executeStage(
       'refinement',
@@ -219,7 +223,7 @@ export async function generateApplication(
             appConfig = {
               ...appConfig,
               [repairedData.section]: repairedData.repairedSection,
-            }
+            } as any
           }
         }
       }
@@ -256,7 +260,7 @@ export async function generateApplication(
       where: { id: jobId },
       data: {
         status: 'completed',
-        config: appConfig as any, // Prisma will serialize to JSON
+        config: appConfig as any,
         metadata: {
           stages,
           totalLatencyMs,

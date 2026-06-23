@@ -31,9 +31,11 @@ model Generation {
   
   prompt          String
   mode            String   @default("balanced") // fast | balanced | precise
-  status          String   @default("pending") // pending | running | success | failed
+  status          String   @default("pending") // pending | running | success | completed | failed
   errorMessage    String?
   
+  config          Json?
+  metadata        Json?
   assumptions     Json?
   totalLatencyMs  Int?
   retryCount      Int      @default(0)
@@ -77,6 +79,7 @@ model AppConfig {
   generation      Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
   
   config          Json     @default("{}")
+  artifacts       Json?    // generated file contents: { "path": "content", ... }
   validationPassed Boolean
   repairsApplied  Json?    // array of { field, before, after }
   schemaVersion   String   @default("1.0")
