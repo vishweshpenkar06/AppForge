@@ -15,6 +15,7 @@ import {
   type SchemaOutput,
 } from '@/lib/compiler/core'
 import { buildImplementationPlan, buildPlanningDocs } from '@/lib/compiler/export'
+import { generateSQL, generateExpressServer, generateReactApp } from '@/lib/runtime/generators'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { analyzePromptClarity } from '@/lib/validation'
@@ -128,6 +129,11 @@ interface CompileResponse {
     inputTokens: number
     outputTokens: number
     stageTimes: Record<string, number>
+  }
+  runtime?: {
+    sql: string
+    express: string
+    react: Record<string, string>
   }
   assumptions?: string[]
   confidence?: number
@@ -576,6 +582,26 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     const docs = buildPlanningDocs(prompt, intent, design, refined, implementationPlan)
 
     const interaction = buildInteractionPlan(prompt, intent, design)
+
+    const rolePermissions: Record<string, { can_access_pages: string[]; can_call_endpoints: string[]; premium_required: boolean; can_perform: string[] }> = {}
+    for (const role of intent.userRoles) {
+      const isPremium = intent.paymentRequired && role !== 'admin'
+      rolePermissions[role] = {
+        can_access_pages: design.pageStructure
+          .filter(p => p.purpose && (role === 'admin' || !p.purpose.toLowerCase().includes('admin')))
+          .map(p => p.name),
+        can_call_endpoints: design.apiEndpoints.map(e => `${e.method} ${e.path}`),
+        premium_required: isPremium,
+        can_perform: role === 'admin' ? ['create', 'read', 'update', 'delete'] : ['read', 'create'],
+      }
+    }
+
+    const premiumGates = (intent.premiumFeatures || []).map(feature => ({
+      feature,
+      required_plan: 'pro',
+      fallback_behavior: 'paywall' as const,
+    }))
+
     const normalizedConfig = {
       metadata: {
         name: intent.dataModels[0] ? `${intent.dataModels[0].replace(/\b\w/g, (match) => match.toUpperCase())} App` : 'AppForge App',
@@ -593,8 +619,42 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         })),
       },
       ui: refined.ui,
+      auth: {
+        provider: 'clerk',
+        roles: intent.userRoles.map(role => ({
+          name: role,
+          permissions: rolePermissions[role]?.can_perform || ['read'],
+          can_access_pages: rolePermissions[role]?.can_access_pages || [],
+          can_call_endpoints: rolePermissions[role]?.can_call_endpoints || [],
+          premium_required: rolePermissions[role]?.premium_required || false,
+        })),
+        session_strategy: 'jwt',
+        token_expiry: '24h',
+        refresh_token: true,
+        premium_gates: premiumGates,
+        user_flows: intent.userFlows || [],
+      },
       components: buildComponentsFromDesign(design),
       interaction,
+    }
+
+    // Generate portable runtime stubs
+    let runtimeSql = ''
+    let runtimeExpress = ''
+    let runtimeReact: Record<string, string> = {}
+    try {
+      const appConfigForRuntime = {
+        meta: normalizedConfig.metadata as any,
+        ui: normalizedConfig.ui,
+        api: { endpoints: normalizedConfig.api.endpoints.map((e: any) => ({ ...e, route: e.path || e.route })) },
+        database: normalizedConfig.database,
+        auth: normalizedConfig.auth,
+      } as any
+      runtimeSql = generateSQL(appConfigForRuntime)
+      runtimeExpress = generateExpressServer(appConfigForRuntime)
+      runtimeReact = generateReactApp(appConfigForRuntime)
+    } catch (err) {
+      console.warn('[Compile] Runtime generation failed:', err)
     }
 
     const totalLatency = Date.now() - startTime
@@ -635,6 +695,29 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         where: { id: generation.id },
         data: { status: execution.executable ? 'completed' : 'failed', completedAt: new Date(), totalLatencyMs: totalLatency },
       })
+
+      // Persist per-stage metrics
+      const stageEntries = [
+        { name: 'intent-extraction', order: 1 },
+        { name: 'system-design', order: 2 },
+        { name: 'schema-generation', order: 3 },
+        { name: 'refinement', order: 4 },
+        { name: 'validation-repair', order: 5 },
+        { name: 'export', order: 6 },
+      ]
+      if (generation) {
+        await prisma.pipelineStage.createMany({
+          data: stageEntries.map(s => ({
+            generationId: generation!.id,
+            stageName: s.name,
+            stageOrder: s.order,
+            status: 'success',
+            latencyMs: stageTimes[s.name] ?? 0,
+            inputTokens: 0,
+            outputTokens: 0,
+          })),
+        })
+      }
     } catch (err) {
       console.warn('Failed to persist generation/appConfig', err)
     }
@@ -664,6 +747,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         inputTokens: 0,
         outputTokens: 0,
         stageTimes,
+      },
+      runtime: {
+        sql: runtimeSql,
+        express: runtimeExpress,
+        react: runtimeReact,
       },
     })
   } catch (error) {

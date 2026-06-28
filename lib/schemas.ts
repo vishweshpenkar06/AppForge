@@ -132,12 +132,32 @@ export const TableSchema = z.object({
 export const AuthRoleSchema = z.object({
   name: z.string(),
   permissions: z.array(z.string()),
+  can_access_pages: z.array(z.string()).default([]),
+  can_call_endpoints: z.array(z.string()).default([]),
+  premium_required: z.boolean().default(false),
+  can_perform: z.array(z.enum(['create', 'read', 'update', 'delete'])).default([]),
+})
+
+export const PremiumGateSchema = z.object({
+  feature: z.string(),
+  required_plan: z.string(),
+  fallback_behavior: z.enum(['redirect', 'blur', 'hide', 'paywall']).default('paywall'),
+})
+
+export const UserFlowSchema = z.object({
+  role: z.string(),
+  flow_name: z.string(),
+  steps: z.array(z.string()),
 })
 
 export const AuthConfigSchema = z.object({
   provider: z.string(),
   roles: z.array(AuthRoleSchema),
   session_strategy: z.string(),
+  token_expiry: z.string().default('24h'),
+  refresh_token: z.boolean().default(true),
+  premium_gates: z.array(PremiumGateSchema).default([]),
+  user_flows: z.array(UserFlowSchema).default([]),
 })
 
 // Business Logic

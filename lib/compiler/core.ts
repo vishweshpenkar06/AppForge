@@ -29,6 +29,12 @@ const IntentSchema = z.object({
   dataModels: z.array(z.string()),
   complexities: z.array(z.string()),
   assumptions: z.array(z.string()),
+  premiumFeatures: z.array(z.string()).default([]),
+  userFlows: z.array(z.object({
+    role: z.string(),
+    flow_name: z.string(),
+    steps: z.array(z.string()),
+  })).default([]),
 })
 
 export type Intent = z.infer<typeof IntentSchema>
@@ -48,8 +54,15 @@ Output ONLY valid JSON matching this schema:
   "paymentRequired": boolean,
   "dataModels": ["core entities/models"],
   "complexities": ["list of complex aspects identified"],
-  "assumptions": ["list of assumptions made about vague requirements"]
+  "assumptions": ["list of assumptions made about vague requirements"],
+  "premiumFeatures": ["list of features gated behind payment/subscription"],
+  "userFlows": [{"role": "role name", "flow_name": "name", "steps": ["step1", "step2"]}]
 }
+
+Detection rules:
+- If the prompt mentions "premium", "paid", "subscription", "pro plan", "upgrade", or "payment" → set paymentRequired: true AND list specific premium-gated features in premiumFeatures[]
+- If the prompt mentions roles (admin, user, guest, manager, etc.) → populate userRoles[] with all detected roles
+- Always generate at least one user_flow per detected role. Example for "admin": ["Login → Dashboard → View Analytics → Export Report"]
 
 Be concise. Document assumptions about ambiguous requirements.`
 
@@ -110,15 +123,35 @@ function buildFallbackIntent(prompt: string): Intent {
     normalizedPrompt.includes('message') ? 'messages' : '',
   ].filter(Boolean) as string[]
 
+  const hasPayment = normalizedPrompt.includes('payment') || normalizedPrompt.includes('billing') || normalizedPrompt.includes('subscription') || normalizedPrompt.includes('premium')
+
+  const premiumFeatures = hasPayment
+    ? [
+        normalizedPrompt.includes('analytics') ? 'advanced_analytics' : '',
+        normalizedPrompt.includes('export') ? 'export' : '',
+        normalizedPrompt.includes('report') ? 'reports' : '',
+      ].filter(Boolean) as string[]
+    : []
+
+  const userFlows = userRoles.map(role => ({
+    role,
+    flow_name: `${role}_main_flow`,
+    steps: role === 'admin'
+      ? ['Login', 'Dashboard', 'View Analytics', 'Manage Users', 'Export Reports']
+      : ['Login', 'Dashboard', 'View Data', 'Create Record', 'Edit Profile'],
+  }))
+
   return {
     appType,
     primaryFeatures: primaryFeatures.length > 0 ? primaryFeatures : ['basic_crud'],
     userRoles: userRoles.length > 0 ? userRoles : ['user'],
     authRequired: normalizedPrompt.includes('auth') || normalizedPrompt.includes('login') || normalizedPrompt.includes('sign in'),
-    paymentRequired: normalizedPrompt.includes('payment') || normalizedPrompt.includes('billing') || normalizedPrompt.includes('subscription'),
+    paymentRequired: hasPayment,
     dataModels: dataModels.length > 0 ? dataModels : ['items'],
     complexities: normalizedPrompt.includes('role') ? ['role-based access'] : [],
     assumptions: ['Fallback intent parser used because model output was not valid JSON'],
+    premiumFeatures,
+    userFlows,
   }
 }
 
