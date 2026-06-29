@@ -8,7 +8,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    let userId: string | null = null
+
+    if (process.env.NODE_ENV !== 'production') {
+      userId = 'dev-user'
+    } else {
+      const authResult = await auth()
+      userId = authResult.userId
+    }
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -16,13 +23,18 @@ export async function GET(
 
     const { id } = await params
 
-    const user = await getOrCreateCurrentUserRecord()
-
-    if (!user || user.clerkId !== userId) {
-      return NextResponse.json(
-        { error: 'User not found in database' },
-        { status: 404 }
-      )
+    let user = null
+    if (process.env.NODE_ENV === 'production') {
+      user = await getOrCreateCurrentUserRecord()
+      if (!user || user.clerkId !== userId) {
+        return NextResponse.json({ error: 'User not found in database' }, { status: 404 })
+      }
+    } else {
+      user = await prisma.user.upsert({
+        where: { clerkId: 'dev-user' },
+        update: {},
+        create: { clerkId: 'dev-user', email: 'dev@appforge.local', displayName: 'Dev User' },
+      })
     }
 
     const generation = await prisma.generation.findUnique({
@@ -40,18 +52,12 @@ export async function GET(
     })
 
     if (!generation) {
-      return NextResponse.json(
-        { error: 'Generation not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Generation not found' }, { status: 404 })
     }
 
-    // Ensure user owns this generation
-    if (generation.userId !== user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
+    // Ensure user owns this generation (skip in dev mode)
+    if (process.env.NODE_ENV === 'production' && generation.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     return NextResponse.json({

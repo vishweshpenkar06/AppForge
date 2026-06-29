@@ -78,10 +78,8 @@ export default function Page() {
                   Build a client portal with authentication, analytics, role-based access, and a polished admin dashboard.
                 </p>
               </div>
-            </div>
 
-            <div className="absolute -bottom-6 -left-6 hidden rounded-2xl border border-white/10 bg-black/60 px-4 py-3 backdrop-blur md:block">
-              <div className="flex items-center gap-3">
+              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                 <Boxes className="h-5 w-5 text-sky-300" />
                 <div>
                   <p className="text-sm font-medium">Blueprint first</p>
