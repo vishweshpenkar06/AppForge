@@ -1,12 +1,12 @@
 // LLM / API Configuration
-// Supports: Groq, Featherless, or any OpenAI-compatible API
-const API_KEY = process.env.GROQ_API_KEY || process.env.FEATHERLESS_API_KEY || process.env.CLERK_SECRET_KEY
-const API_BASE_URL = process.env.GROQ_API_BASE_URL || process.env.FEATHERLESS_BASE_URL || 'https://api.groq.com/openai/v1'
-const DEFAULT_MODEL = process.env.LLM_MODEL || 'llama-3.3-70b-versatile'
+// Supports: Groq, Featherless, Nvidia (build.nvidia.com), or any OpenAI-compatible API
+const API_KEY = process.env.NVIDIA_API_KEY || process.env.GROQ_API_KEY || process.env.FEATHERLESS_API_KEY
+const API_BASE_URL = process.env.LLM_BASE_URL || process.env.GROQ_API_BASE_URL || process.env.FEATHERLESS_BASE_URL || 'https://integrate.api.nvidia.com/v1'
+const DEFAULT_MODEL = process.env.LLM_MODEL || 'meta/llama-3.3-70b-instruct'
 
 // Allow running in deterministic test mode without an external API key
 if (!API_KEY && process.env.DETERMINISTIC_LLM !== '1') {
-  throw new Error('LLM API key is required (set GROQ_API_KEY, FEATHERLESS_API_KEY, or use DETERMINISTIC_LLM=1).')
+  throw new Error('LLM API key is required (set NVIDIA_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY, or use DETERMINISTIC_LLM=1).')
 }
 
 // ============================================================================
@@ -191,6 +191,7 @@ export interface LLMCallOptions {
   temperature: number
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
   system?: string
+  top_p?: number
 }
 
 export async function callLLM(options: LLMCallOptions) {
@@ -213,12 +214,13 @@ export async function callLLM(options: LLMCallOptions) {
         messages,
         max_tokens: options.max_tokens,
         temperature: options.temperature,
+        top_p: options.top_p ?? 0.7,
       }),
     })
 
     if (!response.ok) {
       const error = await response.text()
-      throw new Error(`Featherless API error: ${response.status} - ${error}`)
+      throw new Error(`LLM API error (${response.status}): ${error}`)
     }
 
     const data = await response.json()
@@ -392,7 +394,7 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
   }
 
   // Otherwise call real LLM
-  const result = await callLLM({ model: model || DEFAULT_MODEL, max_tokens: 2000, temperature: 0.1, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
+  const result = await callLLM({ model: model || DEFAULT_MODEL, max_tokens: 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
   return result.output
 }
 
