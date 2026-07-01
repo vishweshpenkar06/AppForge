@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Link from 'next/link'
 
 interface CompileResult {
   success: boolean
+  jobId?: string
   config?: any
   runtime?: { sql: string; express: string; react: Record<string, string> }
   docs?: { prd: string; trd: string; appFlow: string; uiUxBrief: string; backendSchema: string; implementationPlan: string }
@@ -19,12 +21,7 @@ const STAGES = ['Intent', 'Design', 'Schemas', 'Refinement', 'Validation', 'Expo
 const TABS = ['Config', 'SQL', 'Express', 'React', 'Validation', 'Docs', 'Metrics'] as const
 type Tab = typeof TABS[number]
 
-const EXAMPLE_PROMPTS = [
-  'CRM with analytics',
-  'LMS platform',
-  'Food delivery',
-  'SaaS invoicing',
-]
+const EXAMPLES = ['CRM with analytics', 'LMS platform', 'Food delivery', 'SaaS invoicing']
 
 export default function CompilerPage() {
   const [prompt, setPrompt] = useState('')
@@ -36,10 +33,10 @@ export default function CompilerPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const stageStatus = STAGES.map((_, i) => {
-    if (currentStage < 0) return 'pending' as const
-    if (currentStage > i) return 'done' as const
-    if (currentStage === i) return 'active' as const
-    return 'pending' as const
+    if (currentStage < 0) return 'pending'
+    if (currentStage > i) return 'done'
+    if (currentStage === i) return 'active'
+    return 'pending'
   })
 
   const handleCompile = async () => {
@@ -47,318 +44,253 @@ export default function CompilerPage() {
     setLoading(true)
     setResult(null)
     setCurrentStage(0)
-
-    const stageInterval = setInterval(() => {
-      setCurrentStage(prev => {
-        if (prev >= 5) { clearInterval(stageInterval); return prev }
-        return prev + 1
-      })
-    }, 2000)
-
+    const iv = setInterval(() => setCurrentStage((p) => { if (p >= 5) { clearInterval(iv); return p } return p + 1 }), 2000)
     try {
-      const response = await fetch('/api/compile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, mode: 'balanced' }),
-      })
-      const data = await response.json()
-      setResult(data)
-    } catch (error) {
-      setResult({ success: false, error: error instanceof Error ? error.message : 'Compilation failed' })
-    } finally {
-      clearInterval(stageInterval)
-      setLoading(false)
-      setCurrentStage(-1)
-    }
+      const r = await fetch('/api/compile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, mode: 'balanced' }) })
+      setResult(await r.json())
+    } catch (e) { setResult({ success: false, error: e instanceof Error ? e.message : 'Failed' }) }
+    finally { clearInterval(iv); setLoading(false); setCurrentStage(-1) }
   }
 
   const handleCopy = () => {
     if (!result?.config) return
     navigator.clipboard.writeText(JSON.stringify(result.config, null, 2))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
-  const assumptions = result?.config?.intent?.assumptions
-    || result?.config?.intent?.assumptions_made
-    || result?.assumptions
-    || []
+  const handleExport = async (fmt: 'json' | 'yaml') => {
+    if (!result?.jobId) return
+    const r = await fetch(`/api/generations/${result.jobId}/export?format=${fmt}`)
+    if (!r.ok) return
+    const blob = await r.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `appforge-config.${fmt}`
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+  }
+
+  const handleExportZip = async () => {
+    if (!result?.jobId) return
+    const r = await fetch(`/api/generations/${result.jobId}/export?format=zip`)
+    if (!r.ok) return
+    const blob = await r.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'appforge-bundle.zip'
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+  }
+
+  const assumptions = result?.config?.intent?.assumptions || result?.config?.intent?.assumptions_made || result?.assumptions || []
 
   return (
-    <div className="flex h-screen">
+    <div style={{ display:'flex', height:'100vh', paddingTop:48 }}>
       {/* ── Left Panel ──────────────────────────────────────────── */}
-      <aside className="w-[400px] flex-shrink-0 border-r border-[var(--bg-border)] flex flex-col h-screen sticky top-14">
-
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-[var(--bg-border)]">
-          <h1 className="text-sm font-semibold text-[var(--text-primary)]">Compiler</h1>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">Describe your product</p>
+      <aside style={{ width:260, flexShrink:0, borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', background:'var(--surface-0)' }}>
+        <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)' }}>
+          <h1 style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:0 }}>Compiler</h1>
+          <p style={{ fontSize:11, color:'var(--text-muted)', margin:'2px 0 0' }}>Describe your product</p>
         </div>
 
-        {/* Textarea + controls */}
-        <div className="flex-1 flex flex-col p-6 gap-4 overflow-auto">
+        <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'16px 20px', gap:12, overflow:'auto' }}>
           <textarea
             ref={textareaRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Build a CRM with login, contacts, dashboard, role-based access..."
-            className="flex-1 w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg p-4
-                       text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]
-                       font-mono resize-none focus:outline-none focus:border-[var(--accent-primary)]
-                       transition-colors leading-relaxed min-h-[180px]"
+            placeholder="Build a CRM with login, contacts, dashboard..."
             disabled={loading}
+            style={{
+              flex:1, width:'100%', minHeight:140, background:'var(--surface-2)', border:'1px solid var(--border)',
+              borderRadius:'var(--radius)', padding:12, fontSize:13, color:'var(--text-primary)',
+              fontFamily:'var(--font-mono)', resize:'none', outline:'none', lineHeight:'1.6',
+            }}
+            onFocus={(e) => e.currentTarget.style.borderColor = 'var(--fill-accent)'}
+            onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
           />
 
-          {/* Example pills */}
           <div>
-            <p className="text-xs text-[var(--text-muted)] mb-2 font-mono uppercase tracking-wider">Try an example</p>
-            <div className="flex flex-wrap gap-2">
-              {EXAMPLE_PROMPTS.map((ex) => (
-                <button
-                  key={ex}
-                  onClick={() => { setPrompt(ex); textareaRef.current?.focus() }}
-                  className="text-xs px-3 py-1.5 rounded-md border border-[var(--bg-border)]
-                             bg-[var(--bg-elevated)] text-[var(--text-secondary)]
-                             hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)]
-                             transition-all font-mono"
-                >
+            <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 6px' }}>Try an example</p>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {EXAMPLES.map((ex) => (
+                <button key={ex} onClick={() => { setPrompt(ex); textareaRef.current?.focus() }}
+                  style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer', fontFamily:'var(--font-mono)' }}>
                   {ex}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Compile button */}
-          <button
-            onClick={handleCompile}
-            disabled={loading || !prompt.trim()}
-            className="w-full btn-primary py-3 text-sm font-semibold disabled:opacity-40"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Compiling...
-              </span>
-            ) : 'Compile →'}
+          <div>
+            <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 6px' }}>Mode</p>
+            <select style={{ width:'100%', height:36, background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'0 10px', fontSize:12, color:'var(--text-primary)', fontFamily:'var(--font-mono)', cursor:'pointer' }}>
+              <option value="balanced">Balanced — recommended</option>
+              <option value="fast">Fast — lower quality</option>
+              <option value="precise">Precise — higher quality</option>
+            </select>
+          </div>
+
+          <button onClick={handleCompile} disabled={loading || !prompt.trim()}
+            style={{ width:'100%', background:'var(--fill-accent)', color:'#fff', border:'none', borderRadius:'var(--radius)', padding:'10px 0', fontSize:13, fontWeight:600, cursor:'pointer', opacity: loading || !prompt.trim() ? 0.4 : 1 }}>
+            {loading ? 'Compiling...' : 'Compile →'}
           </button>
         </div>
 
-        {/* Stage progress */}
-        <div className="border-t border-[var(--bg-border)] p-6">
-          <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-4">Pipeline</p>
-          <div className="space-y-2">
+        {/* Assumptions */}
+        {assumptions.length > 0 && !loading && (
+          <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)' }}>
+            <div style={{ padding:12, borderRadius:'var(--radius)', border:'1px solid var(--bg-warning)', background:'var(--bg-warning)' }}>
+              <p style={{ fontSize:11, fontWeight:600, color:'var(--text-warning)', margin:'0 0 6px' }}>Assumptions</p>
+              {assumptions.map((a: string, i: number) => (
+                <p key={i} style={{ fontSize:11, color:'var(--text-secondary)', fontFamily:'var(--font-mono)', margin:'2px 0' }}>· {a}</p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pipeline */}
+        <div style={{ padding:'16px 20px', borderTop:'1px solid var(--border)' }}>
+          <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 12px' }}>Pipeline</p>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {STAGES.map((stage, i) => (
-              <div key={stage} className="flex items-center gap-3">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-mono
-                  ${stageStatus[i] === 'done' ? 'bg-[var(--success)] text-white' : ''}
-                  ${stageStatus[i] === 'active' ? 'bg-[var(--accent-primary)] text-white animate-pulse' : ''}
-                  ${stageStatus[i] === 'pending' ? 'border border-[var(--bg-border)] text-[var(--text-muted)]' : ''}
-                `}>
+              <div key={stage} style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{
+                  width:20, height:20, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontFamily:'var(--font-mono)', flexShrink:0,
+                  background: stageStatus[i] === 'done' ? 'var(--text-success)' : stageStatus[i] === 'active' ? 'var(--fill-accent)' : 'transparent',
+                  border: stageStatus[i] === 'pending' ? '1px solid var(--border)' : 'none',
+                  color: stageStatus[i] === 'done' || stageStatus[i] === 'active' ? '#fff' : 'var(--text-muted)',
+                  animation: stageStatus[i] === 'active' ? 'pulse-dot 1.5s ease-in-out infinite' : 'none',
+                }}>
                   {stageStatus[i] === 'done' ? '✓' : String(i + 1)}
                 </div>
-                <span className={`text-xs font-mono ${
-                  stageStatus[i] === 'done' ? 'text-[var(--text-secondary)]' :
-                  stageStatus[i] === 'active' ? 'text-[var(--text-primary)]' :
-                  'text-[var(--text-muted)]'
-                }`}>{stage}</span>
-                {stageStatus[i] === 'active' && (
-                  <span className="ml-auto text-xs text-[var(--accent-primary)] font-mono">running</span>
-                )}
+                <span style={{ fontSize:12, fontFamily:'var(--font-mono)', color: stageStatus[i] === 'done' ? 'var(--text-secondary)' : stageStatus[i] === 'active' ? 'var(--text-primary)' : 'var(--text-muted)' }}>{stage}</span>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Assumptions banner */}
-        {assumptions.length > 0 && !loading && (
-          <div className="border-t border-[var(--bg-border)] p-6">
-            <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
-              <div className="flex items-start gap-3">
-                <span className="text-amber-400 text-sm mt-0.5">⚠</span>
-                <div>
-                  <p className="text-xs font-semibold text-amber-400 mb-2">Assumptions made</p>
-                  <ul className="space-y-1">
-                    {assumptions.map((a: string, i: number) => (
-                      <li key={i} className="text-xs text-[var(--text-secondary)] font-mono">· {a}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </aside>
 
       {/* ── Right Panel ─────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
         {/* Tab bar */}
-        <div className="flex border-b border-[var(--bg-border)] px-6 overflow-x-auto flex-shrink-0">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-xs font-mono whitespace-nowrap transition-colors border-b-2 -mb-px
-                ${activeTab === tab
-                  ? 'border-[var(--accent-primary)] text-[var(--text-primary)]'
-                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                }`}
-            >
-              {tab}
-            </button>
-          ))}
+        <div style={{ display:'flex', borderBottom:'1px solid var(--border)', alignItems:'center', flexShrink:0 }}>
+          <div style={{ display:'flex', overflow:'auto', flex:1 }}>
+            {TABS.map((tab) => (
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                padding:'12px 16px', fontSize:12, fontFamily:'var(--font-mono)', whiteSpace:'nowrap',
+                border:'none', borderBottom:'2px solid', cursor:'pointer', background:'transparent',
+                borderBottomColor: activeTab === tab ? 'var(--fill-accent)' : 'transparent',
+                color: activeTab === tab ? 'var(--text-primary)' : 'var(--text-muted)',
+              }}>{tab}</button>
+            ))}
+          </div>
+          <div style={{ padding:'0 16px', display:'flex', gap:6, flexShrink:0 }}>
+            <button onClick={() => handleExport('json')} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer' }}>JSON</button>
+            <button onClick={() => handleExport('yaml')} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer' }}>YAML</button>
+            <button onClick={handleExportZip} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--fill-accent)', background:'var(--fill-accent-subtle)', color:'var(--text-accent)', cursor:'pointer' }}>ZIP ↓</button>
+          </div>
         </div>
 
-        {/* Tab content */}
-        <div className="flex-1 overflow-auto p-6">
+        {/* Content */}
+        <div style={{ flex:1, overflow:'auto', padding:24 }}>
           {!result && !loading && (
-            <div className="h-full flex items-center justify-center">
-              <p className="text-sm text-[var(--text-muted)]">Enter a prompt and click Compile</p>
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12, textAlign:'center' }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:'var(--fill-accent-subtle)', border:'1px solid rgba(99,102,241,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>⬡</div>
+              <p style={{ fontSize:13, color:'var(--text-secondary)', margin:0 }}>Enter a prompt and click Compile</p>
+              <p style={{ fontSize:11, color:'var(--text-muted)', margin:0 }}>Output will appear across 7 tabs</p>
             </div>
           )}
 
           {loading && !result && (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-[var(--accent-primary)]" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                <p className="text-sm text-[var(--text-secondary)]">Compiling through 6 pipeline stages...</p>
-              </div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%' }}>
+              <p style={{ fontSize:13, color:'var(--text-secondary)' }}>Compiling through 6 pipeline stages...</p>
             </div>
           )}
 
           {result && !result.success && (
-            <div className="p-6 rounded-xl border border-[var(--error)]/20 bg-[var(--error)]/5">
-              <p className="text-sm font-semibold text-[var(--error)] mb-1">Compilation Failed</p>
-              <p className="text-sm text-[var(--text-secondary)]">{result.error}</p>
+            <div style={{ padding:24, borderRadius:'var(--radius)', border:'1px solid var(--bg-danger)', background:'var(--bg-danger)' }}>
+              <p style={{ fontSize:13, fontWeight:600, color:'var(--text-danger)', margin:'0 0 4px' }}>Compilation Failed</p>
+              <p style={{ fontSize:13, color:'var(--text-secondary)', margin:0 }}>{result.error}</p>
             </div>
           )}
 
           {result?.success && activeTab === 'Config' && (
-            <div className="relative">
-              <button onClick={handleCopy}
-                className="absolute top-3 right-3 z-10 flex items-center gap-1 px-2 py-1 rounded
-                           bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)]
-                           border border-[var(--bg-border)] transition-colors font-mono">
+            <div style={{ position:'relative' }}>
+              <button onClick={handleCopy} style={{ position:'absolute', top:12, right:12, zIndex:10, fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer' }}>
                 {copied ? '✓ Copied' : 'Copy'}
               </button>
-              <pre className="bg-[var(--bg-surface)] p-6 rounded-xl text-xs overflow-auto max-h-[calc(100vh-200px)]
-                              text-[var(--text-secondary)] border border-[var(--bg-border)] font-mono leading-relaxed">
+              <pre style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', fontSize:12, overflow:'auto', maxHeight:'calc(100vh - 180px)', color:'var(--text-secondary)', border:'1px solid var(--border)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0 }}>
                 {JSON.stringify(result.config, null, 2)}
               </pre>
             </div>
           )}
 
           {result?.success && activeTab === 'SQL' && (
-            <div className="rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)] p-6">
-              <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-3">Generated SQL Schema</p>
-              <pre className="text-xs text-[var(--accent-secondary)] overflow-auto max-h-[calc(100vh-200px)] whitespace-pre-wrap font-mono leading-relaxed">
-                {result.runtime?.sql || '-- No SQL generated'}
-              </pre>
-            </div>
+            <pre style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', fontSize:12, overflow:'auto', maxHeight:'calc(100vh - 180px)', color:'var(--text-accent)', border:'1px solid var(--border)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0, whiteSpace:'pre-wrap' }}>
+              {result.runtime?.sql || '-- No SQL generated'}
+            </pre>
           )}
 
           {result?.success && activeTab === 'Express' && (
-            <div className="rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)] p-6">
-              <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-3">Generated Express Server</p>
-              <pre className="text-xs text-[var(--warning)] overflow-auto max-h-[calc(100vh-200px)] whitespace-pre-wrap font-mono leading-relaxed">
-                {result.runtime?.express || '// No Express server generated'}
-              </pre>
-            </div>
+            <pre style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', fontSize:12, overflow:'auto', maxHeight:'calc(100vh - 180px)', color:'var(--text-warning)', border:'1px solid var(--border)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0, whiteSpace:'pre-wrap' }}>
+              {result.runtime?.express || '// No Express server generated'}
+            </pre>
           )}
 
           {result?.success && activeTab === 'React' && (
-            <div className="space-y-3">
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               {result.runtime?.react && Object.keys(result.runtime.react).length > 0 ? (
                 Object.entries(result.runtime.react).map(([path, content]) => (
-                  <div key={path} className="rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)] p-6">
-                    <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">{path}</p>
-                    <pre className="text-xs text-[var(--accent-secondary)] overflow-auto max-h-48 whitespace-pre-wrap font-mono leading-relaxed">
-                      {content}
-                    </pre>
+                  <div key={path} style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', border:'1px solid var(--border)' }}>
+                    <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>{path}</p>
+                    <pre style={{ fontSize:12, color:'var(--text-accent)', overflow:'auto', maxHeight:200, fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0, whiteSpace:'pre-wrap' }}>{content}</pre>
                   </div>
                 ))
-              ) : (
-                <p className="text-sm text-[var(--text-muted)]">No React files generated.</p>
-              )}
+              ) : <p style={{ fontSize:13, color:'var(--text-muted)' }}>No React files generated.</p>}
             </div>
           )}
 
           {result?.success && activeTab === 'Validation' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)]">
-                  <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">Status</p>
-                  <p className={`text-sm font-semibold ${result.validation?.valid ? 'text-[var(--success)]' : 'text-[var(--error)]'}`}>
-                    {result.validation?.valid ? 'VALID' : 'INVALID'}
-                  </p>
+            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                <div style={{ padding:16, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
+                  <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>Status</p>
+                  <p style={{ fontSize:14, fontWeight:600, color: result.validation?.valid ? 'var(--text-success)' : 'var(--text-danger)', margin:0 }}>{result.validation?.valid ? 'VALID' : 'INVALID'}</p>
                 </div>
-                <div className="p-4 rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)]">
-                  <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">Score</p>
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{result.validation?.score}/100</p>
-                  <div className="w-full bg-[var(--bg-elevated)] rounded-full h-1.5 mt-2">
-                    <div className="bg-[var(--accent-primary)] h-1.5 rounded-full" style={{ width: `${result.validation?.score || 0}%` }} />
+                <div style={{ padding:16, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
+                  <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>Score</p>
+                  <p style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:0 }}>{result.validation?.score}/100</p>
+                  <div style={{ width:'100%', height:4, background:'var(--surface-2)', borderRadius:2, marginTop:8 }}>
+                    <div style={{ height:4, background:'var(--fill-accent)', borderRadius:2, width:`${result.validation?.score || 0}%` }} />
                   </div>
                 </div>
               </div>
               {result.validation?.repairs && result.validation.repairs.length > 0 && (
-                <div className="p-4 rounded-xl border border-[var(--success)]/20 bg-[var(--success)]/5">
-                  <p className="text-xs font-semibold text-[var(--success)] mb-2 font-mono">Repairs Made</p>
-                  {result.validation.repairs.map((r, i) => (
-                    <p key={i} className="text-xs text-[var(--text-secondary)] font-mono">✓ {r}</p>
-                  ))}
-                </div>
-              )}
-              {result.validation?.errors && result.validation.errors.length > 0 && (
-                <div className="p-4 rounded-xl border border-[var(--error)]/20 bg-[var(--error)]/5">
-                  <p className="text-xs font-semibold text-[var(--error)] mb-2 font-mono">Errors</p>
-                  {result.validation.errors.map((err, i) => (
-                    <p key={i} className="text-xs text-[var(--text-secondary)] font-mono">· {err}</p>
-                  ))}
-                </div>
-              )}
-              {result.execution && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className={`p-3 rounded-lg text-xs font-mono ${result.execution.executable ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--error)]/10 text-[var(--error)]'}`}>
-                    Executable: {result.execution.executable ? 'YES' : 'NO'}
-                  </div>
-                  <div className={`p-3 rounded-lg text-xs font-mono ${result.execution.readyForDeployment ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--warning)]/10 text-[var(--warning)]'}`}>
-                    Deploy Ready: {result.execution.readyForDeployment ? 'YES' : 'NEEDS REVIEW'}
-                  </div>
+                <div style={{ padding:16, borderRadius:'var(--radius)', border:'1px solid var(--bg-success)', background:'var(--bg-success)' }}>
+                  <p style={{ fontSize:11, fontWeight:600, color:'var(--text-success)', margin:'0 0 8px', fontFamily:'var(--font-mono)' }}>Repairs Made</p>
+                  {result.validation.repairs.map((r, i) => <p key={i} style={{ fontSize:12, color:'var(--text-secondary)', fontFamily:'var(--font-mono)', margin:'2px 0' }}>✓ {r}</p>)}
                 </div>
               )}
             </div>
           )}
 
           {result?.success && activeTab === 'Docs' && result.docs && (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               {Object.entries(result.docs).map(([key, content]) => (
-                <div key={key} className="rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)] p-6">
-                  <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-3">
-                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                  </p>
-                  <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-xs leading-6 text-[var(--text-secondary)] font-mono">
-                    {content}
-                  </pre>
+                <div key={key} style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', border:'1px solid var(--border)' }}>
+                  <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 12px' }}>{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+                  <pre style={{ maxHeight:240, overflow:'auto', whiteSpace:'pre-wrap', fontSize:12, lineHeight:'1.7', color:'var(--text-secondary)', fontFamily:'var(--font-mono)', margin:0 }}>{content}</pre>
                 </div>
               ))}
             </div>
           )}
 
           {result?.success && activeTab === 'Metrics' && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="p-5 rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)]">
-                <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">Total Latency</p>
-                <p className="text-2xl font-bold text-[var(--text-primary)] mt-2 tracking-tight">{result.metrics?.latency}ms</p>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16 }}>
+              <div style={{ padding:20, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
+                <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:0 }}>Total Latency</p>
+                <p style={{ fontSize:24, fontWeight:700, color:'var(--text-primary)', margin:'8px 0 0', letterSpacing:'-0.02em' }}>{result.metrics?.latency}ms</p>
               </div>
               {result.metrics?.stageTimes && Object.entries(result.metrics.stageTimes).map(([stage, time]) => (
-                <div key={stage} className="p-5 rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)]">
-                  <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">{stage.replace(/-/g, ' ')}</p>
-                  <p className="text-2xl font-bold text-[var(--text-primary)] mt-2 tracking-tight">{time}ms</p>
+                <div key={stage} style={{ padding:20, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
+                  <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:0 }}>{stage.replace(/-/g, ' ')}</p>
+                  <p style={{ fontSize:24, fontWeight:700, color:'var(--text-primary)', margin:'8px 0 0', letterSpacing:'-0.02em' }}>{time}ms</p>
                 </div>
               ))}
             </div>

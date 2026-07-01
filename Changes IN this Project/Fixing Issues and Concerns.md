@@ -158,3 +158,87 @@ Track record of every modification made to the project. Each entry includes what
 | 12 | `app/api/health/route.ts` | Health check uses provider info | Feature |
 | 13 | `.env.example` | LLM_PROVIDER + NVIDIA NIM docs | Feature |
 | 14 | `docs/tradeoffs.md` | Provider comparison documentation | Feature |
+
+---
+
+## 2026-07-02 — UI Redesign + Pipeline Fixes
+
+### Change 15: Next.js 16 middleware → proxy migration
+**Problem:** `middleware.ts` was deprecated in Next.js 16, causing build warnings.
+
+**Fix:** Renamed `middleware.ts` to `proxy.ts`. Clerk docs confirm exports stay the same — only filename changes.
+
+**Files:** `middleware.ts` → `proxy.ts`
+
+---
+
+### Change 16: AppConfig config saved as null fix
+**Problem:** Export route read `generation.config` (schema output only) instead of `appConfig.config` (full normalized config).
+
+**Fix:** Export route now reads `appConfig.config` with fallback. Compile route changed from `create` to `upsert` with empty-config guard.
+
+**Files:** `app/api/generations/[id]/export/route.ts`, `app/api/compile/route.ts`
+
+---
+
+### Change 17: LLM pipeline — provider, prompt, and schema fixes
+**Problem:** Pipeline was using Llama instead of Mistral Nemotron because `.env.local` had `LLM_MODEL=meta/llama-3.3-70b-instruct` overriding the provider default. Fallback parser was running because LLM returned invalid JSON. Database tables only had id/timestamps.
+
+**Fix:**
+- Removed `LLM_MODEL` and `LLM_BASE_URL` overrides from `.env.local`
+- Added `LLM_PROVIDER=nvidia` and uncommented `GROQ_API_KEY` for fallback
+- Added `console.log('[LLM] Provider: X, Model: Y')` to `callLLM()`
+- Strengthened Stage 1 prompt: "You MUST respond with ONLY a valid JSON object. No markdown. No backticks."
+- Added aggressive 3-step JSON extraction: direct parse → regex `{...}` → trailing comma cleanup
+- Added `console.log('[Stage1] Parse path: ...')` for debugging
+- Rewrote Stage 3 prompt with explicit column requirements per entity type + "5+ domain-specific columns minimum"
+
+**Files:** `.env.local`, `lib/ai.ts`, `lib/compiler/core.ts`
+
+---
+
+### Change 18: ZIP export with organized folders
+**Problem:** ZIP export was returning a fake/empty ZIP.
+
+**Fix:** Installed JSZip. ZIP now includes 5 folders + README: `config/`, `database/`, `backend/`, `frontend/`, `docs/` (6 planning documents). Added debug logs for doc key discovery.
+
+**Files:** `app/api/generations/[id]/export/route.ts`, `package.json`
+
+---
+
+### Change 19: UI redesign — all 4 pages
+**Problem:** UI looked generic with hardcoded hex colors, inconsistent spacing, no cohesive design system.
+
+**Fix:** Complete UI rewrite following premium SaaS aesthetic (Linear/Vercel tier):
+- New CSS variable system: `--surface-0/1/2`, `--text-primary/secondary/muted`, `--fill-accent`, `--bg-success/danger/warning`, etc.
+- Landing: frosted nav, hero with radial glow, pipeline strip with animated beam, metrics, feature cards
+- Compiler: two-panel layout (260px sidebar + flex right), 7 tabs, export buttons (JSON/YAML/ZIP)
+- Dashboard: 4 stat cards, compilation form, history sidebar
+- Demo: tab selector, split view (prompt + JSON output)
+- Zero hardcoded hex colors — all via CSS variables
+
+**Files:** `app/globals.css`, `app/page.tsx`, `app/compiler/page.tsx`, `app/dashboard/page.tsx`, `app/demo/page.tsx`
+
+---
+
+### Change 20: README.md updated
+**Problem:** README was outdated — still referenced Llama model, old middleware convention, no ZIP export docs.
+
+**Fix:** Rewrote README with: correct model name (Mistral Nemotron), provider selection docs, ZIP export format, new UI page descriptions, updated project structure, LLM provider comparison table.
+
+**Files:** `README.md`
+
+---
+
+## Summary of All Changes
+
+| # | File | Change Type | Session |
+|---|---|---|---|
+| 1–10 | Various | Critical + moderate fixes | Phase 1 |
+| 11–14 | `lib/ai.ts`, docs | NVIDIA NIM provider | Phase 2 |
+| 15 | `proxy.ts` | Next.js 16 migration | Phase 3 |
+| 16 | Export + compile routes | AppConfig null fix | Phase 3 |
+| 17 | `.env.local`, `lib/ai.ts`, `lib/compiler/core.ts` | LLM pipeline fixes | Phase 3 |
+| 18 | Export route, `package.json` | ZIP export with JSZip | Phase 3 |
+| 19 | `globals.css`, 4 page TSX files | Full UI redesign | Phase 3 |
+| 20 | `README.md` | Documentation update | Phase 3 |

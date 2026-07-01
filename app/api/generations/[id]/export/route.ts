@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import JSZip from 'jszip'
 
 export async function GET(
   request: NextRequest,
@@ -10,7 +11,6 @@ export async function GET(
   try {
     let userId: string | null = null
 
-    // Dev mode: skip auth for local testing
     if (process.env.NODE_ENV !== 'production') {
       userId = 'dev-user'
     } else {
@@ -32,7 +32,6 @@ export async function GET(
         return NextResponse.json({ error: 'User not found in database' }, { status: 404 })
       }
     } else {
-      // Dev mode: find or create dev user
       user = await prisma.user.upsert({
         where: { clerkId: 'dev-user' },
         update: {},
@@ -42,13 +41,13 @@ export async function GET(
 
     const generation = await prisma.generation.findUnique({
       where: { id },
+      include: { appConfig: true },
     })
 
     if (!generation) {
       return NextResponse.json({ error: 'Generation not found' }, { status: 404 })
     }
 
-    // Ensure user owns this generation (skip in dev mode)
     if (process.env.NODE_ENV === 'production' && generation.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
@@ -57,10 +56,15 @@ export async function GET(
       return NextResponse.json({ error: 'Generation is not completed yet' }, { status: 400 })
     }
 
-    const config = generation.config as any
+    const config = (generation as any).appConfig?.config ?? generation.config ?? null
+    const artifacts = (generation as any).appConfig?.artifacts ?? null
 
+    if (!config) {
+      return NextResponse.json({ error: 'No config found for this generation' }, { status: 404 })
+    }
+
+    // ── YAML export ────────────────────────────────────────────
     if (format === 'yaml') {
-      // Convert JSON to YAML format
       const yaml = convertToYAML(config)
       return new NextResponse(yaml, {
         headers: {
@@ -70,7 +74,153 @@ export async function GET(
       })
     }
 
-    // Default: JSON format
+    // ── ZIP export ─────────────────────────────────────────────
+    if (format === 'zip') {
+      const zip = new JSZip()
+
+      // Folder 1: config
+      zip.file('config/appforge-config.json', JSON.stringify(config, null, 2))
+
+      // Folder 2: database — from artifacts or config
+      const sqlContent = artifacts?.['prisma.schema']
+        || config?.implementationPlan?.prismaSchema
+        || config?.runtime?.sql
+        || ''
+      if (sqlContent) {
+        zip.file('database/schema.sql', sqlContent)
+        // Also include prisma schema if it looks like prisma format
+        if (sqlContent.includes('model ') || sqlContent.includes('generator ')) {
+          zip.file('database/schema.prisma', sqlContent)
+        }
+      }
+
+      // Folder 3: backend — Express server from artifacts or runtime
+      const expressContent = artifacts?.['app/api/route.ts']
+        || config?.runtime?.express
+        || ''
+      if (expressContent) {
+        zip.file('backend/server.js', expressContent)
+      }
+      // Add individual API handler stubs from artifacts
+      if (artifacts) {
+        for (const [key, content] of Object.entries(artifacts)) {
+          if (key.startsWith('app/api/') && key.endsWith('/route.ts') && typeof content === 'string') {
+            zip.file(`backend/${key}`, content)
+          }
+        }
+      }
+
+      // Folder 4: frontend — React files from artifacts or runtime
+      if (config?.runtime?.react && typeof config.runtime.react === 'object') {
+        for (const [filename, content] of Object.entries(config.runtime.react as Record<string, string>)) {
+          if (typeof content === 'string') {
+            zip.file(`frontend/${filename}`, content)
+          }
+        }
+      }
+      // Add UI page stubs from artifacts
+      if (artifacts) {
+        for (const [key, content] of Object.entries(artifacts)) {
+          if (key.startsWith('app/') && key.endsWith('/page.tsx') && typeof content === 'string') {
+            zip.file(`frontend/${key}`, content)
+          }
+        }
+      }
+
+      // Folder 5: docs — 6 planning documents from artifacts
+      const DOC_FILE_NAMES: Record<string, string> = {
+        'PRD.md': 'PRD - Product Requirements.md',
+        'TRD.md': 'TRD - Technical Requirements.md',
+        'AppFlow.md': 'App Flow.md',
+        'UI-UX-BRIEF.md': 'UI-UX Brief.md',
+        'BACKEND-SCHEMA.md': 'Backend Schema.md',
+        'IMPLEMENTATION-PLAN.md': 'Implementation Plan.md',
+        'prd': 'PRD - Product Requirements.md',
+        'trd': 'TRD - Technical Requirements.md',
+        'appFlow': 'App Flow.md',
+        'appflow': 'App Flow.md',
+        'uiUxBrief': 'UI-UX Brief.md',
+        'uiux': 'UI-UX Brief.md',
+        'backendSchema': 'Backend Schema.md',
+        'implementationPlan': 'Implementation Plan.md',
+      }
+
+      // Check all possible doc locations
+      const docSources = [
+        artifacts,
+        config?.planningDocs,
+        config?.docs,
+      ].find(Boolean) as Record<string, string> | undefined
+
+      console.log('[Export] Doc keys found:', docSources ? Object.keys(docSources) : 'none')
+      console.log('[Export] Runtime keys:', config?.runtime ? Object.keys(config.runtime) : 'none')
+      console.log('[Export] Artifacts keys:', artifacts ? Object.keys(artifacts) : 'none')
+
+      if (docSources && typeof docSources === 'object') {
+        for (const [key, content] of Object.entries(docSources)) {
+          if (typeof content === 'string' && content.length > 0) {
+            const fileName = DOC_FILE_NAMES[key] || DOC_FILE_NAMES[key.toLowerCase()] || `${key}.md`
+            zip.file(`docs/${fileName}`, content)
+          }
+        }
+      }
+
+      // README
+      const appName = config?.metadata?.name || 'AppForge Export'
+      zip.file('README.md', `# ${appName}
+Generated by AppForge — Natural Language Application Compiler
+
+## Folder Structure
+
+\`\`\`
+config/
+  appforge-config.json   ← Full validated app configuration
+database/
+  schema.sql             ← SQLite/PostgreSQL CREATE TABLE statements
+  schema.prisma          ← Prisma schema (if available)
+backend/
+  server.js              ← Express server with JWT auth + all endpoints
+  app/api/...            ← Individual API route handlers
+frontend/
+  App.jsx                ← React app with routing
+  pages/                 ← One component per page
+docs/
+  PRD - Product Requirements.md
+  TRD - Technical Requirements.md
+  App Flow.md
+  UI-UX Brief.md
+  Backend Schema.md
+  Implementation Plan.md
+\`\`\`
+
+## How to use
+1. Import \`database/schema.sql\` into SQLite or PostgreSQL
+2. Run \`node backend/server.js\` (requires: express, jsonwebtoken)
+3. Open \`frontend/App.jsx\` in your React project
+`)
+
+      const zipBuffer = await zip.generateAsync({
+        type: 'nodebuffer',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 },
+      })
+
+      const appSlug = (config?.metadata?.name || 'appforge')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+
+      return new NextResponse(zipBuffer, {
+        headers: {
+          'Content-Type': 'application/zip',
+          'Content-Disposition': `attachment; filename="${appSlug}-export.zip"`,
+          'Content-Length': zipBuffer.length.toString(),
+        },
+      })
+    }
+
+    // ── Default: JSON ──────────────────────────────────────────
     const json = JSON.stringify(config, null, 2)
     return new NextResponse(json, {
       headers: {

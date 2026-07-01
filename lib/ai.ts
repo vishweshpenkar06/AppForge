@@ -264,6 +264,7 @@ function isRetryableError(error: unknown): boolean {
  */
 export async function callLLM(options: LLMCallOptions) {
   const startTime = Date.now()
+  console.log(`[LLM] Provider: ${ACTIVE_PROVIDER}, Model: ${options.model}`)
 
   async function callProvider(provider: Provider, modelOverride?: string) {
     const config = getProviderConfig(provider)

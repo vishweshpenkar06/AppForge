@@ -27,10 +27,37 @@ The key differentiator: it's not a single LLM call. It's a **5-stage pipeline** 
 | Language | TypeScript | 5.7.3 |
 | Database | PostgreSQL via Prisma | 7.8.0 |
 | Auth | Clerk | 7.4.2 |
-| LLM | NVIDIA NIM (primary) / Groq (fallback) | OpenAI-compatible API |
-| UI | React 19 + Tailwind CSS 4.2 + Radix UI | shadcn pattern |
+| LLM | NVIDIA NIM (primary) / Groq (fallback) | `mistralai/mistral-nemotron-super-49b-v1` |
+| UI | React 19 + CSS variables | Dark mode native |
 | Validation | Zod | 3.24.1 |
-| Charts | Recharts | 2.15.0 |
+| ZIP Export | JSZip | — |
+
+---
+
+## 2b. Design System (CSS Variables)
+
+All UI uses these variables — no hardcoded hex colors:
+
+```css
+--surface-0: #09090b;        /* Page background */
+--surface-1: #111113;        /* Card/panel background */
+--surface-2: #1a1a1f;        /* Hover states, inputs */
+--border: rgba(255,255,255,0.08);
+--text-primary: #f4f4f5;     /* Headings */
+--text-secondary: #a1a1aa;   /* Body text */
+--text-muted: #52525b;       /* Labels, captions */
+--fill-accent: #6366f1;      /* Primary CTA, active states */
+--text-accent: #818cf8;      /* Links, code */
+--bg-success: rgba(34,197,94,0.12);
+--text-success: #4ade80;
+--bg-danger: rgba(239,68,68,0.12);
+--text-danger: #f87171;
+--bg-warning: rgba(245,158,11,0.12);
+--text-warning: #fbbf24;
+--radius: 10px;
+--font-sans: system-ui;
+--font-mono: 'SF Mono', monospace;
+```
 
 ---
 
@@ -38,21 +65,22 @@ The key differentiator: it's not a single LLM call. It's a **5-stage pipeline** 
 
 ```
 AppForge/
-├── app/                          # Next.js App Router pages + API routes
+├── proxy.ts                        # Clerk auth proxy (was middleware.ts — Next.js 16)
+├── app/                            # Next.js App Router pages + API routes
 │   ├── api/
-│   │   ├── compile/route.ts      # MAIN ENDPOINT — synchronous 5-stage compile
-│   │   ├── generate/route.ts     # Async endpoint — fires pipeline in background
-│   │   ├── evaluate/route.ts     # Runs 20-case evaluation suite
-│   │   ├── health/route.ts       # System health check (DB + LLM provider)
-│   │   ├── metrics/route.ts      # Metrics dashboard data
-│   │   ├── generations/          # CRUD + export for generation records
-│   │   └── webhooks/clerk/       # Clerk webhook handler
-│   ├── compiler/page.tsx         # Compiler UI — prompt input + tabbed results
-│   ├── dashboard/page.tsx        # Dashboard — form, history, metrics
-│   ├── builder/page.tsx          # Builder page
-│   ├── demo/page.tsx             # Demo examples
-│   ├── sign-in/                  # Clerk sign-in
-│   └── sign-up/                  # Clerk sign-up
+│   │   ├── compile/route.ts        # MAIN ENDPOINT — synchronous 6-stage compile
+│   │   ├── generate/route.ts       # Async endpoint — fires pipeline in background
+│   │   ├── evaluate/route.ts       # Runs 20-case evaluation suite
+│   │   ├── health/route.ts         # System health check (DB + LLM provider)
+│   │   ├── metrics/route.ts        # Metrics dashboard data
+│   │   ├── generations/            # CRUD + ZIP/JSON/YAML export
+│   │   └── webhooks/clerk/         # Clerk webhook handler
+│   ├── compiler/page.tsx           # Compiler UI — two-panel, 7 tabs, export buttons
+│   ├── dashboard/page.tsx          # Dashboard — stats, form, history sidebar
+│   ├── demo/page.tsx               # Pre-compiled examples — split view
+│   ├── page.tsx                    # Landing — nav, hero, pipeline strip, features
+│   ├── sign-in/                    # Clerk sign-in
+│   └── sign-up/                    # Clerk sign-up
 │
 ├── lib/                          # Core business logic
 │   ├── compiler/
@@ -358,26 +386,31 @@ const PROVIDERS = {
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NVIDIA_API_KEY` | Yes* | NVIDIA NIM API key (nvapi-...) |
-| `GROQ_API_KEY` | Yes* | Groq API key (gsk_...) |
-| `FEATHERLESS_API_KEY` | Yes* | Featherless API key (rc_...) |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `LLM_PROVIDER` | No | `nvidia` (default) / `groq` / `featherless` |
-| `LLM_MODEL` | No | Override default model |
-| `LLM_BASE_URL` | No | Override API base URL |
+| `NVIDIA_API_KEY` | Yes* | NVIDIA NIM API key (`nvapi-...`) — primary |
+| `GROQ_API_KEY` | Yes* | Groq API key (`gsk_...`) — fallback |
+| `FEATHERLESS_API_KEY` | Yes* | Featherless API key |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `LLM_MODEL` | No | Override provider default model (leave unset for correct default) |
 | `DETERMINISTIC_LLM` | No | `1` for offline testing |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | No | Clerk auth |
 | `CLERK_SECRET_KEY` | No | Clerk auth |
 
-*At least one LLM key required, or `DETERMINISTIC_LLM=1`.
+*At least one LLM key required, or `DETERMINISTIC_LLM=1`.*
+
+**Important:** Do NOT set `LLM_MODEL` unless you need a specific override. The provider config already has the correct default model. Setting `LLM_MODEL=meta/llama-3.3-70b-instruct` will override the NVIDIA model and break compilation.
 
 ---
 
 ## 14. Known Gotchas & Things to Watch
 
-1. **Two compile endpoints exist** — `/api/compile` (synchronous, full response) and `/api/generate` (async, returns jobId). Both run the same pipeline but `/api/generate` uses `lib/pipeline.ts` while `/api/compile` inlines the stages.
+1. **middleware.ts is now proxy.ts** — Next.js 16 renamed the convention. The file is `proxy.ts` at project root.
 
-2. **Snake game fallback** — `/api/compile` has a hardcoded snake game response when the prompt matches `/\bsnake\b.*\bapple\b|\bgame\b|\bspike\b|\bobstacle\b/`. This is intentional for demo/testing.
+2. **Two compile endpoints exist** — `/api/compile` (synchronous, full response) and `/api/generate` (async, returns jobId). Both run the same pipeline.
+
+3. **ZIP export** — `GET /api/generations/[id]/export?format=zip` returns organized folders (config, database, backend, frontend, docs, README).
+
+4. **AppConfig.config** — The full normalized config is stored in `AppConfig.config`, not `Generation.config`. The export route reads from `AppConfig`.
 
 3. **Deterministic mode** — When `DETERMINISTIC_LLM=1`, no LLM calls are made. The heuristic responses are basic and won't produce high-quality output. Use for CI/testing only.
 

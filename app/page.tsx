@@ -5,59 +5,13 @@ import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-const PIPELINE_STAGES = [
-  { id: 1, label: 'Intent', desc: 'Parse the goal' },
-  { id: 2, label: 'Design', desc: 'Define entities' },
-  { id: 3, label: 'Schemas', desc: 'DB + API + UI' },
-  { id: 4, label: 'Refine', desc: 'Cross-validate' },
-  { id: 5, label: 'Repair', desc: 'Auto-fix errors' },
-  { id: 6, label: 'Export', desc: 'Ready to ship' },
-]
-
-const METRICS = [
-  { value: '6', label: 'Pipeline stages', sub: 'with Zod validation' },
-  { value: '7', label: 'Cross-layer invariants', sub: 'enforced on every compile' },
-  { value: '20', label: 'Eval test cases', sub: 'real products + edge cases' },
-]
-
-const FEATURES = [
-  {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M10 1v18M1 10h18M4.5 4.5l11 11M15.5 4.5l-11 11" strokeLinecap="round" />
-      </svg>
-    ),
-    title: 'Multi-stage pipeline',
-    body: 'Not a single prompt. Six distinct stages with typed contracts between them. Each stage validates its input before running.',
-  },
-  {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M10 2v4l2.5 2.5M17 10a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    title: 'Auto-repair engine',
-    body: "Broken schemas get fixed automatically — missing FK, wrong types, orphaned references. LLM repair only fires when rules can't fix it.",
-  },
-  {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="2" y="3" width="16" height="14" rx="2" />
-        <path d="M2 7h16M6 3v4M10 3v4M14 3v4" strokeLinecap="round" />
-      </svg>
-    ),
-    title: 'Execution-ready output',
-    body: 'Get a Prisma schema, Express server stubs with JWT auth, and a React component tree — all from one compile.',
-  },
-]
-
-const EXAMPLE_OUTPUT = [
-  '✓ 5 DB tables generated',
-  '✓ 12 API endpoints',
-  '✓ 8 UI pages',
-  '✓ 3 roles defined',
-  '✓ Subscription table injected',
-  '✓ 0 validation errors',
+const STAGES = [
+  { n: '01', label: 'Intent', desc: 'Parse the goal' },
+  { n: '02', label: 'Design', desc: 'Define entities' },
+  { n: '03', label: 'Schemas', desc: 'DB + API + UI' },
+  { n: '04', label: 'Refine', desc: 'Cross-validate' },
+  { n: '05', label: 'Repair', desc: 'Auto-fix errors' },
+  { n: '06', label: 'Export', desc: 'Ready to ship' },
 ]
 
 export default function Page() {
@@ -65,82 +19,83 @@ export default function Page() {
   const router = useRouter()
 
   useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      router.replace('/dashboard')
-    }
+    if (isLoaded && isSignedIn) router.replace('/dashboard')
   }, [isLoaded, isSignedIn, router])
 
   return (
     <main>
-      {/* ── Hero ───────────────────────────────────────────────── */}
-      <section className="pt-32 pb-20 px-6 text-center relative overflow-hidden">
-        {/* Radial glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div style={{
-            position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)',
-            width: '600px', height: '400px',
-            background: 'radial-gradient(ellipse, rgba(99,102,241,0.15) 0%, transparent 70%)',
-          }} />
+      {/* ── Nav ─────────────────────────────────────────────────── */}
+      <nav style={{
+        position:'fixed', top:0, width:'100%', height:48, zIndex:50,
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding:'0 24px',
+        background:'rgba(9,9,11,0.85)', backdropFilter:'blur(12px)',
+        borderBottom:'1px solid var(--border)',
+      }}>
+        <Link href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none' }}>
+          <div style={{ width:28, height:28, borderRadius:6, background:'var(--fill-accent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <span style={{ color:'#fff', fontFamily:'var(--font-mono)', fontSize:11, fontWeight:700 }}>AF</span>
+          </div>
+          <span style={{ color:'var(--text-primary)', fontWeight:600, fontSize:14 }}>AppForge</span>
+        </Link>
+        <div style={{ display:'flex', gap:24 }}>
+          <Link href="/compiler" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Compiler</Link>
+          <Link href="/demo" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Examples</Link>
+          <Link href="/dashboard" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Dashboard</Link>
         </div>
+        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+          <Link href="/sign-in" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Sign in</Link>
+          <Link href="/compiler" style={{
+            background:'var(--fill-accent)', color:'#fff', borderRadius:'var(--radius)',
+            padding:'6px 14px', fontSize:13, fontWeight:500, textDecoration:'none',
+          }}>Get started</Link>
+        </div>
+      </nav>
 
-        <div className="max-w-4xl mx-auto relative">
+      {/* ── Hero ────────────────────────────────────────────────── */}
+      <section style={{ paddingTop:120, paddingBottom:64, textAlign:'center', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', top:'8%', left:'50%', transform:'translateX(-50%)', width:600, height:350, background:'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%)', pointerEvents:'none' }} />
+
+        <div style={{ maxWidth:700, margin:'0 auto', position:'relative' }}>
           {/* Eyebrow */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--bg-border)] bg-[var(--bg-surface)] mb-8">
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] animate-pulse" />
-            <span className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest">
-              Natural language compiler
-            </span>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'4px 12px', borderRadius:999, border:'1px solid var(--border)', background:'var(--surface-1)', marginBottom:32 }}>
+            <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--fill-accent)', animation:'pulse-dot 2s ease-in-out infinite' }} />
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em' }}>Natural language compiler</span>
           </div>
 
-          {/* H1 */}
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-[var(--text-primary)] leading-[1.05] mb-6">
+          <h1 style={{ fontSize:52, fontWeight:700, lineHeight:'1.08', letterSpacing:'-0.02em', color:'var(--text-primary)', marginBottom:20 }}>
             Your product spec,<br />
-            <span className="text-[var(--accent-primary)]">machine-readable.</span>
+            <span style={{ color:'var(--text-accent)' }}>machine-readable.</span>
           </h1>
 
-          {/* Subtext */}
-          <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto mb-10 leading-relaxed">
-            Describe what you&apos;re building. AppForge runs it through a 6-stage compiler and returns a
-            validated database schema, API layer, component tree, and auth config — ready to ship.
+          <p style={{ fontSize:16, color:'var(--text-secondary)', lineHeight:'1.6', maxWidth:520, margin:'0 auto 36px' }}>
+            Describe what you&apos;re building. AppForge runs it through a 6-stage compiler and returns a validated database schema, API layer, component tree, and auth config — ready to ship.
           </p>
 
-          {/* CTA Row */}
-          <div className="flex items-center justify-center gap-4">
-            <Link href="/compiler" className="btn-primary text-base px-6 py-3">
-              Open compiler →
-            </Link>
-            <Link href="/demo" className="btn-ghost text-base px-6 py-3">
-              See examples
-            </Link>
+          <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+            <Link href="/compiler" style={{ background:'var(--fill-accent)', color:'#fff', borderRadius:'var(--radius)', padding:'10px 24px', fontSize:14, fontWeight:500, textDecoration:'none' }}>Open compiler →</Link>
+            <Link href="/demo" style={{ background:'transparent', color:'var(--text-secondary)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'10px 24px', fontSize:14, fontWeight:500, textDecoration:'none' }}>See examples</Link>
           </div>
 
-          {/* Trust line */}
-          <p className="mt-6 text-xs text-[var(--text-muted)] font-mono">
-            No credit card · Free tier · NVIDIA NIM powered
-          </p>
+          <p style={{ marginTop:20, fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)' }}>No credit card · Free tier · NVIDIA NIM powered</p>
         </div>
       </section>
 
-      {/* ── Pipeline Strip (Signature Element) ─────────────────── */}
-      <section className="py-16 px-6 border-y border-[var(--bg-border)]">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest text-center mb-10">
-            Compilation pipeline
-          </p>
-          <div className="flex items-start justify-between relative">
-            {/* Connector line */}
-            <div className="absolute top-5 left-0 right-0 h-px bg-[var(--bg-border)]" />
-            {/* Animated beam */}
-            <div className="absolute top-5 left-0 h-px w-20 bg-gradient-to-r from-transparent via-[var(--accent-primary)] to-transparent pipeline-beam" />
-
-            {PIPELINE_STAGES.map((stage) => (
-              <div key={stage.id} className="flex flex-col items-center gap-3 relative z-10">
-                <div className="w-10 h-10 rounded-full border border-[var(--bg-border)] bg-[var(--bg-surface)] flex items-center justify-center">
-                  <span className="text-xs font-mono text-[var(--text-muted)]">{String(stage.id).padStart(2, '0')}</span>
+      {/* ── Pipeline Strip ──────────────────────────────────────── */}
+      <section style={{ padding:'48px 24px', borderTop:'1px solid var(--border)', borderBottom:'1px solid var(--border)' }}>
+        <div style={{ maxWidth:900, margin:'0 auto' }}>
+          <p style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', textAlign:'center', marginBottom:40 }}>Compilation pipeline</p>
+          <div style={{ display:'flex', justifyContent:'space-between', position:'relative' }}>
+            <div style={{ position:'absolute', top:20, left:0, right:0, height:1, background:'var(--border)' }} />
+            <div style={{ position:'absolute', top:20, left:0, height:1, width:80, background:'linear-gradient(90deg, transparent, var(--fill-accent), transparent)' }} className="pipeline-beam" />
+            {STAGES.map((s) => (
+              <div key={s.n} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, position:'relative', zIndex:1 }}>
+                <div style={{ width:40, height:40, borderRadius:'50%', border:'1px solid var(--fill-accent)', background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--text-accent)', fontWeight:500 }}>{s.n}</span>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-[var(--text-primary)]">{stage.label}</p>
-                  <p className="text-xs text-[var(--text-muted)] mt-0.5">{stage.desc}</p>
+                <div style={{ textAlign:'center' }}>
+                  <p style={{ fontSize:13, color:'var(--text-primary)', fontWeight:500, margin:0 }}>{s.label}</p>
+                  <p style={{ fontSize:11, color:'var(--text-muted)', margin:'2px 0 0' }}>{s.desc}</p>
                 </div>
               </div>
             ))}
@@ -148,61 +103,37 @@ export default function Page() {
         </div>
       </section>
 
-      {/* ── Metrics Row ────────────────────────────────────────── */}
-      <section className="py-16 px-6">
-        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8">
-          {METRICS.map((m) => (
-            <div key={m.value} className="text-center">
-              <p className="text-5xl font-bold text-[var(--text-primary)] tracking-tight">{m.value}</p>
-              <p className="text-sm font-medium text-[var(--text-secondary)] mt-2">{m.label}</p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">{m.sub}</p>
+      {/* ── Metrics ─────────────────────────────────────────────── */}
+      <section style={{ padding:'48px 24px' }}>
+        <div style={{ maxWidth:700, margin:'0 auto', display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:32 }}>
+          {[
+            { v:'6', l:'Pipeline stages', s:'with Zod validation' },
+            { v:'7', l:'Cross-layer invariants', s:'enforced on every compile' },
+            { v:'20', l:'Eval test cases', s:'real products + edge cases' },
+          ].map((m) => (
+            <div key={m.v} style={{ textAlign:'center' }}>
+              <p style={{ fontSize:44, fontWeight:700, color:'var(--text-primary)', letterSpacing:'-0.02em', margin:0 }}>{m.v}</p>
+              <p style={{ fontSize:13, color:'var(--text-secondary)', margin:'8px 0 4px' }}>{m.l}</p>
+              <p style={{ fontSize:11, color:'var(--text-muted)', margin:0 }}>{m.s}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Feature Cards ──────────────────────────────────────── */}
-      <section className="py-16 px-6">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="card-hover">
-              <div className="mb-4 text-[var(--accent-primary)]">{f.icon}</div>
-              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">{f.title}</h3>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{f.body}</p>
+      {/* ── Features ────────────────────────────────────────────── */}
+      <section style={{ padding:'48px 24px' }}>
+        <div style={{ maxWidth:900, margin:'0 auto', display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16 }}>
+          {[
+            { icon:'⬡', title:'Multi-stage pipeline', body:'Six distinct stages with typed contracts. Each validates its input before running.' },
+            { icon:'⚡', title:'Auto-repair engine', body:"Broken schemas get fixed automatically — missing FK, wrong types, orphaned references." },
+            { icon:'◈', title:'Execution-ready output', body:'Get a Prisma schema, Express server with JWT auth, and React component tree.' },
+          ].map((f) => (
+            <div key={f.title} style={{ background:'var(--surface-1)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:24, transition:'border-color 0.2s' }}>
+              <p style={{ fontSize:20, color:'var(--text-accent)', margin:'0 0 16px' }}>{f.icon}</p>
+              <h3 style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:'0 0 8px' }}>{f.title}</h3>
+              <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:'1.6', margin:0 }}>{f.body}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ── Live Example Panel ─────────────────────────────────── */}
-      <section className="py-16 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)] overflow-hidden">
-            {/* Window chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--bg-border)]">
-              <div className="w-3 h-3 rounded-full bg-[var(--error)] opacity-60" />
-              <div className="w-3 h-3 rounded-full bg-[var(--warning)] opacity-60" />
-              <div className="w-3 h-3 rounded-full bg-[var(--success)] opacity-60" />
-              <span className="ml-3 text-xs font-mono text-[var(--text-muted)]">appforge — compile</span>
-            </div>
-            {/* Content */}
-            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[var(--bg-border)]">
-              <div className="p-6">
-                <p className="text-xs font-mono text-[var(--text-muted)] mb-3 uppercase tracking-wider">Input</p>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed font-mono">
-                  &quot;Build a CRM with login, contacts, a dashboard, role-based access, and a premium plan with payments. Admins can see analytics.&quot;
-                </p>
-              </div>
-              <div className="p-6">
-                <p className="text-xs font-mono text-[var(--text-muted)] mb-3 uppercase tracking-wider">Output</p>
-                <div className="space-y-2">
-                  {EXAMPLE_OUTPUT.map((line) => (
-                    <p key={line} className="text-xs font-mono text-[var(--accent-secondary)]">{line}</p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
     </main>

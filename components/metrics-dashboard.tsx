@@ -15,18 +15,19 @@ interface Metrics {
 export function MetricsDashboard() {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     const fetchMetrics = async () => {
       try {
         const response = await fetch('/api/metrics')
-        if (!response.ok) throw new Error('Failed to fetch metrics')
+        if (!response.ok) throw new Error('Failed to fetch')
         const data = await response.json()
-        if (!cancelled) setMetrics(data)
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load metrics')
+        if (!cancelled && data && !data.error) {
+          setMetrics(data)
+        }
+      } catch {
+        // silently fail — show 0s
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -35,39 +36,18 @@ export function MetricsDashboard() {
     return () => { cancelled = true }
   }, [])
 
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)] animate-pulse" />
-        ))}
-      </div>
-    )
-  }
-
-  if (error || !metrics) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Compilations', value: '—' },
-          { label: 'Success Rate', value: '—' },
-          { label: 'Avg Latency', value: '—' },
-          { label: 'Modes Used', value: '—' },
-        ].map((card) => (
-          <div key={card.label} className="p-5 rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)]">
-            <p className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">{card.label}</p>
-            <p className="text-2xl font-bold text-[var(--text-primary)] mt-2 tracking-tight">{card.value}</p>
-          </div>
-        ))}
-      </div>
-    )
-  }
+  const total = metrics?.totalGenerations ?? 0
+  const completed = metrics?.completedGenerations ?? 0
+  const failed = metrics?.failedGenerations ?? 0
+  const rate = metrics?.successRate ?? 0
+  const duration = metrics?.averageDuration ?? 0
+  const tokens = metrics?.averageTokensPerGeneration ?? 0
 
   const cards = [
-    { label: 'Total Compilations', value: String(metrics.totalGenerations), sub: `${metrics.completedGenerations} completed` },
-    { label: 'Success Rate', value: `${metrics.successRate.toFixed(0)}%`, sub: `${metrics.failedGenerations} failed` },
-    { label: 'Avg Latency', value: `${((metrics.averageDuration ?? 0) / 1000).toFixed(1)}s`, sub: 'per generation' },
-    { label: 'Avg Tokens', value: (metrics.averageTokensPerGeneration ?? 0).toLocaleString(), sub: 'per generation' },
+    { label: 'Total Compilations', value: loading ? '—' : String(total), sub: `${completed} completed` },
+    { label: 'Success Rate', value: loading ? '—' : `${rate.toFixed(0)}%`, sub: `${failed} failed` },
+    { label: 'Avg Latency', value: loading ? '—' : `${(duration / 1000).toFixed(1)}s`, sub: 'per generation' },
+    { label: 'Avg Tokens', value: loading ? '—' : tokens.toLocaleString(), sub: 'per generation' },
   ]
 
   return (

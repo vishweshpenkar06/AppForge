@@ -450,14 +450,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
 
     // Persist app config into AppConfig table and update generation status
     try {
-      await prisma.appConfig.create({
-        data: {
-          generationId: generation.id,
-          config: normalizedConfig as any,
-          artifacts: artifacts as any,
-          validationPassed: validation.valid,
-        },
-      })
+      // Ensure normalizedConfig is not empty before saving
+      if (!normalizedConfig || Object.keys(normalizedConfig).length === 0) {
+        console.warn('[Compile] normalizedConfig is empty, skipping AppConfig save')
+      } else {
+        await prisma.appConfig.upsert({
+          where: { generationId: generation.id },
+          create: {
+            generationId: generation.id,
+            config: normalizedConfig as any,
+            artifacts: artifacts as any,
+            validationPassed: validation.valid,
+          },
+          update: {
+            config: normalizedConfig as any,
+            artifacts: artifacts as any,
+            validationPassed: validation.valid,
+          },
+        })
+      }
 
       await prisma.generation.update({
         where: { id: generation.id },

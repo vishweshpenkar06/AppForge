@@ -44,8 +44,12 @@ export type Intent = z.infer<typeof IntentSchema>
  */
 export async function extractIntent(prompt: string): Promise<Intent> {
   const systemPrompt = `You are an expert product architect. Parse user requirements into structured intent.
-  
-Output ONLY valid JSON matching this schema:
+
+You MUST respond with ONLY a valid JSON object. No markdown. No backticks. No explanation.
+Start your response with { and end with }.
+Do not write anything before or after the JSON.
+
+Output schema:
 {
   "appType": "one of: crud, marketplace, crm, saas, content, ecommerce, analytics, social, other",
   "primaryFeatures": ["list of 3-5 core features"],
@@ -68,7 +72,36 @@ Be concise. Document assumptions about ambiguous requirements.`
 
   try {
     const llmResult = await callLLMText({ system: systemPrompt, prompt, model: STAGE_CONFIGS.intent.model })
-    const parsed = extractJSON(llmResult.text)
+
+    // Aggressive JSON extraction: try direct parse, then regex, then fallback
+    let parsed: any = null
+    let parsePath: string = 'direct'
+
+    try {
+      parsed = JSON.parse(llmResult.text)
+    } catch {
+      // Try extracting first { ... } block
+      const match = llmResult.text.match(/\{[\s\S]*\}/)
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0])
+          parsePath = 'extracted'
+        } catch {
+          // try trimming trailing commas
+          const cleaned = match[0].replace(/,\s*([\]}])/g, '$1')
+          try {
+            parsed = JSON.parse(cleaned)
+            parsePath = 'cleaned'
+          } catch {
+            parsePath = 'fallback'
+          }
+        }
+      } else {
+        parsePath = 'fallback'
+      }
+    }
+
+    console.log(`[Stage1] Parse path: ${parsePath}`)
 
     if (parsed) {
       return IntentSchema.parse(parsed)
@@ -333,26 +366,50 @@ export type SchemaOutput = z.infer<typeof SchemaOutputSchema>
  * Stage 3: Generate concrete schemas from design
  */
 export async function generateSchemas(design: SystemDesign, intent: Intent): Promise<SchemaOutput> {
-  const systemPrompt = `Generate database, API, and UI schemas from system design.
+  const systemPrompt = `You are a database and API schema expert. Generate complete, production-ready schemas.
 
-Output ONLY valid JSON with this structure:
+You MUST respond with ONLY a valid JSON object. No markdown. No backticks. No explanation.
+Start your response with { and end with }.
+Do not write anything before or after the JSON.
+
+CRITICAL RULES FOR DATABASE TABLES:
+- For each data entity, generate ALL relevant columns based on its purpose.
+- A contacts table MUST have: id, firstName, lastName, email, phone, company, status, assignedTo, notes, createdAt, updatedAt
+- A deals table MUST have: id, title, value, stage, contactId, assignedTo, closedAt, createdAt, updatedAt
+- A users table MUST have: id, email, name, role, avatar, createdAt, updatedAt
+- A courses table MUST have: id, title, description, instructorId, thumbnail, duration, published, createdAt, updatedAt
+- Never generate a table with only id and timestamp columns — always include domain-specific fields.
+- Every table must have an "id" column (type: uuid) and "createdAt"/"updatedAt" columns.
+- Use descriptive column names: firstName not fn, phone not ph.
+- Include foreign key columns (e.g., userId, contactId) where relationships exist.
+
+Output JSON structure:
 {
   "database": {
     "tables": [
       {
-        "name": "users",
+        "name": "contacts",
         "columns": [
           {"name": "id", "type": "uuid", "required": true},
-          {"name": "email", "type": "string", "required": true}
+          {"name": "firstName", "type": "string", "required": true},
+          {"name": "lastName", "type": "string", "required": true},
+          {"name": "email", "type": "string", "required": false},
+          {"name": "phone", "type": "string", "required": false},
+          {"name": "company", "type": "string", "required": false},
+          {"name": "status", "type": "string", "required": true},
+          {"name": "assignedTo", "type": "uuid", "required": false},
+          {"name": "notes", "type": "text", "required": false},
+          {"name": "createdAt", "type": "datetime", "required": true},
+          {"name": "updatedAt", "type": "datetime", "required": true}
         ],
-        "relationships": ["posts"]
+        "relationships": ["users"]
       }
     ]
   },
   "api": {
     "endpoints": [
       {
-        "path": "/api/users",
+        "path": "/api/contacts",
         "method": "GET",
         "requestSchema": {},
         "responseSchema": {"type": "array", "items": {"type": "object"}}
@@ -362,9 +419,9 @@ Output ONLY valid JSON with this structure:
   "ui": {
     "pages": [
       {
-        "route": "/dashboard",
-        "components": ["Header", "Sidebar", "MainContent"],
-        "dataSource": "GET /api/dashboard"
+        "route": "/contacts",
+        "components": ["ContactTable", "ContactForm"],
+        "dataSource": "GET /api/contacts"
       }
     ]
   }
@@ -374,7 +431,8 @@ Requirements:
 - All database tables must have id + timestamp columns
 - All API endpoints must have clear request/response schemas
 - All UI pages must map to API data sources
-- Foreign keys must be explicit in relationships`
+- Foreign keys must be explicit in relationships
+- Each table must have 5+ domain-specific columns minimum`
 
   const schemaPrompt = `${JSON.stringify(design)}\n\nIntent context: ${JSON.stringify(intent)}`
 
