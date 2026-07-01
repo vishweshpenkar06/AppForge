@@ -1,16 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { WandSparkles, TimerReset, ShieldCheck } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 interface GenerationFormProps {
   onGenerationCreated?: (jobId: string) => void
@@ -33,13 +23,10 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
 
     setLoading(true)
 
-    // Open a blank window synchronously to avoid popup blockers; we'll navigate it once we have a URL.
     let artifactWindow: Window | null = null
     try {
       artifactWindow = window.open('', '_blank')
-    } catch (e) {
-      artifactWindow = null
-    }
+    } catch { artifactWindow = null }
 
     try {
       const response = await fetch('/api/compile', {
@@ -55,19 +42,10 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
 
       const data = await response.json()
 
-      // Navigate the pre-opened window to the artifact URL if available; otherwise close it.
       if (data.downloadUrl && artifactWindow) {
-        try {
-          artifactWindow.location.href = data.downloadUrl
-        } catch (e) {
-          // ignore navigation errors
-        }
+        try { artifactWindow.location.href = data.downloadUrl } catch {}
       } else if (artifactWindow) {
-        try {
-          artifactWindow.close()
-        } catch (e) {
-          // ignore
-        }
+        try { artifactWindow.close() } catch {}
       }
 
       const jobId = data.jobId || data.id || null
@@ -78,94 +56,72 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
-      if (artifactWindow) {
-        try {
-          artifactWindow.close()
-        } catch (e) {
-          // ignore
-        }
-      }
+      if (artifactWindow) { try { artifactWindow.close() } catch {} }
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <WandSparkles className="h-4 w-4 text-sky-300" />
-          <label htmlFor="prompt" className="block text-sm font-semibold">
-            Describe Your Application
-          </label>
-        </div>
-        <p className="text-sm text-zinc-500">
-          Give AppForge the idea, product goals, or constraints. It will turn that into a structured build plan.
-        </p>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <label htmlFor="prompt" className="block text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">
+          App Description
+        </label>
         <textarea
           id="prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="E.g., Build a project management app with user authentication, team collaboration features, task tracking, and real-time notifications..."
-          className="w-full h-36 px-4 py-3 bg-white/[0.03] border border-white/10 rounded-2xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 resize-none transition"
+          placeholder="Build a project management app with auth, teams, tasks, and real-time notifications..."
+          className="w-full h-32 px-4 py-3 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg
+                     text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]
+                     font-mono resize-none focus:outline-none focus:border-[var(--accent-primary)]
+                     transition-colors leading-relaxed"
           disabled={loading}
         />
       </div>
 
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <TimerReset className="h-4 w-4 text-sky-300" />
-          <label htmlFor="mode" className="block text-sm font-semibold">
-            Compilation Mode
-          </label>
-        </div>
-        <Select value={mode} onValueChange={(value) => setMode(value as typeof mode)} disabled={loading}>
-          <SelectTrigger className="w-full h-14 rounded-2xl border-white/10 bg-white/[0.03] text-left text-white">
-            <SelectValue placeholder="Select a compilation mode" />
-          </SelectTrigger>
-          <SelectContent className="border-white/10 bg-[#111318] text-white">
-            <SelectItem value="fast">Fast (Lower quality, faster)</SelectItem>
-            <SelectItem value="balanced">Balanced (Recommended)</SelectItem>
-            <SelectItem value="precise">Precise (Higher quality, slower)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3 text-sm text-zinc-400">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-300" />
-          Validated output
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-300" />
-          Auth-aware workflow
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-300" />
-          Export-ready config
-        </div>
+        <label htmlFor="mode" className="block text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">
+          Mode
+        </label>
+        <select
+          id="mode"
+          value={mode}
+          onChange={(e) => setMode(e.target.value as typeof mode)}
+          disabled={loading}
+          className="w-full h-10 px-3 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg
+                     text-sm text-[var(--text-primary)] font-mono
+                     focus:outline-none focus:border-[var(--accent-primary)] transition-colors
+                     appearance-none cursor-pointer"
+        >
+          <option value="fast">Fast — lower quality, faster</option>
+          <option value="balanced">Balanced — recommended</option>
+          <option value="precise">Precise — higher quality, slower</option>
+        </select>
       </div>
 
       {error && (
-        <div className="p-3 bg-red-900/20 border border-red-700 rounded-2xl text-red-200 text-sm">
+        <div className="p-3 rounded-lg border border-[var(--error)]/20 bg-[var(--error)]/5 text-sm text-[var(--error)]">
           {error}
         </div>
       )}
 
-      <Button
+      <button
         type="submit"
         disabled={loading || !prompt.trim()}
-        className="w-full bg-sky-500 hover:bg-sky-400 text-black disabled:bg-white/10 disabled:text-white/40 disabled:cursor-not-allowed h-11 font-semibold rounded-2xl"
+        className="w-full btn-primary py-3 text-sm font-semibold disabled:opacity-40"
       >
         {loading ? (
-          <>
-            <Spinner className="w-4 h-4 mr-2" />
+          <span className="flex items-center gap-2 justify-center">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
             Compiling...
-          </>
-        ) : (
-          'Generate Application Config'
-        )}
-      </Button>
+          </span>
+        ) : 'Generate Application Config'}
+      </button>
     </form>
   )
 }

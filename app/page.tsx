@@ -3,8 +3,62 @@
 import { useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { ArrowRight, Sparkles, ShieldCheck, Boxes, WandSparkles, LayoutDashboard } from 'lucide-react'
+import Link from 'next/link'
+
+const PIPELINE_STAGES = [
+  { id: 1, label: 'Intent', desc: 'Parse the goal' },
+  { id: 2, label: 'Design', desc: 'Define entities' },
+  { id: 3, label: 'Schemas', desc: 'DB + API + UI' },
+  { id: 4, label: 'Refine', desc: 'Cross-validate' },
+  { id: 5, label: 'Repair', desc: 'Auto-fix errors' },
+  { id: 6, label: 'Export', desc: 'Ready to ship' },
+]
+
+const METRICS = [
+  { value: '6', label: 'Pipeline stages', sub: 'with Zod validation' },
+  { value: '7', label: 'Cross-layer invariants', sub: 'enforced on every compile' },
+  { value: '20', label: 'Eval test cases', sub: 'real products + edge cases' },
+]
+
+const FEATURES = [
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M10 1v18M1 10h18M4.5 4.5l11 11M15.5 4.5l-11 11" strokeLinecap="round" />
+      </svg>
+    ),
+    title: 'Multi-stage pipeline',
+    body: 'Not a single prompt. Six distinct stages with typed contracts between them. Each stage validates its input before running.',
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M10 2v4l2.5 2.5M17 10a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    title: 'Auto-repair engine',
+    body: "Broken schemas get fixed automatically — missing FK, wrong types, orphaned references. LLM repair only fires when rules can't fix it.",
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="2" y="3" width="16" height="14" rx="2" />
+        <path d="M2 7h16M6 3v4M10 3v4M14 3v4" strokeLinecap="round" />
+      </svg>
+    ),
+    title: 'Execution-ready output',
+    body: 'Get a Prisma schema, Express server stubs with JWT auth, and a React component tree — all from one compile.',
+  },
+]
+
+const EXAMPLE_OUTPUT = [
+  '✓ 5 DB tables generated',
+  '✓ 12 API endpoints',
+  '✓ 8 UI pages',
+  '✓ 3 roles defined',
+  '✓ Subscription table injected',
+  '✓ 0 validation errors',
+]
 
 export default function Page() {
   const { isSignedIn, isLoaded } = useUser()
@@ -17,108 +71,140 @@ export default function Page() {
   }, [isLoaded, isSignedIn, router])
 
   return (
-    <main className="px-4 py-8 sm:px-6 lg:px-8">
-      <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] p-6 sm:p-10 lg:p-14">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_26%)]" />
+    <main>
+      {/* ── Hero ───────────────────────────────────────────────── */}
+      <section className="pt-32 pb-20 px-6 text-center relative overflow-hidden">
+        {/* Radial glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div style={{
+            position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)',
+            width: '600px', height: '400px',
+            background: 'radial-gradient(ellipse, rgba(99,102,241,0.15) 0%, transparent 70%)',
+          }} />
+        </div>
 
-        <div className="relative grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-xs font-medium uppercase tracking-[0.28em] text-sky-200">
-              <Sparkles className="h-3.5 w-3.5" />
-              Product-to-platform compiler
-            </div>
-
-            <div className="space-y-5 max-w-3xl">
-              <h1 className="text-5xl font-black tracking-tight sm:text-6xl lg:text-7xl">
-                Ship structured apps from a single prompt.
-              </h1>
-              <p className="text-base leading-7 text-zinc-400 sm:text-lg">
-                AppForge turns product ideas into validated application blueprints, complete with schemas, APIs, components, metrics, and exports. No scaffolding roulette. No dead-end prototypes.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={() => router.push('/sign-in')} className="rounded-full px-6 h-11">
-                Get Started
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" onClick={() => router.push('/compiler')} className="rounded-full px-6 h-11">
-                Open Compiler
-              </Button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <FeaturePill icon={<WandSparkles className="h-4 w-4" />} title="AI guided" text="Intent, schema, and validation in one flow." />
-              <FeaturePill icon={<ShieldCheck className="h-4 w-4" />} title="Validated" text="Cross-layer checks catch structural issues early." />
-              <FeaturePill icon={<LayoutDashboard className="h-4 w-4" />} title="Observable" text="Metrics and generation history stay visible." />
-            </div>
+        <div className="max-w-4xl mx-auto relative">
+          {/* Eyebrow */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--bg-border)] bg-[var(--bg-surface)] mb-8">
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+            <span className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest">
+              Natural language compiler
+            </span>
           </div>
 
-          <div className="relative">
-            <div className="rounded-[1.75rem] border border-white/10 bg-[#0b0d12]/90 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Preview</p>
-                  <h2 className="mt-1 text-lg font-semibold">What AppForge generates</h2>
+          {/* H1 */}
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-[var(--text-primary)] leading-[1.05] mb-6">
+            Your product spec,<br />
+            <span className="text-[var(--accent-primary)]">machine-readable.</span>
+          </h1>
+
+          {/* Subtext */}
+          <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto mb-10 leading-relaxed">
+            Describe what you&apos;re building. AppForge runs it through a 6-stage compiler and returns a
+            validated database schema, API layer, component tree, and auth config — ready to ship.
+          </p>
+
+          {/* CTA Row */}
+          <div className="flex items-center justify-center gap-4">
+            <Link href="/compiler" className="btn-primary text-base px-6 py-3">
+              Open compiler →
+            </Link>
+            <Link href="/demo" className="btn-ghost text-base px-6 py-3">
+              See examples
+            </Link>
+          </div>
+
+          {/* Trust line */}
+          <p className="mt-6 text-xs text-[var(--text-muted)] font-mono">
+            No credit card · Free tier · NVIDIA NIM powered
+          </p>
+        </div>
+      </section>
+
+      {/* ── Pipeline Strip (Signature Element) ─────────────────── */}
+      <section className="py-16 px-6 border-y border-[var(--bg-border)]">
+        <div className="max-w-5xl mx-auto">
+          <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-widest text-center mb-10">
+            Compilation pipeline
+          </p>
+          <div className="flex items-start justify-between relative">
+            {/* Connector line */}
+            <div className="absolute top-5 left-0 right-0 h-px bg-[var(--bg-border)]" />
+            {/* Animated beam */}
+            <div className="absolute top-5 left-0 h-px w-20 bg-gradient-to-r from-transparent via-[var(--accent-primary)] to-transparent pipeline-beam" />
+
+            {PIPELINE_STAGES.map((stage) => (
+              <div key={stage.id} className="flex flex-col items-center gap-3 relative z-10">
+                <div className="w-10 h-10 rounded-full border border-[var(--bg-border)] bg-[var(--bg-surface)] flex items-center justify-center">
+                  <span className="text-xs font-mono text-[var(--text-muted)]">{String(stage.id).padStart(2, '0')}</span>
                 </div>
-                <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
-                  Live
+                <div className="text-center">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{stage.label}</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">{stage.desc}</p>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              <div className="space-y-4">
-                <PreviewCard title="Product shape" value="Feature map, roles, and system boundaries" />
-                <PreviewCard title="Output layers" value="Database, APIs, components, validation" />
-                <PreviewCard title="Workflow" value="Prompt → compile → inspect → export" />
-              </div>
+      {/* ── Metrics Row ────────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8">
+          {METRICS.map((m) => (
+            <div key={m.value} className="text-center">
+              <p className="text-5xl font-bold text-[var(--text-primary)] tracking-tight">{m.value}</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)] mt-2">{m.label}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">{m.sub}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Example prompt</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Build a client portal with authentication, analytics, role-based access, and a polished admin dashboard.
+      {/* ── Feature Cards ──────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="card-hover">
+              <div className="mb-4 text-[var(--accent-primary)]">{f.icon}</div>
+              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">{f.title}</h3>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{f.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Live Example Panel ─────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)] overflow-hidden">
+            {/* Window chrome */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--bg-border)]">
+              <div className="w-3 h-3 rounded-full bg-[var(--error)] opacity-60" />
+              <div className="w-3 h-3 rounded-full bg-[var(--warning)] opacity-60" />
+              <div className="w-3 h-3 rounded-full bg-[var(--success)] opacity-60" />
+              <span className="ml-3 text-xs font-mono text-[var(--text-muted)]">appforge — compile</span>
+            </div>
+            {/* Content */}
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[var(--bg-border)]">
+              <div className="p-6">
+                <p className="text-xs font-mono text-[var(--text-muted)] mb-3 uppercase tracking-wider">Input</p>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed font-mono">
+                  &quot;Build a CRM with login, contacts, a dashboard, role-based access, and a premium plan with payments. Admins can see analytics.&quot;
                 </p>
               </div>
-
-              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                <Boxes className="h-5 w-5 text-sky-300" />
-                <div>
-                  <p className="text-sm font-medium">Blueprint first</p>
-                  <p className="text-xs text-zinc-500">No code until the structure is right.</p>
+              <div className="p-6">
+                <p className="text-xs font-mono text-[var(--text-muted)] mb-3 uppercase tracking-wider">Output</p>
+                <div className="space-y-2">
+                  {EXAMPLE_OUTPUT.map((line) => (
+                    <p key={line} className="text-xs font-mono text-[var(--accent-secondary)]">{line}</p>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </main>
-  )
-}
-
-function FeaturePill({
-  icon,
-  title,
-  text,
-}: {
-  icon: React.ReactNode
-  title: string
-  text: string
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-white">
-        <span className="text-sky-300">{icon}</span>
-        {title}
-      </div>
-      <p className="mt-2 text-sm leading-6 text-zinc-500">{text}</p>
-    </div>
-  )
-}
-
-function PreviewCard({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">{title}</p>
-      <p className="mt-2 text-sm text-white/90">{value}</p>
-    </div>
   )
 }
