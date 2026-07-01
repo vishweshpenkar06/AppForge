@@ -96,6 +96,50 @@ Track record of every modification made to the project. Each entry includes what
 
 ---
 
+## 2026-07-02 — NVIDIA NIM Provider Integration
+
+### Change 11: NVIDIA NIM as Primary LLM Provider
+**Problem:** AppForge only had flat provider configuration with no selection logic. Users had to manually set base URLs and model names.
+
+**Fix:** Rewrote `lib/ai.ts` with a provider registry pattern:
+- 3 providers: `nvidia`, `groq`, `featherless` — each with baseUrl, apiKey, defaultModel, fallbackModel
+- `LLM_PROVIDER` env var selects the active provider (default: `nvidia`)
+- Automatic fallback: tries primary provider, on 429/timeout falls back to secondary
+- `isRetryableError()` detects rate limits and transient failures
+- `getActiveProviderInfo()` exported for health check and logging
+- NVIDIA NIM: `mistralai/mistral-nemotron-super-49b-v1` (primary), `deepseek-ai/deepseek-v4-pro` (fallback)
+
+**Files:** `lib/ai.ts`
+
+---
+
+### Change 12: Health Check Updated
+**Problem:** Health endpoint hardcoded provider detection logic, didn't reflect the new provider system.
+
+**Fix:** Uses `getActiveProviderInfo()` from `lib/ai.ts`. Response now includes `active_provider`, `fallback_provider`, `model`, `base_url`.
+
+**Files:** `app/api/health/route.ts`
+
+---
+
+### Change 13: `.env.example` Updated
+**Problem:** `.env.example` didn't document `LLM_PROVIDER` or NVIDIA NIM configuration.
+
+**Fix:** Added `LLM_PROVIDER` selection var, NVIDIA NIM section as primary option, documented fallback model behavior.
+
+**Files:** `.env.example`
+
+---
+
+### Change 14: `docs/tradeoffs.md` Created
+**Problem:** No documentation comparing LLM providers or explaining the selection/fallback logic.
+
+**Fix:** Created `docs/tradeoffs.md` with provider comparison table, selection logic, cost analysis, and custom provider instructions.
+
+**Files:** `docs/tradeoffs.md`
+
+---
+
 ## Summary of All Changes
 
 | # | File | Change Type | Severity |
@@ -110,3 +154,7 @@ Track record of every modification made to the project. Each entry includes what
 | 8 | `app/api/compile/route.ts` | Snake fallback trimmed + cleanup | Moderate |
 | 9 | `lib/compiler/core.ts` | LLM result format update | Critical |
 | 10 | `lib/pipeline.ts` | TypeScript type error fix | Critical |
+| 11 | `lib/ai.ts` | NVIDIA NIM provider + selection + fallback | Feature |
+| 12 | `app/api/health/route.ts` | Health check uses provider info | Feature |
+| 13 | `.env.example` | LLM_PROVIDER + NVIDIA NIM docs | Feature |
+| 14 | `docs/tradeoffs.md` | Provider comparison documentation | Feature |

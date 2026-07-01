@@ -1,12 +1,67 @@
 // LLM / API Configuration
-// Supports: Groq, Featherless, Nvidia (build.nvidia.com), or any OpenAI-compatible API
-const API_KEY = process.env.NVIDIA_API_KEY || process.env.GROQ_API_KEY || process.env.FEATHERLESS_API_KEY
-const API_BASE_URL = process.env.LLM_BASE_URL || process.env.GROQ_API_BASE_URL || process.env.FEATHERLESS_BASE_URL || 'https://integrate.api.nvidia.com/v1'
-const DEFAULT_MODEL = process.env.LLM_MODEL || 'meta/llama-3.3-70b-instruct'
+// Supports: NVIDIA NIM (build.nvidia.com), Groq, Featherless, or any OpenAI-compatible API
+
+// ============================================================================
+// PROVIDER CONFIGURATION
+// ============================================================================
+
+type Provider = 'nvidia' | 'groq' | 'featherless'
+
+interface ProviderConfig {
+  baseUrl: string
+  apiKey: string
+  defaultModel: string
+  fallbackModel: string
+}
+
+const PROVIDERS: Record<Provider, ProviderConfig> = {
+  nvidia: {
+    baseUrl: 'https://integrate.api.nvidia.com/v1',
+    apiKey: process.env.NVIDIA_API_KEY || '',
+    defaultModel: 'mistralai/mistral-nemotron-super-49b-v1',
+    fallbackModel: 'deepseek-ai/deepseek-v4-pro',
+  },
+  groq: {
+    baseUrl: 'https://api.groq.com/openai/v1',
+    apiKey: process.env.GROQ_API_KEY || '',
+    defaultModel: 'llama-3.3-70b-versatile',
+    fallbackModel: 'llama-3.1-8b-instant',
+  },
+  featherless: {
+    baseUrl: 'https://api.featherless.ai/v1',
+    apiKey: process.env.FEATHERLESS_API_KEY || '',
+    defaultModel: 'meta-llama/Meta-Llama-3.3-70B-Instruct',
+    fallbackModel: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
+  },
+}
+
+/**
+ * Resolve the active provider from LLM_PROVIDER env var.
+ * Default: try NVIDIA first, fall back to Groq.
+ */
+function resolveProvider(): { primary: Provider; fallback: Provider | null } {
+  const requested = (process.env.LLM_PROVIDER || '').toLowerCase().trim()
+
+  if (requested === 'nvidia' || requested === 'nim') return { primary: 'nvidia', fallback: 'groq' }
+  if (requested === 'groq') return { primary: 'groq', fallback: 'nvidia' }
+  if (requested === 'featherless') return { primary: 'featherless', fallback: null }
+
+  // Default: NVIDIA first, Groq fallback
+  return { primary: 'nvidia', fallback: 'groq' }
+}
+
+const { primary: ACTIVE_PROVIDER, fallback: FALLBACK_PROVIDER } = resolveProvider()
+
+function getProviderConfig(provider: Provider): ProviderConfig {
+  return PROVIDERS[provider]
+}
 
 // Allow running in deterministic test mode without an external API key
-if (!API_KEY && process.env.DETERMINISTIC_LLM !== '1') {
-  throw new Error('LLM API key is required (set NVIDIA_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY, or use DETERMINISTIC_LLM=1).')
+const hasAnyKey = Object.values(PROVIDERS).some((p) => p.apiKey)
+if (!hasAnyKey && process.env.DETERMINISTIC_LLM !== '1') {
+  throw new Error(
+    'LLM API key is required. Set at least one of: NVIDIA_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY — or use DETERMINISTIC_LLM=1.'
+  )
 }
 
 // ============================================================================
@@ -15,27 +70,27 @@ if (!API_KEY && process.env.DETERMINISTIC_LLM !== '1') {
 
 export const STAGE_CONFIGS = {
   intent: {
-    model: DEFAULT_MODEL,
+    model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
     max_tokens: 1500,
     temperature: 0.2,
   },
   design: {
-    model: DEFAULT_MODEL,
+    model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
     max_tokens: 2500,
     temperature: 0.1,
   },
   schema: {
-    model: DEFAULT_MODEL,
+    model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
     max_tokens: 4000,
     temperature: 0,
   },
   refinement: {
-    model: DEFAULT_MODEL,
+    model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
     max_tokens: 4000,
     temperature: 0,
   },
   repair: {
-    model: DEFAULT_MODEL,
+    model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
     max_tokens: 2500,
     temperature: 0,
   },
@@ -194,23 +249,39 @@ export interface LLMCallOptions {
   top_p?: number
 }
 
+/**
+ * Check if an error indicates rate limiting or transient failure worth retrying.
+ */
+function isRetryableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const msg = error.message.toLowerCase()
+  return msg.includes('429') || msg.includes('rate limit') || msg.includes('timeout') || msg.includes('econnreset')
+}
+
+/**
+ * Core LLM call with provider-aware routing and fallback.
+ * Tries the primary provider first; on 429/timeout, falls back to the secondary provider.
+ */
 export async function callLLM(options: LLMCallOptions) {
   const startTime = Date.now()
 
-  try {
-    // Build messages array with system prompt if provided
+  async function callProvider(provider: Provider, modelOverride?: string) {
+    const config = getProviderConfig(provider)
+    if (!config.apiKey) throw new Error(`No API key configured for provider '${provider}'`)
+
+    const model = modelOverride || options.model
     const messages = options.system
       ? [{ role: 'system' as const, content: options.system }, ...options.messages]
       : options.messages
 
-    const response = await fetch(`${API_BASE_URL}/chat/completions`, {
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${API_KEY}`,
+        Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
-        model: options.model,
+        model,
         messages,
         max_tokens: options.max_tokens,
         temperature: options.temperature,
@@ -219,8 +290,8 @@ export async function callLLM(options: LLMCallOptions) {
     })
 
     if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`LLM API error (${response.status}): ${error}`)
+      const errorText = await response.text()
+      throw new Error(`LLM API error [${provider}] (${response.status}): ${errorText}`)
     }
 
     const data = await response.json()
@@ -232,11 +303,33 @@ export async function callLLM(options: LLMCallOptions) {
       latencyMs,
       inputTokens: data.usage?.prompt_tokens || 0,
       outputTokens: data.usage?.completion_tokens || 0,
+      provider,
+      model,
     }
-  } catch (error) {
+  }
+
+  try {
+    // Try primary provider
+    return await callProvider(ACTIVE_PROVIDER)
+  } catch (primaryError) {
+    // If retryable and fallback exists, try fallback provider
+    if (FALLBACK_PROVIDER && isRetryableError(primaryError)) {
+      try {
+        console.warn(`[LLM] Primary provider '${ACTIVE_PROVIDER}' failed, trying fallback '${FALLBACK_PROVIDER}'`)
+        return await callProvider(FALLBACK_PROVIDER)
+      } catch (fallbackError) {
+        // Both failed — throw the primary error with fallback context
+        const latencyMs = Date.now() - startTime
+        const err = primaryError instanceof Error ? primaryError : new Error('Unknown error')
+        err.message = `LLM call failed (primary: ${ACTIVE_PROVIDER}, fallback: ${FALLBACK_PROVIDER} also failed): ${err.message} (${latencyMs}ms)`
+        throw err
+      }
+    }
+
+    // Non-retryable or no fallback — throw original error
     const latencyMs = Date.now() - startTime
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    err.message = `LLM call failed: ${err.message} (${latencyMs}ms)`
+    const err = primaryError instanceof Error ? primaryError : new Error('Unknown error')
+    err.message = `LLM call failed [${ACTIVE_PROVIDER}]: ${err.message} (${latencyMs}ms)`
     throw err
   }
 }
@@ -398,7 +491,7 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
   }
 
   // Otherwise call real LLM
-  const result = await callLLM({ model: model || DEFAULT_MODEL, max_tokens: 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
+  const result = await callLLM({ model: model || getProviderConfig(ACTIVE_PROVIDER).defaultModel, max_tokens: 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
   return { text: result.output, inputTokens: result.inputTokens, outputTokens: result.outputTokens }
 }
 
@@ -431,4 +524,18 @@ export function getConfigsByMode(mode: 'fast' | 'balanced' | 'precise') {
 
   // balanced (default)
   return baseConfigs
+}
+
+// ============================================================================
+// PROVIDER INFO (for health check / logging)
+// ============================================================================
+
+export function getActiveProviderInfo() {
+  return {
+    active: ACTIVE_PROVIDER,
+    fallback: FALLBACK_PROVIDER,
+    model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
+    baseUrl: getProviderConfig(ACTIVE_PROVIDER).baseUrl,
+    deterministic: process.env.DETERMINISTIC_LLM === '1',
+  }
 }

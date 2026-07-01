@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getActiveProviderInfo } from '@/lib/ai'
 
 export async function GET() {
-  const llmProvider = process.env.NVIDIA_API_KEY ? 'nvidia (meta/llama-3.3-70b-instruct)'
-    : process.env.GROQ_API_KEY ? 'groq (llama-3.3-70b-versatile)'
-    : process.env.FEATHERLESS_API_KEY ? 'featherless'
-    : 'none configured'
+  const provider = getActiveProviderInfo()
 
   const checks: Record<string, any> = {
     status: 'ok',
@@ -13,9 +11,13 @@ export async function GET() {
     version: '1.0.0',
     pipeline: {
       stages: 6,
-      llm_provider: llmProvider,
-      model: process.env.LLM_MODEL || 'meta/llama-3.3-70b-instruct',
-      deterministic_mode: process.env.DETERMINISTIC_LLM === '1',
+      llm: {
+        active_provider: provider.active,
+        fallback_provider: provider.fallback,
+        model: provider.model,
+        base_url: provider.baseUrl,
+        deterministic_mode: provider.deterministic,
+      },
     },
     database: 'unknown',
     uptime_seconds: Math.floor(process.uptime()),
