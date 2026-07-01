@@ -3,7 +3,7 @@
 
 import { prisma } from './db'
 import { extractIntent, designSystem, generateSchemas, refineSchemas, validateAndRepair, checkExecutability } from './compiler/core'
-import { buildImplementationPlan } from './compiler/export'
+import { buildImplementationPlan, buildPlanningDocs } from './compiler/export'
 
 // Re-export stage functions for backward compatibility
 export { extractIntent as runStage1 } from './compiler/core'
@@ -27,6 +27,7 @@ export interface PipelineExecutionResult {
   success: boolean
   appConfig?: any | null
   implementationPlan?: any
+  docs?: any
   stages: PipelineStageResult[]
   totalLatencyMs: number
   totalTokens: number
@@ -44,10 +45,14 @@ export async function generateApplication(
 ): Promise<PipelineExecutionResult> {
   const pipelineStartTime = Date.now()
   const stages: PipelineStageResult[] = []
+  let totalInputTokens = 0
+  let totalOutputTokens = 0
 
-  function recordStage(name: string, startMs: number, success: boolean, error?: string) {
+  function recordStage(name: string, startMs: number, success: boolean, inputTokens = 0, outputTokens = 0, error?: string) {
     const latencyMs = Date.now() - startMs
-    stages.push({ stage: name, success, output: null, latencyMs, inputTokens: 0, outputTokens: 0, error })
+    totalInputTokens += inputTokens
+    totalOutputTokens += outputTokens
+    stages.push({ stage: name, success, output: null, latencyMs, inputTokens, outputTokens, error })
   }
 
   try {
@@ -74,22 +79,52 @@ export async function generateApplication(
     // Stage 5: Validation & Repair
     start = Date.now()
     const validation = await validateAndRepair(refined)
-    recordStage('validation', start, validation.valid, validation.errors.join(', '))
+    recordStage('validation', start, validation.valid, 0, 0, validation.errors.length > 0 ? validation.errors.join(', ') : undefined)
 
     const execution = checkExecutability(refined, validation)
 
-    // Stage 6: Implementation plan
+    // Stage 6: Implementation plan + docs
     start = Date.now()
     let implementationPlan = null
+    let docs = null
     try {
       implementationPlan = buildImplementationPlan(refined, design)
+      docs = buildPlanningDocs(prompt, intent, design, refined, implementationPlan)
     } catch (err) {
       console.warn('[Pipeline] Failed to build implementation plan:', err)
     }
     recordStage('export', start, implementationPlan !== null)
 
-    // Persist
+    // Persist with artifacts
     const totalLatencyMs = Date.now() - pipelineStartTime
+    const artifacts: Record<string, string> = {}
+    if (docs) {
+      artifacts['PRD.md'] = docs.prd
+      artifacts['TRD.md'] = docs.trd
+      artifacts['AppFlow.md'] = docs.appFlow
+      artifacts['UI-UX-BRIEF.md'] = docs.uiUxBrief
+      artifacts['BACKEND-SCHEMA.md'] = docs.backendSchema
+      artifacts['IMPLEMENTATION-PLAN.md'] = docs.implementationPlan
+    }
+    if (implementationPlan) {
+      artifacts['prisma.schema'] = implementationPlan.prismaSchema
+      for (const h of implementationPlan.apiHandlers) artifacts[h.path] = h.content
+      for (const p of implementationPlan.uiPages) artifacts[p.path] = p.content
+    }
+
+    try {
+      await prisma.appConfig.create({
+        data: {
+          generationId: jobId,
+          config: refined as any,
+          artifacts: Object.keys(artifacts).length > 0 ? artifacts : undefined,
+          validationPassed: validation.valid,
+        },
+      })
+    } catch (err) {
+      console.warn('[Pipeline] Failed to persist appConfig:', err)
+    }
+
     await prisma.generation.update({
       where: { id: jobId },
       data: {
@@ -105,9 +140,10 @@ export async function generateApplication(
       success: execution.executable,
       appConfig: refined,
       implementationPlan,
+      docs,
       stages,
       totalLatencyMs,
-      totalTokens: 0,
+      totalTokens: totalInputTokens + totalOutputTokens,
     }
   } catch (error) {
     const totalLatencyMs = Date.now() - pipelineStartTime
@@ -123,7 +159,7 @@ export async function generateApplication(
       success: false,
       stages,
       totalLatencyMs,
-      totalTokens: 0,
+      totalTokens: totalInputTokens + totalOutputTokens,
       errorMessage,
     }
   }

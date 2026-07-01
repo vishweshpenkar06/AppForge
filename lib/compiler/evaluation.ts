@@ -287,9 +287,15 @@ async function runSingleTest(test: any): Promise<TestResult> {
 }
 
 function estimateCost(latencyMs: number): number {
-  // Rough estimate: $0.001 per second of compute + token costs
-  // Real calculation would use actual token counts
-  return (latencyMs / 1000) * 0.01
+  // Rough estimate based on typical token usage per compile:
+  // ~6 LLM calls × ~800 tokens = ~4800 tokens total
+  // Groq free tier: input $0.000003/token, output $0.000015/token
+  // Estimate ~3000 input + ~1800 output tokens per compile
+  const estimatedInputTokens = 3000
+  const estimatedOutputTokens = 1800
+  const costPerInputToken = 0.000003
+  const costPerOutputToken = 0.000015
+  return (estimatedInputTokens * costPerInputToken) + (estimatedOutputTokens * costPerOutputToken)
 }
 
 function generateReport(results: TestResult[]): EvaluationReport {

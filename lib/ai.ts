@@ -235,11 +235,9 @@ export async function callLLM(options: LLMCallOptions) {
     }
   } catch (error) {
     const latencyMs = Date.now() - startTime
-    throw {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      latencyMs,
-    }
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    err.message = `LLM call failed: ${err.message} (${latencyMs}ms)`
+    throw err
   }
 }
 
@@ -247,7 +245,13 @@ export async function callLLM(options: LLMCallOptions) {
  * Wrapper returning raw assistant text. Supports deterministic stub when
  * `DETERMINISTIC_LLM` env var is set to `1`.
  */
-export async function callLLMText({ system, prompt, model }: { system: string; prompt: string; model: string }) {
+export interface LLMTextResult {
+  text: string
+  inputTokens: number
+  outputTokens: number
+}
+
+export async function callLLMText({ system, prompt, model }: { system: string; prompt: string; model: string }): Promise<LLMTextResult> {
   // Deterministic stub for tests / evaluation without external API
   if (process.env.DETERMINISTIC_LLM === '1') {
     // Very small heuristic-based deterministic responses per stage
@@ -293,7 +297,7 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
         assumptions: [],
       }
 
-      return JSON.stringify(intent)
+      return { text: JSON.stringify(intent), inputTokens: 0, outputTokens: 0 }
     }
 
     // Design stage
@@ -327,7 +331,7 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
         accessControl: { roles: parsed.userRoles || ['user'], rolePermissions: { user: ['read'], admin: ['read', 'write'] } },
       }
 
-      return JSON.stringify(design)
+      return { text: JSON.stringify(design), inputTokens: 0, outputTokens: 0 }
     }
 
     // Schema generation
@@ -357,7 +361,7 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
       const uiPages = [{ route: '/dashboard', components: ['Header', 'Main'], dataSource: `GET /api/${tables[0].name}` }]
 
       const out = { database: { tables }, api: { endpoints }, ui: { pages: uiPages } }
-      return JSON.stringify(out)
+      return { text: JSON.stringify(out), inputTokens: 0, outputTokens: 0 }
     }
 
     // Refinement stage: just echo back schemas or ensure id exists
@@ -371,9 +375,9 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
             t.columns.unshift({ name: 'id', type: 'uuid', required: true })
           }
         })
-        return JSON.stringify(schemas)
+        return { text: JSON.stringify(schemas), inputTokens: 0, outputTokens: 0 }
       } catch {
-        return JSON.stringify({ database: { tables: [] }, api: { endpoints: [] }, ui: { pages: [] } })
+        return { text: JSON.stringify({ database: { tables: [] }, api: { endpoints: [] }, ui: { pages: [] } }), inputTokens: 0, outputTokens: 0 }
       }
     }
 
@@ -383,19 +387,19 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
         const req = JSON.parse(prompt)
         // naive repair: if errors mention missing endpoint, add it
         const repairedSection = req.config || {}
-        return JSON.stringify({ repairedSection, changes: [] })
+        return { text: JSON.stringify({ repairedSection, changes: [] }), inputTokens: 0, outputTokens: 0 }
       } catch {
-        return JSON.stringify({ repairedSection: {}, changes: [] })
+        return { text: JSON.stringify({ repairedSection: {}, changes: [] }), inputTokens: 0, outputTokens: 0 }
       }
     }
 
     // Fallback deterministic empty JSON
-    return JSON.stringify({})
+    return { text: JSON.stringify({}), inputTokens: 0, outputTokens: 0 }
   }
 
   // Otherwise call real LLM
   const result = await callLLM({ model: model || DEFAULT_MODEL, max_tokens: 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
-  return result.output
+  return { text: result.output, inputTokens: result.inputTokens, outputTokens: result.outputTokens }
 }
 
 // ============================================================================

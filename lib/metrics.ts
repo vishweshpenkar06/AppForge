@@ -128,16 +128,23 @@ export async function recordGenerationMetrics(
   metrics: Partial<GenerationMetrics>
 ) {
   try {
-    // Store in a simple JSON format for now
-    // In production, you might want a dedicated metrics table
-    console.log('[Metrics] Recording:', {
-      jobId,
-      userId,
-      ...metrics,
+    // Update the generation record with metrics metadata
+    await prisma.generation.update({
+      where: { id: jobId },
+      data: {
+        metadata: {
+          metrics: {
+            mode: metrics.mode,
+            totalDuration: metrics.totalDuration,
+            totalTokens: metrics.totalTokens,
+            success: metrics.success,
+            quality: metrics.quality,
+            consistency: metrics.consistency,
+            timestamp: metrics.timestamp || new Date(),
+          },
+        } as any,
+      },
     })
-
-    // You could store this in a metrics table or send to an analytics service
-    // await prisma.metric.create({ data: { jobId, userId, ...metrics } })
   } catch (error) {
     console.error('[Metrics] Error recording metrics:', error)
   }

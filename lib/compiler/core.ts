@@ -67,8 +67,8 @@ Detection rules:
 Be concise. Document assumptions about ambiguous requirements.`
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt, model: STAGE_CONFIGS.intent.model })
-    const parsed = extractJSON(text)
+    const llmResult = await callLLMText({ system: systemPrompt, prompt, model: STAGE_CONFIGS.intent.model })
+    const parsed = extractJSON(llmResult.text)
 
     if (parsed) {
       return IntentSchema.parse(parsed)
@@ -228,8 +228,8 @@ Roles: ${intent.userRoles.join(', ')}
 Key Entities: ${intent.dataModels.join(', ')}`
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt: designPrompt, model: STAGE_CONFIGS.design.model })
-    const parsed = extractJSON(text)
+    const llmResult = await callLLMText({ system: systemPrompt, prompt: designPrompt, model: STAGE_CONFIGS.design.model })
+    const parsed = extractJSON(llmResult.text)
 
     if (parsed) {
       return SystemDesignSchema.parse(parsed)
@@ -379,8 +379,8 @@ Requirements:
   const schemaPrompt = `${JSON.stringify(design)}\n\nIntent context: ${JSON.stringify(intent)}`
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt: schemaPrompt, model: STAGE_CONFIGS.schema.model })
-    const parsed = extractJSON(text)
+    const llmResult = await callLLMText({ system: systemPrompt, prompt: schemaPrompt, model: STAGE_CONFIGS.schema.model })
+    const parsed = extractJSON(llmResult.text)
 
     if (parsed) {
       return SchemaOutputSchema.parse(parsed)
@@ -453,8 +453,8 @@ Output the corrected, complete schema as valid JSON.`
   const schemasJson = JSON.stringify(schemas)
 
   try {
-    const text = await callLLMText({ system: systemPrompt, prompt: schemasJson, model: STAGE_CONFIGS.refinement.model })
-    const parsed = extractJSON(text)
+    const llmResult = await callLLMText({ system: systemPrompt, prompt: schemasJson, model: STAGE_CONFIGS.refinement.model })
+    const parsed = extractJSON(llmResult.text)
 
     if (parsed) {
       return SchemaOutputSchema.parse(parsed)
@@ -662,13 +662,13 @@ ${JSON.stringify(schemas, null, 2)}
 Fix ONLY the specific issues listed above. Return the corrected full schema as valid JSON.
 Output ONLY valid JSON, nothing else.`
 
-      const text = await callLLMText({
+      const llmResult = await callLLMText({
         system: 'You are a schema repair expert. Fix validation errors surgically. Output ONLY valid JSON.',
         prompt: repairPrompt,
         model: STAGE_CONFIGS.repair.model,
       })
 
-      const repaired = extractJSON(text)
+      const repaired = extractJSON(llmResult.text)
       if (repaired && repaired.database && repaired.api && repaired.ui) {
         // Re-validate the repaired schema
         const repairedResult = validateSchemaOutput(repaired as SchemaOutput)
