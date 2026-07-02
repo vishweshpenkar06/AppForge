@@ -9,19 +9,45 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id            String   @id @default(cuid())
-  clerkId       String   @unique
-  email         String   @unique
-  displayName   String?
-  plan          String   @default("free") // free | pro
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+enum PlanTier {
+  free
+  pro
+  team
+}
 
-  generations   Generation[]
-  evalRuns      EvalRun[]
+model User {
+  id                String    @id @default(cuid())
+  clerkId           String    @unique
+  email             String    @unique
+  displayName       String?
+  plan              PlanTier  @default(free)
+  planStartedAt     DateTime  @default(now())
+  compilesThisMonth Int       @default(0)
+  compilesResetAt   DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  ownedTeamCode     TeamCode? @relation("TeamOwner")
+  memberOfTeamId    String?
+  memberOfTeam      TeamCode? @relation("TeamMembers", fields: [memberOfTeamId], references: [id])
+
+  generations       Generation[]
+  evalRuns          EvalRun[]
 
   @@map("users")
+}
+
+model TeamCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  ownerId   String   @unique
+  owner     User     @relation("TeamOwner", fields: [ownerId], references: [id])
+  seatsUsed Int      @default(1)
+  maxSeats  Int      @default(5)
+  createdAt DateTime @default(now())
+  members   User[]   @relation("TeamMembers")
+
+  @@map("team_codes")
 }
 
 model Generation {

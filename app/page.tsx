@@ -19,45 +19,18 @@ export default function Page() {
   const router = useRouter()
 
   useEffect(() => {
-    if (isLoaded && isSignedIn) router.replace('/dashboard')
-  }, [isLoaded, isSignedIn, router])
+    if (isSignedIn) router.replace('/dashboard')
+  }, [isSignedIn, router])
+
+  if (!isLoaded) return null
 
   return (
     <main>
-      {/* ── Nav ─────────────────────────────────────────────────── */}
-      <nav style={{
-        position:'fixed', top:0, width:'100%', height:48, zIndex:50,
-        display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'0 24px',
-        background:'rgba(9,9,11,0.85)', backdropFilter:'blur(12px)',
-        borderBottom:'1px solid var(--border)',
-      }}>
-        <Link href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none' }}>
-          <div style={{ width:28, height:28, borderRadius:6, background:'var(--fill-accent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <span style={{ color:'#fff', fontFamily:'var(--font-mono)', fontSize:11, fontWeight:700 }}>AF</span>
-          </div>
-          <span style={{ color:'var(--text-primary)', fontWeight:600, fontSize:14 }}>AppForge</span>
-        </Link>
-        <div style={{ display:'flex', gap:24 }}>
-          <Link href="/compiler" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Compiler</Link>
-          <Link href="/demo" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Examples</Link>
-          <Link href="/dashboard" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Dashboard</Link>
-        </div>
-        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-          <Link href="/sign-in" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Sign in</Link>
-          <Link href="/compiler" style={{
-            background:'var(--fill-accent)', color:'#fff', borderRadius:'var(--radius)',
-            padding:'6px 14px', fontSize:13, fontWeight:500, textDecoration:'none',
-          }}>Get started</Link>
-        </div>
-      </nav>
-
       {/* ── Hero ────────────────────────────────────────────────── */}
-      <section style={{ paddingTop:120, paddingBottom:64, textAlign:'center', position:'relative', overflow:'hidden' }}>
+      <section style={{ paddingTop:80, paddingBottom:64, textAlign:'center', position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:'8%', left:'50%', transform:'translateX(-50%)', width:600, height:350, background:'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%)', pointerEvents:'none' }} />
 
         <div style={{ maxWidth:700, margin:'0 auto', position:'relative' }}>
-          {/* Eyebrow */}
           <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'4px 12px', borderRadius:999, border:'1px solid var(--border)', background:'var(--surface-1)', marginBottom:32 }}>
             <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--fill-accent)', animation:'pulse-dot 2s ease-in-out infinite' }} />
             <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em' }}>Natural language compiler</span>
@@ -128,7 +101,7 @@ export default function Page() {
             { icon:'⚡', title:'Auto-repair engine', body:"Broken schemas get fixed automatically — missing FK, wrong types, orphaned references." },
             { icon:'◈', title:'Execution-ready output', body:'Get a Prisma schema, Express server with JWT auth, and React component tree.' },
           ].map((f) => (
-            <div key={f.title} style={{ background:'var(--surface-1)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:24, transition:'border-color 0.2s' }}>
+            <div key={f.title} style={{ background:'var(--surface-1)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:24 }}>
               <p style={{ fontSize:20, color:'var(--text-accent)', margin:'0 0 16px' }}>{f.icon}</p>
               <h3 style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:'0 0 8px' }}>{f.title}</h3>
               <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:'1.6', margin:0 }}>{f.body}</p>

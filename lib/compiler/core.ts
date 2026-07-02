@@ -5,6 +5,7 @@
 
 import { z } from 'zod'
 import { callLLMText, extractJSON, STAGE_CONFIGS } from '@/lib/ai'
+import { DETAIL_PROMPTS, type DetailLevel } from '@/lib/plan-limits'
 
 // ============================================================================
 // STAGE 1: INTENT EXTRACTION
@@ -42,8 +43,10 @@ export type Intent = z.infer<typeof IntentSchema>
 /**
  * Stage 1: Parse natural language into structured intent
  */
-export async function extractIntent(prompt: string): Promise<Intent> {
+export async function extractIntent(prompt: string, detailLevel: DetailLevel = 'standard'): Promise<Intent> {
   const systemPrompt = `You are an expert product architect. Parse user requirements into structured intent.
+
+${DETAIL_PROMPTS[detailLevel]}
 
 You MUST respond with ONLY a valid JSON object. No markdown. No backticks. No explanation.
 Start your response with { and end with }.
@@ -225,28 +228,22 @@ export type SystemDesign = z.infer<typeof SystemDesignSchema>
 /**
  * Stage 2: Convert intent into system architecture
  */
-export async function designSystem(intent: Intent): Promise<SystemDesign> {
+export async function designSystem(intent: Intent, detailLevel: DetailLevel = 'standard'): Promise<SystemDesign> {
   const systemPrompt = `You are a system architect. Convert app intent into detailed system design.
 
-Output ONLY valid JSON matching this schema:
+${DETAIL_PROMPTS[detailLevel]}
+
+You MUST respond with ONLY a valid JSON object. No markdown. No backticks. No explanation.
+Start your response with { and end with }.
+Do not write anything before or after the JSON.
+
+Output schema:
 {
   "architecture": "monolith|microservices|serverless",
-  "pageStructure": [
-    {"name": "string", "purpose": "string", "requiredData": ["field1", "field2"]}
-  ],
-  "apiEndpoints": [
-    {"path": "/api/...", "method": "GET|POST|PUT|DELETE", "purpose": "string"}
-  ],
-  "dataEntities": [
-    {"name": "User", "relationships": ["Post", "Comment"]}
-  ],
-  "accessControl": {
-    "roles": ["admin", "user"],
-    "rolePermissions": {
-      "admin": ["create_user", "delete_post"],
-      "user": ["create_post", "edit_own_post"]
-    }
-  }
+  "pageStructure": [{"name": "string", "purpose": "string", "requiredData": ["field1"]}],
+  "apiEndpoints": [{"path": "/api/...", "method": "GET|POST|PUT|DELETE", "purpose": "string"}],
+  "dataEntities": [{"name": "User", "relationships": ["Post"]}],
+  "accessControl": {"roles": ["admin", "user"], "rolePermissions": {"admin": ["create_user"]}}
 }
 
 Requirements:
@@ -283,37 +280,21 @@ function buildFallbackDesign(intent: Intent): SystemDesign {
   return {
     architecture: intent.appType === 'analytics' ? 'serverless' : 'monolith',
     pageStructure: [
-      {
-        name: 'Home',
-        purpose: 'Landing page and overview',
-        requiredData: ['session', 'branding'],
-      },
-      {
-        name: 'Dashboard',
-        purpose: 'Primary application workspace',
-        requiredData: ['currentUser', primaryEntity],
-      },
+      { name: 'Home', purpose: 'Landing page', requiredData: [] },
+      { name: 'Dashboard', purpose: 'Primary workspace', requiredData: [primaryEntity] },
     ],
     apiEndpoints: [
-      {
-        path: `/api/${primaryEntity}`,
-        method: 'GET',
-        purpose: `List ${primaryEntity}`,
-      },
-      {
-        path: `/api/${primaryEntity}`,
-        method: 'POST',
-        purpose: `Create ${primaryEntity}`,
-      },
+      { path: `/api/${primaryEntity}`, method: 'GET', purpose: `List ${primaryEntity}` },
+      { path: `/api/${primaryEntity}`, method: 'POST', purpose: `Create ${primaryEntity}` },
     ],
     dataEntities: intent.dataModels.length > 0
-      ? intent.dataModels.map((name) => ({ name, relationships: intent.dataModels.filter((related) => related !== name) }))
+      ? intent.dataModels.map((name) => ({ name, relationships: intent.dataModels.filter((r) => r !== name) }))
       : [{ name: primaryEntity, relationships: [] }],
     accessControl: {
       roles,
-      rolePermissions: roles.reduce<Record<string, string[]>>((permissions, role) => {
-        permissions[role] = role === 'admin' ? ['read', 'write', 'manage'] : ['read', 'write']
-        return permissions
+      rolePermissions: roles.reduce<Record<string, string[]>>((p, role) => {
+        p[role] = role === 'admin' ? ['read', 'write', 'manage'] : ['read', 'write']
+        return p
       }, {}),
     },
   }
@@ -325,38 +306,22 @@ function buildFallbackDesign(intent: Intent): SystemDesign {
 
 const SchemaOutputSchema = z.object({
   database: z.object({
-    tables: z.array(
-      z.object({
-        name: z.string(),
-        columns: z.array(
-          z.object({
-            name: z.string(),
-            type: z.string(),
-            required: z.boolean(),
-          })
-        ),
-        relationships: z.array(z.string()),
-      })
-    ),
+    tables: z.array(z.object({
+      name: z.string(),
+      columns: z.array(z.object({ name: z.string(), type: z.string(), required: z.boolean() })),
+      relationships: z.array(z.string()),
+    })),
   }),
   api: z.object({
-    endpoints: z.array(
-      z.object({
-        path: z.string(),
-        method: z.string(),
-        requestSchema: z.record(z.any()),
-        responseSchema: z.record(z.any()),
-      })
-    ),
+    endpoints: z.array(z.object({
+      path: z.string(), method: z.string(),
+      requestSchema: z.record(z.any()), responseSchema: z.record(z.any()),
+    })),
   }),
   ui: z.object({
-    pages: z.array(
-      z.object({
-        route: z.string(),
-        components: z.array(z.string()),
-        dataSource: z.string(),
-      })
-    ),
+    pages: z.array(z.object({
+      route: z.string(), components: z.array(z.string()), dataSource: z.string(),
+    })),
   }),
 })
 
@@ -365,65 +330,48 @@ export type SchemaOutput = z.infer<typeof SchemaOutputSchema>
 /**
  * Stage 3: Generate concrete schemas from design
  */
-export async function generateSchemas(design: SystemDesign, intent: Intent): Promise<SchemaOutput> {
-  const systemPrompt = `You are a database and API schema expert. Generate complete, production-ready schemas.
+export async function generateSchemas(design: SystemDesign, intent: Intent, detailLevel: DetailLevel = 'standard'): Promise<SchemaOutput> {
+  const systemPrompt = `Generate database, API, and UI schemas from system design.
+
+${DETAIL_PROMPTS[detailLevel]}
 
 You MUST respond with ONLY a valid JSON object. No markdown. No backticks. No explanation.
 Start your response with { and end with }.
-Do not write anything before or after the JSON.
 
 CRITICAL RULES FOR DATABASE TABLES:
 - For each data entity, generate ALL relevant columns based on its purpose.
 - A contacts table MUST have: id, firstName, lastName, email, phone, company, status, assignedTo, notes, createdAt, updatedAt
 - A deals table MUST have: id, title, value, stage, contactId, assignedTo, closedAt, createdAt, updatedAt
-- A users table MUST have: id, email, name, role, avatar, createdAt, updatedAt
-- A courses table MUST have: id, title, description, instructorId, thumbnail, duration, published, createdAt, updatedAt
 - Never generate a table with only id and timestamp columns — always include domain-specific fields.
 - Every table must have an "id" column (type: uuid) and "createdAt"/"updatedAt" columns.
-- Use descriptive column names: firstName not fn, phone not ph.
-- Include foreign key columns (e.g., userId, contactId) where relationships exist.
 
 Output JSON structure:
 {
   "database": {
-    "tables": [
-      {
-        "name": "contacts",
-        "columns": [
-          {"name": "id", "type": "uuid", "required": true},
-          {"name": "firstName", "type": "string", "required": true},
-          {"name": "lastName", "type": "string", "required": true},
-          {"name": "email", "type": "string", "required": false},
-          {"name": "phone", "type": "string", "required": false},
-          {"name": "company", "type": "string", "required": false},
-          {"name": "status", "type": "string", "required": true},
-          {"name": "assignedTo", "type": "uuid", "required": false},
-          {"name": "notes", "type": "text", "required": false},
-          {"name": "createdAt", "type": "datetime", "required": true},
-          {"name": "updatedAt", "type": "datetime", "required": true}
-        ],
-        "relationships": ["users"]
-      }
-    ]
+    "tables": [{
+      "name": "contacts",
+      "columns": [
+        {"name": "id", "type": "uuid", "required": true},
+        {"name": "firstName", "type": "string", "required": true},
+        {"name": "createdAt", "type": "datetime", "required": true}
+      ],
+      "relationships": ["users"]
+    }]
   },
   "api": {
-    "endpoints": [
-      {
-        "path": "/api/contacts",
-        "method": "GET",
-        "requestSchema": {},
-        "responseSchema": {"type": "array", "items": {"type": "object"}}
-      }
-    ]
+    "endpoints": [{
+      "path": "/api/contacts",
+      "method": "GET",
+      "requestSchema": {},
+      "responseSchema": {"type": "array", "items": {"type": "object"}}
+    }]
   },
   "ui": {
-    "pages": [
-      {
-        "route": "/contacts",
-        "components": ["ContactTable", "ContactForm"],
-        "dataSource": "GET /api/contacts"
-      }
-    ]
+    "pages": [{
+      "route": "/contacts",
+      "components": ["ContactTable", "ContactForm"],
+      "dataSource": "GET /api/contacts"
+    }]
   }
 }
 
@@ -495,9 +443,12 @@ function buildFallbackSchema(design: SystemDesign, intent: Intent): SchemaOutput
  */
 export async function refineSchemas(
   schemas: SchemaOutput,
-  design: SystemDesign
+  design: SystemDesign,
+  detailLevel: DetailLevel = 'standard'
 ): Promise<SchemaOutput> {
   const systemPrompt = `Refine schemas to ensure cross-layer consistency.
+
+${DETAIL_PROMPTS[detailLevel]}
 
 Validate and fix:
 1. API endpoints reference existing database tables

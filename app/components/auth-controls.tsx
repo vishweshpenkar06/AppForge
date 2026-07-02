@@ -2,34 +2,22 @@
 
 import Link from 'next/link'
 import { useUser, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
-import { Button } from '@/components/ui/button'
 
 export default function AuthControls() {
   const { isSignedIn } = useUser()
 
   return (
-    <div className="flex items-center gap-2">
+    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
       {!isSignedIn && (
         <>
-          <SignInButton>
-            <Button variant="ghost" size="sm" className="rounded-full border border-white/10 bg-white/[0.03] text-zinc-200 hover:bg-white/8">
-              Sign in
-            </Button>
-          </SignInButton>
-          <SignUpButton>
-            <Button size="sm" className="rounded-full bg-sky-400 text-black hover:bg-sky-300">
-              Sign up
-            </Button>
-          </SignUpButton>
+          <Link href="/sign-in" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Sign in</Link>
+          <Link href="/compiler" style={{ background:'var(--fill-accent)', color:'#fff', borderRadius:'var(--radius)', padding:'6px 14px', fontSize:13, fontWeight:500, textDecoration:'none' }}>Get started</Link>
         </>
       )}
-
       {isSignedIn && (
         <>
-          <Link href="/dashboard" className="hidden rounded-full px-3 py-2 text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white sm:inline-flex">
-            Dashboard
-          </Link>
-          <UserButton appearance={{ elements: { userButtonAvatarBox: 'h-9 w-9' } }} />
+          <Link href="/pricing" style={{ fontSize:10, fontWeight:500, padding:'2px 8px', borderRadius:20, background:'var(--fill-accent-subtle)', color:'var(--text-accent)', textTransform:'uppercase', letterSpacing:'0.04em', textDecoration:'none' }}>Free</Link>
+          <UserButton appearance={{ elements: { userButtonAvatarBox: { width:28, height:28 } } }} />
         </>
       )}
     </div>

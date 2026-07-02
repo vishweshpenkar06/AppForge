@@ -242,3 +242,84 @@ Track record of every modification made to the project. Each entry includes what
 | 18 | Export route, `package.json` | ZIP export with JSZip | Phase 3 |
 | 19 | `globals.css`, 4 page TSX files | Full UI redesign | Phase 3 |
 | 20 | `README.md` | Documentation update | Phase 3 |
+
+---
+
+## 2026-07-02 — Pricing Tiers & Plan Gating
+
+### Change 21: Prisma schema — PlanTier enum + User fields
+**Problem:** No plan-based limits existed. Users had unlimited compiles and access to all modes/exports.
+
+**Fix:** Added `PlanTier` enum (free/pro/team) and 3 new User fields: `planStartedAt`, `compilesThisMonth`, `compilesResetAt`. Ran `prisma db push --accept-data-loss`.
+
+**Files:** `prisma/schema.prisma`
+
+---
+
+### Change 22: `lib/plan-limits.ts` — plan limits source of truth
+**Problem:** No centralized place for plan-based limits.
+
+**Fix:** Created `lib/plan-limits.ts` with `PLAN_LIMITS` config and 4 exported functions: `canCompile()`, `canUseMode()`, `canExportFormat()`, `remainingCompiles()`.
+
+**Files:** `lib/plan-limits.ts`
+
+---
+
+### Change 23: Compile route — plan gating
+**Problem:** No compile count limits or mode restrictions.
+
+**Fix:** Added monthly counter reset, compile count check (429 on limit), mode access check (403 on disallowed mode), counter increment after success.
+
+**Files:** `app/api/compile/route.ts`
+
+---
+
+### Change 24: Export route — format gating
+**Problem:** Free users could export ZIP and other premium formats.
+
+**Fix:** Added `canExportFormat()` check before generating the export. Returns 403 with `upgradeRequired: true` for disallowed formats.
+
+**Files:** `app/api/generations/[id]/export/route.ts`
+
+---
+
+### Change 25: Pricing page
+**Problem:** No pricing page existed.
+
+**Fix:** Created `/pricing` with 3 cards (Free $0, Pro $19/mo, Team $49/mo) using the CSS variable design system.
+
+**Files:** `app/pricing/page.tsx`
+
+---
+
+### Change 26: Upgrade banner component
+**Problem:** No UI feedback when plan limits were hit.
+
+**Fix:** Created `components/upgrade-banner.tsx` showing warning + upgrade link. Wired into compiler page — shows when compile returns 429/403 with `upgradeRequired`.
+
+**Files:** `components/upgrade-banner.tsx`, `app/compiler/page.tsx`
+
+---
+
+### Change 27: Nav updates — pricing link + plan badge
+**Problem:** No pricing link in nav, no visible plan indicator.
+
+**Fix:** Added "Pricing" link to nav in all 4 pages (landing, compiler, dashboard, demo). Added "Free" plan badge in landing page nav.
+
+**Files:** `app/page.tsx`, `app/compiler/page.tsx`, `app/dashboard/page.tsx`, `app/demo/page.tsx`
+
+---
+
+## Summary of All Changes
+
+| # | File | Change Type | Session |
+|---|---|---|---|
+| 1–10 | Various | Critical + moderate fixes | Phase 1 |
+| 11–14 | `lib/ai.ts`, docs | NVIDIA NIM provider | Phase 2 |
+| 15 | `proxy.ts` | Next.js 16 migration | Phase 3 |
+| 16 | Export + compile routes | AppConfig null fix | Phase 3 |
+| 17 | `.env.local`, `lib/ai.ts`, `lib/compiler/core.ts` | LLM pipeline fixes | Phase 3 |
+| 18 | Export route, `package.json` | ZIP export with JSZip | Phase 3 |
+| 19 | `globals.css`, 4 page TSX files | Full UI redesign | Phase 3 |
+| 20 | `README.md` | Documentation update | Phase 3 |
+| 21–27 | Prisma, routes, pages, components | Pricing tiers + plan gating | Phase 4 |

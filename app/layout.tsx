@@ -23,57 +23,38 @@ export default function RootLayout({
   return (
     <ClerkProvider appearance={{ theme: shadcn }}>
       <html lang="en" suppressHydrationWarning>
-        <body className={`${geist.className} ${geistMono.className}`}>
+        <body className={`${geist.className} ${geistMono.className}`} style={{ margin:0 }}>
 
-          {/* ── Frosted Glass Nav ─────────────────────────────── */}
-          <nav className="nav-frosted">
-            <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-              {/* Logo */}
-              <Link href="/" className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-md bg-[var(--accent-primary)] flex items-center justify-center">
-                  <span className="text-white font-mono text-xs font-bold">AF</span>
-                </div>
-                <span className="font-semibold text-[var(--text-primary)] tracking-tight text-sm">AppForge</span>
-              </Link>
-
-              {/* Center links */}
-              <div className="hidden md:flex items-center gap-6">
-                <Link href="/compiler" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Compiler</Link>
-                <Link href="/demo" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Examples</Link>
-                <Link href="/dashboard" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Dashboard</Link>
+          {/* ── Nav ─────────────────────────────────────────────── */}
+          <nav style={{
+            position:'fixed', top:0, width:'100%', height:48, zIndex:50,
+            display:'flex', alignItems:'center', justifyContent:'space-between',
+            padding:'0 24px',
+            background:'rgba(9,9,11,0.85)', backdropFilter:'blur(12px)',
+            borderBottom:'1px solid var(--border)',
+          }}>
+            <Link href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none' }}>
+              <div style={{ width:28, height:28, borderRadius:6, background:'var(--fill-accent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <span style={{ color:'#fff', fontFamily:'var(--font-mono)', fontSize:11, fontWeight:700 }}>AF</span>
               </div>
+              <span style={{ color:'var(--text-primary)', fontWeight:600, fontSize:14 }}>AppForge</span>
+            </Link>
 
-              {/* CTAs */}
-              <div className="flex items-center gap-3">
-                <AuthControls />
-              </div>
+            <div style={{ display:'flex', gap:24, alignItems:'center' }}>
+              <Link href="/compiler" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Compiler</Link>
+              <Link href="/demo" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Examples</Link>
+              <Link href="/dashboard" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Dashboard</Link>
+              <Link href="/pricing" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Pricing</Link>
             </div>
+
+            <AuthControls />
           </nav>
 
-          {/* ── Main Content ──────────────────────────────────── */}
-          <main className="pt-14">
+          {/* ── Main ────────────────────────────────────────────── */}
+          <main style={{ paddingTop:48 }}>
             {children}
           </main>
 
-          {/* ── Footer ────────────────────────────────────────── */}
-          <footer className="border-t border-[var(--bg-border)] py-10 px-6">
-            <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded bg-[var(--accent-primary)] flex items-center justify-center">
-                  <span className="text-white font-mono text-[9px] font-bold">AF</span>
-                </div>
-                <span className="text-xs text-[var(--text-muted)]">AppForge</span>
-              </div>
-              <p className="text-xs text-[var(--text-muted)]">Natural language to application compiler</p>
-              <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                <Link href="/compiler" className="hover:text-[var(--text-secondary)] transition-colors">Compiler</Link>
-                <Link href="/demo" className="hover:text-[var(--text-secondary)] transition-colors">Examples</Link>
-                <Link href="/dashboard" className="hover:text-[var(--text-secondary)] transition-colors">Dashboard</Link>
-              </div>
-            </div>
-          </footer>
-
-          {process.env.NODE_ENV === 'production' && <Analytics />}
         </body>
       </html>
     </ClerkProvider>

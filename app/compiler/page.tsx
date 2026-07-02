@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
+import { UpgradeBanner } from '@/components/upgrade-banner'
 
 interface CompileResult {
   success: boolean
@@ -30,6 +31,7 @@ export default function CompilerPage() {
   const [currentStage, setCurrentStage] = useState(-1)
   const [activeTab, setActiveTab] = useState<Tab>('Config')
   const [copied, setCopied] = useState(false)
+  const [upgradeInfo, setUpgradeInfo] = useState<{ error: string; currentPlan: string } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const stageStatus = STAGES.map((_, i) => {
@@ -47,7 +49,14 @@ export default function CompilerPage() {
     const iv = setInterval(() => setCurrentStage((p) => { if (p >= 5) { clearInterval(iv); return p } return p + 1 }), 2000)
     try {
       const r = await fetch('/api/compile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, mode: 'balanced' }) })
-      setResult(await r.json())
+      const d = await r.json()
+      if (d.upgradeRequired) {
+        setUpgradeInfo({ error: d.error, currentPlan: d.currentPlan })
+        setResult(null)
+      } else {
+        setUpgradeInfo(null)
+        setResult(d)
+      }
     } catch (e) { setResult({ success: false, error: e instanceof Error ? e.message : 'Failed' }) }
     finally { clearInterval(iv); setLoading(false); setCurrentStage(-1) }
   }
@@ -81,7 +90,7 @@ export default function CompilerPage() {
   const assumptions = result?.config?.intent?.assumptions || result?.config?.intent?.assumptions_made || result?.assumptions || []
 
   return (
-    <div style={{ display:'flex', height:'100vh', paddingTop:48 }}>
+    <div style={{ display:'flex', height:'calc(100vh - 48px)' }}>
       {/* ── Left Panel ──────────────────────────────────────────── */}
       <aside style={{ width:260, flexShrink:0, borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', background:'var(--surface-0)' }}>
         <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)' }}>
@@ -124,12 +133,17 @@ export default function CompilerPage() {
               <option value="fast">Fast — lower quality</option>
               <option value="precise">Precise — higher quality</option>
             </select>
+            <p style={{ fontSize:11, color:'var(--text-muted)', marginTop:4 }}>
+              Output detail: <span style={{ color:'var(--text-accent)', fontWeight:500 }}>Standard</span> · <a href="/pricing" style={{ color:'var(--text-accent)', textDecoration:'none' }}>upgrade for more depth</a>
+            </p>
           </div>
 
           <button onClick={handleCompile} disabled={loading || !prompt.trim()}
             style={{ width:'100%', background:'var(--fill-accent)', color:'#fff', border:'none', borderRadius:'var(--radius)', padding:'10px 0', fontSize:13, fontWeight:600, cursor:'pointer', opacity: loading || !prompt.trim() ? 0.4 : 1 }}>
             {loading ? 'Compiling...' : 'Compile →'}
           </button>
+
+          {upgradeInfo && <UpgradeBanner message={upgradeInfo.error} currentPlan={upgradeInfo.currentPlan} />}
         </div>
 
         {/* Assumptions */}

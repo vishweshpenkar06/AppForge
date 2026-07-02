@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import { canExportFormat, type PlanTier } from '@/lib/plan-limits'
 import JSZip from 'jszip'
 
 export async function GET(
@@ -61,6 +62,19 @@ export async function GET(
 
     if (!config) {
       return NextResponse.json({ error: 'No config found for this generation' }, { status: 404 })
+    }
+
+    // ── Plan gating for export formats ──────────────────────────
+    const plan = (user?.plan as PlanTier) || 'free'
+    if (!canExportFormat(plan, format)) {
+      return NextResponse.json(
+        {
+          error: `Exporting as "${format}" requires a Pro or Team plan.`,
+          upgradeRequired: true,
+          currentPlan: plan,
+        },
+        { status: 403 }
+      )
     }
 
     // ── YAML export ────────────────────────────────────────────

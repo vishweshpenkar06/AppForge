@@ -18,6 +18,7 @@ import { generateSQL, generateExpressServer, generateReactApp } from '@/lib/runt
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { analyzePromptClarity } from '@/lib/validation'
+import { canCompile, canUseMode, PLAN_LIMITS, getDetailLevel, TOKEN_MULTIPLIER, type PlanTier } from '@/lib/plan-limits'
 
 type NormalizedComponent = {
   name: string
@@ -188,6 +189,46 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       return NextResponse.json({ success: false, error: 'User record not found' }, { status: 404 })
     }
 
+    // ── Plan gating ──────────────────────────────────────────────
+    const plan = (user.plan as PlanTier) || 'free'
+
+    // Reset monthly counter if a new month started
+    const now = new Date()
+    if (user.compilesResetAt < new Date(now.getFullYear(), now.getMonth(), 1)) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { compilesThisMonth: 0, compilesResetAt: now },
+      })
+      user.compilesThisMonth = 0
+    }
+
+    if (!canCompile(plan, user.compilesThisMonth)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `You've hit your ${plan} plan limit of ${PLAN_LIMITS[plan].compilesPerMonth} compiles this month.`,
+          upgradeRequired: true,
+          currentPlan: plan,
+        },
+        { status: 429 }
+      )
+    }
+
+    const requestedMode = mode || 'fast'
+    if (!canUseMode(plan, requestedMode)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `The "${requestedMode}" mode requires a Pro or Team plan.`,
+          upgradeRequired: true,
+          currentPlan: plan,
+        },
+        { status: 403 }
+      )
+    }
+
+    const detailLevel = getDetailLevel(plan)
+
     // Create a generation record so the frontend can poll and display results
     generation = await prisma.generation.create({
       data: {
@@ -290,7 +331,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     let stageStart = Date.now()
     console.log(`[${userId}] Starting Intent Extraction for prompt: ${prompt.substring(0, 50)}...`)
 
-    const intent = await extractIntent(prompt)
+    const intent = await extractIntent(prompt, detailLevel)
     stageTimes['intent-extraction'] = Date.now() - stageStart
 
     console.log(`[${userId}] Intent extracted:`, intent.appType)
@@ -301,7 +342,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     stageStart = Date.now()
     console.log(`[${userId}] Starting System Design`)
 
-    const design = await designSystem(intent)
+    const design = await designSystem(intent, detailLevel)
     stageTimes['system-design'] = Date.now() - stageStart
 
     console.log(`[${userId}] Design created with ${design.pageStructure.length} pages`)
@@ -312,7 +353,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     stageStart = Date.now()
     console.log(`[${userId}] Starting Schema Generation`)
 
-    const schemas = await generateSchemas(design, intent)
+    const schemas = await generateSchemas(design, intent, detailLevel)
     stageTimes['schema-generation'] = Date.now() - stageStart
 
     console.log(
@@ -325,7 +366,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     stageStart = Date.now()
     console.log(`[${userId}] Starting Refinement`)
 
-    const refined = await refineSchemas(schemas, design)
+    const refined = await refineSchemas(schemas, design, detailLevel)
     stageTimes['refinement'] = Date.now() - stageStart
 
     console.log(`[${userId}] Schemas refined`)
@@ -447,6 +488,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     console.log(
       `[${userId}] Compilation complete in ${totalLatency}ms. Executable: ${execution.executable}`
     )
+
+    // Increment compile counter
+    try {
+      await prisma.user.update({
+        where: { id: user!.id },
+        data: { compilesThisMonth: { increment: 1 } },
+      })
+    } catch (err) {
+      console.warn('[Compile] Failed to increment compile count:', err)
+    }
 
     // Persist app config into AppConfig table and update generation status
     try {

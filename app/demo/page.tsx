@@ -70,21 +70,7 @@ export default function DemoPage() {
 
   return (
     <div>
-      {/* Nav */}
-      <nav style={{ position:'fixed', top:0, width:'100%', height:48, zIndex:50, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', background:'rgba(9,9,11,0.85)', backdropFilter:'blur(12px)', borderBottom:'1px solid var(--border)' }}>
-        <Link href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none' }}>
-          <div style={{ width:28, height:28, borderRadius:6, background:'var(--fill-accent)', display:'flex', alignItems:'center', justifyContent:'center' }}><span style={{ color:'#fff', fontFamily:'var(--font-mono)', fontSize:11, fontWeight:700 }}>AF</span></div>
-          <span style={{ color:'var(--text-primary)', fontWeight:600, fontSize:14 }}>AppForge</span>
-        </Link>
-        <div style={{ display:'flex', gap:24 }}>
-          <Link href="/compiler" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Compiler</Link>
-          <Link href="/demo" style={{ color:'var(--text-primary)', fontSize:13, textDecoration:'none' }}>Examples</Link>
-          <Link href="/dashboard" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Dashboard</Link>
-        </div>
-        <div />
-      </nav>
-
-      <div style={{ paddingTop:48+48, maxWidth:1100, margin:'0 auto', padding:'96px 24px 48px' }}>
+      <div style={{ maxWidth:1100, margin:'0 auto', padding:'32px 24px 48px' }}>
         {/* Header */}
         <p style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>Examples</p>
         <h1 style={{ fontSize:28, fontWeight:700, color:'var(--text-primary)', margin:'0 0 8px' }}>Pre-compiled outputs</h1>

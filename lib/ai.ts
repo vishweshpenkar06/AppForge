@@ -345,7 +345,7 @@ export interface LLMTextResult {
   outputTokens: number
 }
 
-export async function callLLMText({ system, prompt, model }: { system: string; prompt: string; model: string }): Promise<LLMTextResult> {
+export async function callLLMText({ system, prompt, model, maxTokens }: { system: string; prompt: string; model: string; maxTokens?: number }): Promise<LLMTextResult> {
   // Deterministic stub for tests / evaluation without external API
   if (process.env.DETERMINISTIC_LLM === '1') {
     // Very small heuristic-based deterministic responses per stage
@@ -492,7 +492,7 @@ export async function callLLMText({ system, prompt, model }: { system: string; p
   }
 
   // Otherwise call real LLM
-  const result = await callLLM({ model: model || getProviderConfig(ACTIVE_PROVIDER).defaultModel, max_tokens: 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
+  const result = await callLLM({ model: model || getProviderConfig(ACTIVE_PROVIDER).defaultModel, max_tokens: maxTokens || 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
   return { text: result.output, inputTokens: result.inputTokens, outputTokens: result.outputTokens }
 }
 
