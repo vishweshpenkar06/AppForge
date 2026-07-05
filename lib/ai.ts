@@ -18,14 +18,14 @@ const PROVIDERS: Record<Provider, ProviderConfig> = {
   nvidia: {
     baseUrl: 'https://integrate.api.nvidia.com/v1',
     apiKey: process.env.NVIDIA_API_KEY || '',
-    defaultModel: 'mistralai/mistral-nemotron-super-49b-v1',
+    defaultModel: 'nvidia/llama-3.3-nemotron-super-49b-v1',
     fallbackModel: 'deepseek-ai/deepseek-v4-pro',
   },
   groq: {
     baseUrl: 'https://api.groq.com/openai/v1',
     apiKey: process.env.GROQ_API_KEY || '',
     defaultModel: 'llama-3.3-70b-versatile',
-    fallbackModel: 'llama-3.1-8b-instant',
+    fallbackModel: 'llama-3.1-8b-instruct',
   },
   featherless: {
     baseUrl: 'https://api.featherless.ai/v1',

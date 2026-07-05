@@ -30,6 +30,7 @@ export default function CompilerPage() {
   const [loading, setLoading] = useState(false)
   const [currentStage, setCurrentStage] = useState(-1)
   const [activeTab, setActiveTab] = useState<Tab>('Config')
+  const [mode, setMode] = useState('fast')
   const [copied, setCopied] = useState(false)
   const [upgradeInfo, setUpgradeInfo] = useState<{ error: string; currentPlan: string } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -41,18 +42,22 @@ export default function CompilerPage() {
     return 'pending'
   })
 
-  const handleCompile = async () => {
-    if (!prompt.trim()) return
+  const handleCompile = async (overridePrompt?: string) => {
+    const compilePrompt = overridePrompt || prompt
+    if (!compilePrompt.trim()) return
     setLoading(true)
     setResult(null)
+    setUpgradeInfo(null)
     setCurrentStage(0)
     const iv = setInterval(() => setCurrentStage((p) => { if (p >= 5) { clearInterval(iv); return p } return p + 1 }), 2000)
     try {
-      const r = await fetch('/api/compile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, mode: 'balanced' }) })
+      const r = await fetch('/api/compile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: compilePrompt, mode }) })
       const d = await r.json()
       if (d.upgradeRequired) {
         setUpgradeInfo({ error: d.error, currentPlan: d.currentPlan })
         setResult(null)
+      } else if (d.status === 'needs_clarification') {
+        setResult({ success: false, error: `Prompt needs more detail: ${(d.detectedIssues || []).join('; ')}` })
       } else {
         setUpgradeInfo(null)
         setResult(d)
@@ -118,7 +123,7 @@ export default function CompilerPage() {
             <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 6px' }}>Try an example</p>
             <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
               {EXAMPLES.map((ex) => (
-                <button key={ex} onClick={() => { setPrompt(ex); textareaRef.current?.focus() }}
+                <button key={ex} onClick={() => { setPrompt(ex); handleCompile(ex) }}
                   style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer', fontFamily:'var(--font-mono)' }}>
                   {ex}
                 </button>
@@ -128,9 +133,10 @@ export default function CompilerPage() {
 
           <div>
             <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 6px' }}>Mode</p>
-            <select style={{ width:'100%', height:36, background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'0 10px', fontSize:12, color:'var(--text-primary)', fontFamily:'var(--font-mono)', cursor:'pointer' }}>
-              <option value="balanced">Balanced — recommended</option>
+            <select value={mode} onChange={(e) => setMode(e.target.value)}
+              style={{ width:'100%', height:36, background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'0 10px', fontSize:12, color:'var(--text-primary)', fontFamily:'var(--font-mono)', cursor:'pointer' }}>
               <option value="fast">Fast — lower quality</option>
+              <option value="balanced">Balanced — recommended</option>
               <option value="precise">Precise — higher quality</option>
             </select>
             <p style={{ fontSize:11, color:'var(--text-muted)', marginTop:4 }}>
@@ -138,7 +144,7 @@ export default function CompilerPage() {
             </p>
           </div>
 
-          <button onClick={handleCompile} disabled={loading || !prompt.trim()}
+          <button onClick={() => handleCompile()} disabled={loading || !prompt.trim()}
             style={{ width:'100%', background:'var(--fill-accent)', color:'#fff', border:'none', borderRadius:'var(--radius)', padding:'10px 0', fontSize:13, fontWeight:600, cursor:'pointer', opacity: loading || !prompt.trim() ? 0.4 : 1 }}>
             {loading ? 'Compiling...' : 'Compile →'}
           </button>

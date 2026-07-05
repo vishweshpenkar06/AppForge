@@ -119,36 +119,39 @@ export interface PromptAnalysis {
 export function analyzePromptClarity(prompt: string): PromptAnalysis {
   const issues: string[] = []
   let confidence = 1.0
+  const lower = prompt.toLowerCase()
 
-  // Check length
-  if (prompt.length < 20) {
+  // Check length — only penalize very short prompts
+  if (prompt.length < 10) {
     issues.push('Prompt is very short and may lack detail')
     confidence -= 0.3
   }
 
-  // Check for vague keywords
-  const vagueKeywords = ['something', 'anything', 'cool', 'nice', 'good', 'basic', 'simple']
-  const vagueMatches = vagueKeywords.filter((kw) => prompt.toLowerCase().includes(kw))
-  if (vagueMatches.length > 2) {
+  // Check for vague keywords (only penalize if multiple vague words)
+  const vagueKeywords = ['something', 'anything', 'cool', 'nice', 'good']
+  const vagueMatches = vagueKeywords.filter((kw) => lower.includes(kw))
+  if (vagueMatches.length >= 2) {
     issues.push('Prompt uses vague language')
     confidence -= 0.2
   }
 
-  // Check for feature count
-  const featureKeywords = /features?|functionality|can (?:do|perform)|should (?:be able to|support)/gi
-  if (!featureKeywords.test(prompt)) {
-    issues.push('Prompt does not clearly describe features')
+  // Check for app-type keywords — if present, the prompt is clear enough
+  const hasAppType = /\b(crm|erp|lms|blog|marketplace|ecommerce|saas|dashboard|tracker|portal|app|platform|system|tool|manager)\b/.test(lower)
+  const hasActionWord = /\b(build|create|make|develop|design|need|want)\b/.test(lower)
+
+  // Only penalize for missing features if there's no app type keyword
+  if (!hasAppType && !hasActionWord) {
+    issues.push('Prompt does not clearly describe what to build')
     confidence -= 0.15
   }
 
-  // Check for user/role mentions
-  if (!/(user|role|admin|customer|team|group)/i.test(prompt)) {
+  // Only penalize for missing roles if no app type keyword
+  if (!hasAppType && !/(user|role|admin|customer|team|group)/i.test(lower)) {
     issues.push('Prompt does not mention user types or roles')
     confidence -= 0.1
   }
 
   // ── Conflict Detection ──────────────────────────────────────────────
-  const lower = prompt.toLowerCase()
 
   // Simple vs Advanced conflict
   const hasSimple = /\b(simple|minimal|basic|easy|lightweight)\b/.test(lower)
@@ -180,7 +183,7 @@ export function analyzePromptClarity(prompt: string): PromptAnalysis {
     confidence -= 0.1
   }
 
-  const needsClarification = confidence < 0.6
+  const needsClarification = confidence < 0.4
   const clarificationQuestions = needsClarification
     ? [
         'What is the primary purpose of this application?',
