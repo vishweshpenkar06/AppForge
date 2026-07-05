@@ -14,7 +14,7 @@ const PLANS = [
         <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
       </svg>
     ),
-    features: ['10 compiles / month', 'Fast mode only', 'JSON export', '7-day history', '1 seat', 'Community support'],
+    features: ['10 compiles / month', 'Fast mode only', 'JSON + YAML export', '7-day history', '1 seat', 'Community support'],
     cta: 'Current plan',
     highlighted: false,
   },
@@ -53,7 +53,7 @@ const PLANS = [
 const COMPARISON = [
   { feature: 'Compiles / month', free: '10', pro: '100', team: 'Unlimited' },
   { feature: 'Modes', free: 'Fast', pro: 'Fast + Balanced', team: 'All' },
-  { feature: 'JSON export', free: true, pro: true, team: true },
+  { feature: 'JSON + YAML export', free: true, pro: true, team: true },
   { feature: 'SQL / Express / React export', free: false, pro: true, team: true },
   { feature: 'ZIP bundle export', free: false, pro: true, team: true },
   { feature: 'History retention', free: '7 days', pro: '90 days', team: 'Unlimited' },

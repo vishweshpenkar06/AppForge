@@ -275,6 +275,9 @@ export async function callLLM(options: LLMCallOptions) {
       ? [{ role: 'system' as const, content: options.system }, ...options.messages]
       : options.messages
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
+
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -288,7 +291,10 @@ export async function callLLM(options: LLMCallOptions) {
         temperature: options.temperature,
         top_p: options.top_p ?? 0.7,
       }),
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       const errorText = await response.text()

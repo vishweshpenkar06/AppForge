@@ -39,8 +39,8 @@ Produces Prisma schemas, Express servers with JWT auth, React component trees, p
 | Layer | Technology |
 | :--- | :--- |
 | **Framework** | Next.js 16 (App Router) + TypeScript 5.7 |
-| **AI Pipeline** | NVIDIA NIM (primary) / Groq (fallback) — OpenAI-compatible |
-| **Default Model** | `nvidia/llama-3.3-nemotron-super-49b-v1` |
+| **AI Pipeline** | Groq (primary) / NVIDIA NIM (fallback) — OpenAI-compatible |
+| **Default Model** | `llama-3.3-70b-versatile` (Groq) |
 | **Database** | PostgreSQL via Prisma 7.8 |
 | **Authentication** | Clerk with JWT + Role-Based Access Control |
 | **UI** | React 19 + CSS Variables (dark mode native) |
@@ -105,6 +105,8 @@ Produces Prisma schemas, Express servers with JWT auth, React component trees, p
 | `DETERMINISTIC_LLM` | No | Set to `1` for offline testing |
 
 *\*At least one LLM API key is required, or set `DETERMINISTIC_LLM=1` for offline mode.*
+
+**Dev mode:** All `/api/*` routes bypass Clerk auth automatically. No browser sign-in needed for local development.
 
 ---
 
@@ -187,7 +189,7 @@ Validated Application Blueprint
 | **Compiles/month** | 10 | 100 | Unlimited |
 | **Modes** | Fast only | Fast + Balanced | All modes |
 | **Output Detail** | Minimal (3-5 cols/table) | Maximum (12-20+ cols) | Standard (8-12 cols) |
-| **Export: JSON** | ✅ | ✅ | ✅ |
+| **Export: JSON + YAML** | ✅ | ✅ | ✅ |
 | **Export: SQL/Express/React** | ❌ | ✅ | ✅ |
 | **Export: ZIP bundle** | ❌ | ✅ | ✅ |
 | **History** | 7 days | 90 days | Unlimited |
@@ -230,8 +232,8 @@ Built with a **premium dark-mode design system** using CSS variables:
 
 | Provider | Model | Rate Limit | Best For |
 | :--- | :--- | :--- | :--- |
-| **NVIDIA NIM** (default) | `nvidia/llama-3.3-nemotron-super-49b-v1` | ~40 req/min | Structured JSON |
-| **Groq** (fallback) | `llama-3.3-70b-versatile` | ~30 req/min | Low latency |
+| **Groq** (default) | `llama-3.3-70b-versatile` | ~30 req/min | Low latency (~7s compile) |
+| **NVIDIA NIM** (fallback) | `nvidia/llama-3.3-nemotron-super-49b-v1` | ~40 req/min | Structured JSON (~165s compile) |
 | **Featherless** | `meta-llama/Meta-Llama-3.3-70B-Instruct` | Varies | Model variety |
 
 See [docs/tradeoffs.md](docs/tradeoffs.md) for detailed comparison.

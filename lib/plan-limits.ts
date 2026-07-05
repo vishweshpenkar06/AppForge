@@ -4,7 +4,7 @@ export const PLAN_LIMITS = {
   free: {
     compilesPerMonth: 10,
     modes: ['fast'],
-    exportFormats: ['json'],
+    exportFormats: ['json', 'yaml'],
     historyDays: 7,
     seats: 1,
   },
@@ -33,11 +33,11 @@ export function canUseMode(plan: PlanTier, mode: string): boolean {
 }
 
 export function canExportFormat(plan: PlanTier, format: string): boolean {
-  // zip export is allowed for all plans that have any export format
-  if (format === 'zip') {
-    return plan === 'team' || plan === 'pro';
-  }
-  return (PLAN_LIMITS[plan].exportFormats as readonly string[]).includes(format);
+  // yaml is just a format conversion — available for all plans
+  if (format === 'yaml') return true
+  // zip export requires pro or team
+  if (format === 'zip') return plan === 'team' || plan === 'pro'
+  return (PLAN_LIMITS[plan].exportFormats as readonly string[]).includes(format)
 }
 
 export function remainingCompiles(plan: PlanTier, compilesThisMonth: number): number {

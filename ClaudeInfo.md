@@ -27,7 +27,7 @@ The key differentiator: it's not a single LLM call. It's a **5-stage pipeline** 
 | Language | TypeScript | 5.7.3 |
 | Database | PostgreSQL via Prisma | 7.8.0 |
 | Auth | Clerk | 7.4.2 |
-| LLM | NVIDIA NIM (primary) / Groq (fallback) | `mistralai/mistral-nemotron-super-49b-v1` |
+| LLM | Groq (primary) / NVIDIA NIM (fallback) | `llama-3.3-70b-versatile` |
 | UI | React 19 + CSS variables | Dark mode native |
 | Validation | Zod | 3.24.1 |
 | ZIP Export | JSZip | — |
@@ -73,12 +73,15 @@ AppForge/
 │   │   ├── evaluate/route.ts       # Runs 20-case evaluation suite
 │   │   ├── health/route.ts         # System health check (DB + LLM provider)
 │   │   ├── metrics/route.ts        # Metrics dashboard data
+│   │   ├── plan/upgrade/route.ts   # Plan upgrade API (instant, no payment)
+│   │   ├── plan/join-team/route.ts # Team join API (atomic seat transaction)
 │   │   ├── generations/            # CRUD + ZIP/JSON/YAML export
 │   │   └── webhooks/clerk/         # Clerk webhook handler
 │   ├── compiler/page.tsx           # Compiler UI — two-panel, 7 tabs, export buttons
 │   ├── dashboard/page.tsx          # Dashboard — stats, form, history sidebar
 │   ├── demo/page.tsx               # Pre-compiled examples — split view
-│   ├── page.tsx                    # Landing — nav, hero, pipeline strip, features
+│   ├── pricing/page.tsx            # 3-tier pricing with toggle, comparison, team codes
+│   ├── page.tsx                    # Landing — hero, pipeline strip, metrics, features
 │   ├── sign-in/                    # Clerk sign-in
 │   └── sign-up/                    # Clerk sign-up
 │
@@ -89,7 +92,8 @@ AppForge/
 │   │   └── evaluation.ts         # 20-case test suite + report generation (383 lines)
 │   ├── runtime/
 │   │   └── generators.ts         # Portable SQL, Express server, React app generation
-│   ├── ai.ts                     # LLM abstraction — provider selection, fallback, deterministic stub
+│   ├── ai.ts                     # LLM provider registry — Groq/NVIDIA/Featherless + fallback + 60s timeout
+│   ├── plan-limits.ts            # Plan gating + detail levels + output quality tiers
 │   ├── schemas.ts                # Zod schemas for AppConfig, Intent, Auth, DB, API, UI
 │   ├── validation.ts             # Cross-layer consistency checks + prompt clarity analysis
 │   ├── pipeline.ts               # Pipeline orchestrator — delegates to core.ts, persists to DB
@@ -98,7 +102,7 @@ AppForge/
 │   └── clerk-user.ts             # Clerk auth helper
 │
 ├── prisma/
-│   └── schema.prisma             # 5 models: User, Generation, PipelineStage, AppConfig, EvalRun/Result
+│   └── schema.prisma             # 6 models: User, Generation, PipelineStage, AppConfig, EvalRun/Result, TeamCode
 │
 ├── components/                   # React UI components
 │   ├── ui/                       # shadcn-style primitives (button, card, tabs, etc.)
@@ -192,13 +196,13 @@ type Provider = 'nvidia' | 'groq' | 'featherless'
 const PROVIDERS = {
   nvidia: {
     baseUrl: 'https://integrate.api.nvidia.com/v1',
-    defaultModel: 'mistralai/mistral-nemotron-super-49b-v1',
+    defaultModel: 'nvidia/llama-3.3-nemotron-super-49b-v1',
     fallbackModel: 'deepseek-ai/deepseek-v4-pro',
   },
   groq: {
     baseUrl: 'https://api.groq.com/openai/v1',
     defaultModel: 'llama-3.3-70b-versatile',
-    fallbackModel: 'llama-3.1-8b-instant',
+    fallbackModel: 'llama-3.1-8b-instruct',
   },
   featherless: { ... },
 }
@@ -206,8 +210,9 @@ const PROVIDERS = {
 
 ### Selection Logic
 - `LLM_PROVIDER` env var: `nvidia` | `groq` | `featherless`
-- Default: NVIDIA first, Groq fallback
+- Default: Groq (fast), NVIDIA fallback (slow but capable)
 - On 429/timeout, auto-falls back to secondary provider
+- 60-second timeout per LLM call prevents indefinite hangs
 
 ### Deterministic Mode
 - `DETERMINISTIC_LLM=1` — skips all LLM calls
@@ -227,8 +232,16 @@ const PROVIDERS = {
 ## 6. Database Schema (Prisma)
 
 ### User
-- `id` (cuid), `clerkId` (unique), `email` (unique), `displayName`, `plan` (free/pro)
+- `id` (cuid), `clerkId` (unique), `email` (unique), `displayName`, `plan` (PlanTier enum: free/pro/team)
+- `planStartedAt`, `compilesThisMonth`, `compilesResetAt` — plan gating fields
+- `ownedTeamCode` (optional FK → TeamCode), `memberOfTeamId` (optional FK → TeamCode)
 - Has many: `generations`, `evalRuns`
+
+### TeamCode
+- `id` (cuid), `code` (unique, format: TEAM-XXXXXXXX), `ownerId` (unique FK → User)
+- `seatsUsed` (default 1), `maxSeats` (default 5), `createdAt`
+- Has many: `members` (User[])
+- Atomic seat transaction via `$transaction` prevents race conditions
 
 ### Generation
 - `id` (cuid), `userId` (FK → User), `prompt`, `mode` (fast/balanced/precise), `status` (pending/running/success/completed/failed)
@@ -376,8 +389,8 @@ const PROVIDERS = {
 - Compiler page uses local `useState` for prompt, result, loading
 
 ### Auth Flow
-- Clerk middleware in `middleware.ts` protects non-public routes
-- Dev mode bypasses auth for `/api/compile`
+- Clerk middleware in `proxy.ts` protects non-public routes
+- Dev mode bypasses auth for all `/api/*` routes (not just `/api/compile`)
 - `getOrCreateCurrentUserRecord()` syncs Clerk user to DB on demand
 
 ---
@@ -404,25 +417,25 @@ const PROVIDERS = {
 
 ## 14. Known Gotchas & Things to Watch
 
-1. **middleware.ts is now proxy.ts** — Next.js 16 renamed the convention. The file is `proxy.ts` at project root.
+1. **proxy.ts handles auth** — Next.js 16 renamed middleware to proxy. Dev mode bypasses ALL `/api/*` routes.
 
-2. **Two compile endpoints exist** — `/api/compile` (synchronous, full response) and `/api/generate` (async, returns jobId). Both run the same pipeline.
+2. **Two compile endpoints** — `/api/compile` (synchronous) and `/api/generate` (async). Both run the same pipeline.
 
 3. **ZIP export** — `GET /api/generations/[id]/export?format=zip` returns organized folders (config, database, backend, frontend, docs, README).
 
-4. **AppConfig.config** — The full normalized config is stored in `AppConfig.config`, not `Generation.config`. The export route reads from `AppConfig`.
+4. **AppConfig.config** — Full normalized config is in `AppConfig.config`, not `Generation.config`. Export reads from AppConfig.
 
-3. **Deterministic mode** — When `DETERMINISTIC_LLM=1`, no LLM calls are made. The heuristic responses are basic and won't produce high-quality output. Use for CI/testing only.
+5. **YAML export is free** — YAML is just a format conversion of JSON. Only ZIP requires Pro/Team.
 
-4. **`lib/schemas.ts` vs `lib/compiler/core.ts`** — These define overlapping but different schema shapes. `core.ts` uses `SchemaOutput` (simpler), `schemas.ts` uses `AppConfig` (richer with auth, businessLogic). The pipeline uses `SchemaOutput`; the normalized config in the API response bridges both.
+6. **Plan gating** — Free: 10 compiles, fast mode, JSON+YAML export. Pro: 100 compiles, balanced mode, all exports. Team: unlimited, all modes, ZIP + team sharing.
 
-5. **Clerk auth in dev** — The compile endpoint bypasses auth in development. The generate endpoint does NOT — it requires Clerk. This is by design.
+7. **Output quality tiers** — Free generates minimal output (3-5 cols/table), Pro generates maximum (12-20+), Team generates standard (8-12).
 
-6. **Prisma adapter** — `lib/db.ts` uses `@prisma/adapter-pg` for the PostgreSQL adapter. The `DATABASE_URL` must point to a PostgreSQL instance (Supabase free tier works).
+8. **NVIDIA NIM is slow** — ~30s per LLM call. Groq is ~1-2s. Use Groq for development.
 
-7. **Rate limiting** — There is no rate limiting on API endpoints. Production deployments should add middleware.
+9. **60s timeout** — Each LLM call has a 60-second timeout to prevent indefinite hangs.
 
-8. **Cost per compile** — ~6 LLM calls × ~800 tokens = ~$0.003 on Groq free tier. NVIDIA NIM free tier is ~40 req/min.
+10. **Prompt analysis threshold** — Confidence < 0.4 triggers clarification. Short prompts with app-type keywords (CRM, LMS, etc.) pass through.
 
 ---
 

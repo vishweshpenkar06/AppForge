@@ -33,6 +33,7 @@ export default function CompilerPage() {
   const [mode, setMode] = useState('fast')
   const [copied, setCopied] = useState(false)
   const [upgradeInfo, setUpgradeInfo] = useState<{ error: string; currentPlan: string } | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const stageStatus = STAGES.map((_, i) => {
@@ -74,22 +75,36 @@ export default function CompilerPage() {
 
   const handleExport = async (fmt: 'json' | 'yaml') => {
     if (!result?.jobId) return
-    const r = await fetch(`/api/generations/${result.jobId}/export?format=${fmt}`)
-    if (!r.ok) return
-    const blob = await r.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `appforge-config.${fmt}`
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+    setExportError(null)
+    try {
+      const r = await fetch(`/api/generations/${result.jobId}/export?format=${fmt}`)
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: 'Export failed' }))
+        setExportError(err.error || `Export as ${fmt} requires Pro or Team plan`)
+        return
+      }
+      const blob = await r.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = `appforge-config.${fmt}`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+    } catch { setExportError('Export failed — try again') }
   }
 
   const handleExportZip = async () => {
     if (!result?.jobId) return
-    const r = await fetch(`/api/generations/${result.jobId}/export?format=zip`)
-    if (!r.ok) return
-    const blob = await r.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = 'appforge-bundle.zip'
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+    setExportError(null)
+    try {
+      const r = await fetch(`/api/generations/${result.jobId}/export?format=zip`)
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: 'ZIP export failed' }))
+        setExportError(err.error || 'ZIP export requires Pro or Team plan')
+        return
+      }
+      const blob = await r.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = 'appforge-bundle.zip'
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+    } catch { setExportError('ZIP export failed — try again') }
   }
 
   const assumptions = result?.config?.intent?.assumptions || result?.config?.intent?.assumptions_made || result?.assumptions || []
@@ -200,10 +215,13 @@ export default function CompilerPage() {
               }}>{tab}</button>
             ))}
           </div>
-          <div style={{ padding:'0 16px', display:'flex', gap:6, flexShrink:0 }}>
+          <div style={{ padding:'0 16px', display:'flex', gap:6, flexShrink:0, alignItems:'center' }}>
             <button onClick={() => handleExport('json')} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer' }}>JSON</button>
             <button onClick={() => handleExport('yaml')} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer' }}>YAML</button>
             <button onClick={handleExportZip} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--fill-accent)', background:'var(--fill-accent-subtle)', color:'var(--text-accent)', cursor:'pointer' }}>ZIP ↓</button>
+            {exportError && (
+              <span style={{ fontSize:11, color:'var(--text-warning)', fontFamily:'var(--font-mono)', marginLeft:4 }}>{exportError}</span>
+            )}
           </div>
         </div>
 

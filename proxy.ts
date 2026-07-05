@@ -7,12 +7,10 @@ const isPublicRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware(async (auth, request) => {
-  // Allow unauthenticated access to the compile API in development
-  // so local tooling and tests can hit the endpoint without a browser
-  // signing in. This is safe because it only runs when NODE_ENV !== 'production'.
+  // Allow unauthenticated access to API routes in development
   try {
     const pathname = (request as any).nextUrl?.pathname || new URL(request.url).pathname
-    if (pathname.startsWith('/api/compile') && process.env.NODE_ENV !== 'production') {
+    if (pathname.startsWith('/api/') && process.env.NODE_ENV !== 'production') {
       return
     }
   } catch (e) {
