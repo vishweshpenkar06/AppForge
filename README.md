@@ -1,10 +1,10 @@
 ---
-title: AppForge
-emoji: ⚡
-colorFrom: indigo
-colorTo: cyan
-license: mit
-short_description: Natural Language to Application Compiler — convert product ideas into validated blueprints
+Title: AppForge
+Emoji: ⚡
+ColorFrom: indigo
+ColorTo: cyan
+License: mit
+Short_description: Natural Language to Application Compiler — Convert product ideas into validated blueprints
 ---
 
 # AppForge
