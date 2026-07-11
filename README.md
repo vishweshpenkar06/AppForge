@@ -1,10 +1,15 @@
+---
+title: AppForge
+emoji: ⚡
+colorFrom: indigo
+colorTo: cyan
+license: mit
+short_description: Natural Language to Application Compiler — convert product ideas into validated blueprints
+---
+
 # AppForge
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-7.8-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
-[![NVIDIA NIM](https://img.shields.io/badge/NVIDIA_NIM-LLM-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://build.nvidia.com/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+## Natural Language to Application Compiler
 
 > **Convert plain English product descriptions into complete, validated, executable application configurations — schemas, APIs, UI pages, and production-ready documentation.**
 
@@ -12,7 +17,66 @@ AppForge is a **6-stage AI compiler** that transforms natural language product d
 
 ---
 
-## ✨ Core Intelligence Modules
+## Problem
+
+Modern app development has a gap between **idea** and **implementation**:
+
+- Product specs live in docs nobody reads
+- Database schemas are hand-drawn and inconsistent
+- API contracts are undocumented
+- Auth and role logic is bolted on last
+- Scaffolding tools produce empty shells
+
+AppForge bridges this gap. You describe what you want in plain English, and AppForge compiles it into a validated, cross-referenced, export-ready application blueprint.
+
+---
+
+## Architecture
+
+```text
+User Prompt (Natural Language)
+      ↓
+┌─────────────────────────────────────────────────┐
+│  Stage 1: Intent Extraction                      │
+│  Parse natural language → structured intent      │
+├─────────────────────────────────────────────────┤
+│  Stage 2: System Design                          │
+│  Architecture → pages, endpoints, entities       │
+├─────────────────────────────────────────────────┤
+│  Stage 3: Schema Generation                      │
+│  DB tables + API endpoints + UI pages            │
+├─────────────────────────────────────────────────┤
+│  Stage 4: Refinement                             │
+│  Merge schemas, resolve inconsistencies          │
+├─────────────────────────────────────────────────┤
+│  Stage 5: Validation & Repair                    │
+│  7 invariants + auto-fix + LLM repair            │
+├─────────────────────────────────────────────────┤
+│  Stage 6: Export                                  │
+│  Prisma + Express + React + 6 docs + ZIP bundle  │
+└─────────────────────────────────────────────────┘
+      ↓
+Validated Application Blueprint
+```
+
+Each stage is a separate module with its own input/output contract. No single-prompt generation.
+
+---
+
+## Multi-Agent Pipeline
+
+| Stage | Agent | Purpose |
+| :--- | :--- | :--- |
+| 1 | Intent Extraction | Parse NL into structured intent (app type, features, roles, entities) |
+| 2 | System Design | Architecture blueprint (pages, endpoints, access control) |
+| 3 | Schema Generator | DB tables (5+ cols each) + API endpoints + UI pages |
+| 4 | Cross-Layer Refinement | Merge schemas, resolve DB/API/UI inconsistencies |
+| 5 | Validation & Auto-Repair | 7 invariants + rule-based fix + LLM-assisted repair |
+| 6 | Export & Runtime | Prisma schema + Express server + React components + ZIP bundle |
+
+---
+
+## Core Intelligence Modules
 
 ### 🧠 1. Intent Extraction Engine
 Parses natural language into structured intent — app type, features, roles, data models, payment gates, and user flows. Handles vague, conflicting, and underspecified prompts with confidence scoring and clarification questions.
@@ -34,7 +98,46 @@ Produces Prisma schemas, Express servers with JWT auth, React component trees, p
 
 ---
 
-## 🛠️ Technical Ecosystem
+## Example Decisions
+
+| Input Prompt | Output |
+| :--- | :--- |
+| "Build a CRM with login, contacts, dashboard, role-based access, and analytics" | ✅ 5 DB tables, 12 API endpoints, 8 UI pages, 3 roles, validated config |
+| "Create an LMS with courses, quizzes, and student progress" | ✅ 4 tables, 8 endpoints, 5 pages, instructor/student roles |
+| "Build an app" | ⚠️ Needs clarification — confidence 0.35, returns clarification questions |
+| "Build a simple app with advanced AI and blockchain" | ⚠️ Conflicting requirements detected, flagged in assumptions |
+
+---
+
+## Features
+
+✅ 6-Stage AI Pipeline with Zod Validation
+
+✅ Cross-Layer Consistency Enforcement (7 invariants)
+
+✅ Intelligent Auto-Repair (rule-based + LLM-assisted)
+
+✅ Prompt Analysis & Clarification Gate
+
+✅ Output Quality Tiers (Minimal / Standard / Maximum)
+
+✅ 3-Tier Pricing System (Free / Pro / Team)
+
+✅ Team Code Sharing with Seat Limits
+
+✅ ZIP Bundle Export with Organized Folders
+
+✅ 20-Case Evaluation Framework
+
+✅ Deterministic Offline Mode
+
+✅ Multi-Provider LLM Support (Groq, NVIDIA NIM, Featherless)
+
+✅ Premium Dark-Mode UI with CSS Variables
+
+---
+
+## Technical Ecosystem
 
 | Layer | Technology |
 | :--- | :--- |
@@ -50,12 +153,73 @@ Produces Prisma schemas, Express servers with JWT auth, React component trees, p
 
 ---
 
-## 🚀 Getting Started
+## LLM Provider Comparison
+
+| Provider | Model | Rate Limit | Latency | Best For |
+| :--- | :--- | :--- | :--- | :--- |
+| **Groq** (default) | `llama-3.3-70b-versatile` | ~30 req/min | ~7s/compile | Low latency |
+| **NVIDIA NIM** | `nvidia/llama-3.3-nemotron-super-49b-v1` | ~40 req/min | ~165s/compile | Structured JSON |
+| **Featherless** | `meta-llama/Meta-Llama-3.3-70B-Instruct` | Varies | ~2-5s | Model variety |
+
+See [docs/tradeoffs.md](docs/tradeoffs.md) for detailed comparison.
+
+---
+
+## Plan Tiers & Output Quality
+
+| Feature | Free | Pro ($19/mo) | Team ($49/mo) |
+| :--- | :--- | :--- | :--- |
+| **Compiles/month** | 10 | 100 | Unlimited |
+| **Modes** | Fast only | Fast + Balanced | All modes |
+| **Output Detail** | Minimal (3-5 cols/table) | Maximum (12-20+ cols) | Standard (8-12 cols) |
+| **Export: JSON + YAML** | ✅ | ✅ | ✅ |
+| **Export: SQL/Express/React** | ❌ | ✅ | ✅ |
+| **Export: ZIP bundle** | ❌ | ✅ | ✅ |
+| **History** | 7 days | 90 days | Unlimited |
+| **Seats** | 1 | 1 | 5 |
+
+AppForge enforces the same premium-gating pattern on itself that it generates for every app it compiles.
+
+---
+
+## Evaluation Framework
+
+20-case test suite covering:
+
+- **10 Real Products:** CRM, Marketplace, Blog, Project Tracker, Social Feed, E-Commerce, Analytics Dashboard, SaaS App, Health Tracker, Booking System
+- **10 Edge Cases:** Vague prompts, conflicting requirements, underspecified inputs, overly complex specs, ambiguous roles, technical constraints, circular dependencies, missing auth, payment without model, realtime + scalability conflicts
+
+```bash
+# Deterministic mode (no API key needed)
+npm run eval:deterministic
+
+# Via API
+curl http://localhost:3000/api/evaluate
+```
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Purpose |
+| :--- | :--- | :--- |
+| POST | `/api/compile` | Main compile endpoint (synchronous) |
+| POST | `/api/generate` | Async generation (returns jobId) |
+| GET | `/api/evaluate` | Run 20-case evaluation suite |
+| GET | `/api/health` | System health check |
+| GET | `/api/metrics` | Dashboard metrics data |
+| POST | `/api/plan/upgrade` | Instant plan upgrade |
+| POST | `/api/plan/join-team` | Join team via code |
+| GET | `/api/generations/[id]/export` | Export as JSON/YAML/ZIP |
+
+---
+
+## Getting Started
 
 ### Prerequisites
 - Node.js 18+ (recommended: 20+)
 - PostgreSQL database (Supabase free tier works)
-- At least one LLM API key (NVIDIA NIM or Groq)
+- At least one LLM API key (Groq or NVIDIA NIM)
 
 ### Installation
 
@@ -92,13 +256,13 @@ Produces Prisma schemas, Express servers with JWT auth, React component trees, p
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
 | Variable | Required | Description |
 | :--- | :--- | :--- |
-| `LLM_PROVIDER` | No | `nvidia` (default) / `groq` / `featherless` |
-| `NVIDIA_API_KEY` | Yes* | NVIDIA NIM API key (`nvapi-...`) |
+| `LLM_PROVIDER` | No | `groq` (default) / `nvidia` / `featherless` |
 | `GROQ_API_KEY` | Yes* | Groq API key (`gsk_...`) |
+| `NVIDIA_API_KEY` | Yes* | NVIDIA NIM API key (`nvapi-...`) |
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | No | Clerk auth publishable key |
 | `CLERK_SECRET_KEY` | No | Clerk auth secret key |
@@ -110,7 +274,7 @@ Produces Prisma schemas, Express servers with JWT auth, React component trees, p
 
 ---
 
-## 📂 Project Architecture
+## Project Architecture
 
 ```text
 AppForge/
@@ -150,73 +314,7 @@ AppForge/
 
 ---
 
-## 🧪 How It Works
-
-```
-User Prompt
-    │
-    ▼
-┌─────────────────────────────────────────────────┐
-│  Stage 1: Intent Extraction                      │
-│  Parse natural language → structured intent      │
-├─────────────────────────────────────────────────┤
-│  Stage 2: System Design                          │
-│  Architecture → pages, endpoints, entities       │
-├─────────────────────────────────────────────────┤
-│  Stage 3: Schema Generation                      │
-│  DB tables + API endpoints + UI pages            │
-├─────────────────────────────────────────────────┤
-│  Stage 4: Refinement                             │
-│  Merge schemas, resolve inconsistencies          │
-├─────────────────────────────────────────────────┤
-│  Stage 5: Validation & Repair                    │
-│  7 invariants + auto-fix + LLM repair            │
-├─────────────────────────────────────────────────┤
-│  Stage 6: Export                                  │
-│  Prisma + Express + React + 6 docs + ZIP bundle  │
-└─────────────────────────────────────────────────┘
-    │
-    ▼
-Validated Application Blueprint
-```
-
----
-
-## 🎯 Plan Tiers & Output Quality
-
-| Feature | Free | Pro ($19/mo) | Team ($49/mo) |
-| :--- | :--- | :--- | :--- |
-| **Compiles/month** | 10 | 100 | Unlimited |
-| **Modes** | Fast only | Fast + Balanced | All modes |
-| **Output Detail** | Minimal (3-5 cols/table) | Maximum (12-20+ cols) | Standard (8-12 cols) |
-| **Export: JSON + YAML** | ✅ | ✅ | ✅ |
-| **Export: SQL/Express/React** | ❌ | ✅ | ✅ |
-| **Export: ZIP bundle** | ❌ | ✅ | ✅ |
-| **History** | 7 days | 90 days | Unlimited |
-| **Seats** | 1 | 1 | 5 |
-
-AppForge enforces the same premium-gating pattern on itself that it generates for every app it compiles.
-
----
-
-## 🧪 Evaluation Framework
-
-20-case test suite covering:
-
-- **10 Real Products:** CRM, Marketplace, Blog, Project Tracker, Social Feed, E-Commerce, Analytics Dashboard, SaaS App, Health Tracker, Booking System
-- **10 Edge Cases:** Vague prompts, conflicting requirements, underspecified inputs, overly complex specs, ambiguous roles, technical constraints, circular dependencies, missing auth, payment without model, realtime + scalability conflicts
-
-```bash
-# Deterministic mode (no API key needed)
-npm run eval:deterministic
-
-# Via API
-curl http://localhost:3000/api/evaluate
-```
-
----
-
-## 📸 Design Aesthetics
+## Design Aesthetics
 
 Built with a **premium dark-mode design system** using CSS variables:
 
@@ -228,19 +326,7 @@ Built with a **premium dark-mode design system** using CSS variables:
 
 ---
 
-## 📄 LLM Provider Comparison
-
-| Provider | Model | Rate Limit | Best For |
-| :--- | :--- | :--- | :--- |
-| **Groq** (default) | `llama-3.3-70b-versatile` | ~30 req/min | Low latency (~7s compile) |
-| **NVIDIA NIM** (fallback) | `nvidia/llama-3.3-nemotron-super-49b-v1` | ~40 req/min | Structured JSON (~165s compile) |
-| **Featherless** | `meta-llama/Meta-Llama-3.3-70B-Instruct` | Varies | Model variety |
-
-See [docs/tradeoffs.md](docs/tradeoffs.md) for detailed comparison.
-
----
-
-## 📸 Pages
+## Pages
 
 | Page | Description |
 | :--- | :--- |
@@ -252,7 +338,24 @@ See [docs/tradeoffs.md](docs/tradeoffs.md) for detailed comparison.
 
 ---
 
-## 🤝 Contributing
+## Project Status
+
+- ✅ 6-Stage AI Pipeline
+- ✅ Cross-Layer Validation (7 invariants)
+- ✅ Auto-Repair Engine (rule-based + LLM)
+- ✅ Prompt Analysis & Clarification
+- ✅ Output Quality Tiers
+- ✅ 3-Tier Pricing with Plan Gating
+- ✅ Team Code System with Seat Limits
+- ✅ ZIP Bundle Export
+- ✅ 20-Case Evaluation Framework
+- ✅ Multi-Provider LLM Support
+- ✅ Premium Dark-Mode UI
+- ✅ Deterministic Offline Mode
+
+---
+
+## Contributing
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
@@ -262,10 +365,16 @@ See [docs/tradeoffs.md](docs/tradeoffs.md) for detailed comparison.
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-Developed with ❤️ by the AppForge Team.
+## Author
+
+**Vishwesh Penkar**
+
+B.Tech Artificial Intelligence & Machine Learning
+
+Mumbai University, India
