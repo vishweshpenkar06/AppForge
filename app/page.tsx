@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import Hero from '@/components/Hero'
+import OnboardingTour from '@/components/OnboardingTour'
 
 const STAGES = [
   { n: '01', label: 'Intent', desc: 'Parse the goal' },

@@ -10,9 +10,37 @@ import './globals.css'
 const geist = Geist({ subsets: ['latin'] })
 const geistMono = Geist_Mono({ subsets: ['latin'] })
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://appforge.dev'
+
 export const metadata: Metadata = {
   title: 'AppForge — Natural Language Application Compiler',
-  description: 'Turn product ideas into validated database schemas, API layers, and component trees. 6-stage compiler with cross-layer validation.',
+  description:
+    'Turn product ideas into validated database schemas, API layers, and component trees. 6-stage compiler with cross-layer validation.',
+  metadataBase: new URL(SITE_URL),
+  openGraph: {
+    title: 'AppForge — Natural Language Application Compiler',
+    description:
+      'Turn product ideas into validated database schemas, API layers, and component trees.',
+    url: SITE_URL,
+    siteName: 'AppForge',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'AppForge — Natural Language Application Compiler',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AppForge — Natural Language Application Compiler',
+    description:
+      'Turn product ideas into validated database schemas, API layers, and component trees.',
+    images: ['/og-image.png'],
+  },
 }
 
 export default function RootLayout({

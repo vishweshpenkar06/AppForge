@@ -285,20 +285,26 @@ export default function CompilerPage() {
 
           {loading && !result && (
             <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center gap-4">
-                <div className="flex gap-2">
-                  {STAGES.map((_, i) => (
-                    <div key={i} className={`w-2 h-2 rounded-full transition-all duration-300
-                      ${i < currentStage ? 'bg-success' :
-                        i === currentStage ? 'bg-accent scale-125' :
-                        'bg-forge-600'}`}
-                      style={i === currentStage ? { animation: 'pulse-dot 1s ease-in-out infinite' } : undefined} />
-                  ))}
+              {streaming && liveMode ? (
+                <div className="flex flex-col items-center gap-4 w-full max-w-sm">
+                  <PipelineLiveView prompt={prompt} mode={mode} onResult={handleLiveResult} onError={handleLiveError} />
                 </div>
-                <p className="text-sm text-forge-300 m-0">
-                  {currentStage >= 0 ? `Stage ${currentStage + 1}: ${STAGES[currentStage]}` : 'Starting compilation...'}
-                </p>
-              </div>
+              ) : (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="flex gap-2">
+                    {STAGES.map((_, i) => (
+                      <div key={i} className={`w-2 h-2 rounded-full transition-all duration-300
+                        ${i < currentStage ? 'bg-success' :
+                          i === currentStage ? 'bg-accent scale-125' :
+                          'bg-forge-600'}`}
+                        style={i === currentStage ? { animation: 'pulse-dot 1s ease-in-out infinite' } : undefined} />
+                    ))}
+                  </div>
+                  <p className="text-sm text-forge-300 m-0">
+                    {currentStage >= 0 ? `Stage ${currentStage + 1}: ${STAGES[currentStage]}` : 'Starting compilation...'}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
