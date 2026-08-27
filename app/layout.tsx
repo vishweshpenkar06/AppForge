@@ -10,9 +10,37 @@ import './globals.css'
 const geist = Geist({ subsets: ['latin'] })
 const geistMono = Geist_Mono({ subsets: ['latin'] })
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://appforge.dev'
+
 export const metadata: Metadata = {
   title: 'AppForge — Natural Language Application Compiler',
-  description: 'Turn product ideas into validated database schemas, API layers, and component trees. 6-stage compiler with cross-layer validation.',
+  description:
+    'Turn product ideas into validated database schemas, API layers, and component trees. 6-stage compiler with cross-layer validation.',
+  metadataBase: new URL(SITE_URL),
+  openGraph: {
+    title: 'AppForge — Natural Language Application Compiler',
+    description:
+      'Turn product ideas into validated database schemas, API layers, and component trees.',
+    url: SITE_URL,
+    siteName: 'AppForge',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'AppForge — Natural Language Application Compiler',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AppForge — Natural Language Application Compiler',
+    description:
+      'Turn product ideas into validated database schemas, API layers, and component trees.',
+    images: ['/og-image.png'],
+  },
 }
 
 export default function RootLayout({
@@ -23,35 +51,38 @@ export default function RootLayout({
   return (
     <ClerkProvider appearance={{ theme: shadcn }}>
       <html lang="en" suppressHydrationWarning>
-        <body className={`${geist.className} ${geistMono.className}`} style={{ margin:0 }}>
+        <body className={`${geist.className} ${geistMono.className}`}>
+
+          {/* ── Skip to content ──────────────────────────────────── */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg focus:text-sm"
+          >
+            Skip to content
+          </a>
 
           {/* ── Nav ─────────────────────────────────────────────── */}
-          <nav style={{
-            position:'fixed', top:0, width:'100%', height:48, zIndex:50,
-            display:'flex', alignItems:'center', justifyContent:'space-between',
-            padding:'0 24px',
-            background:'rgba(9,9,11,0.85)', backdropFilter:'blur(12px)',
-            borderBottom:'1px solid var(--border)',
-          }}>
-            <Link href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none' }}>
-              <div style={{ width:28, height:28, borderRadius:6, background:'var(--fill-accent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <span style={{ color:'#fff', fontFamily:'var(--font-mono)', fontSize:11, fontWeight:700 }}>AF</span>
+          <nav className="fixed top-0 w-full h-12 z-50 flex items-center justify-between px-4 md:px-6 bg-forge-950/85 backdrop-blur-xl border-b border-white/[0.06]">
+            <Link href="/" className="flex items-center gap-2 no-underline">
+              <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center">
+                <span className="text-white font-mono text-[11px] font-bold">AF</span>
               </div>
-              <span style={{ color:'var(--text-primary)', fontWeight:600, fontSize:14 }}>AppForge</span>
+              <span className="text-forge-50 font-semibold text-sm hidden sm:inline">AppForge</span>
             </Link>
 
-            <div style={{ display:'flex', gap:24, alignItems:'center' }}>
-              <Link href="/compiler" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Compiler</Link>
-              <Link href="/demo" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Examples</Link>
-              <Link href="/dashboard" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Dashboard</Link>
-              <Link href="/pricing" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Pricing</Link>
+            <div className="hidden md:flex items-center gap-6">
+              <Link href="/compiler" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Compiler</Link>
+              <Link href="/templates" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Templates</Link>
+              <Link href="/demo" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Examples</Link>
+              <Link href="/dashboard" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Dashboard</Link>
+              <Link href="/pricing" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Pricing</Link>
             </div>
 
             <AuthControls />
           </nav>
 
           {/* ── Main ────────────────────────────────────────────── */}
-          <main style={{ paddingTop:48 }}>
+          <main id="main-content" className="pt-12">
             {children}
           </main>
 

@@ -9,257 +9,233 @@ Short_description: Natural Language to Application Compiler — Convert product 
 
 # AppForge
 
-## Natural Language to Application Compiler
+## Natural Language → Application Compiler
 
-> **Convert plain English product descriptions into complete, validated, executable application configurations — schemas, APIs, UI pages, and production-ready documentation.**
+> **Describe what you want to build. AppForge compiles it into a validated database schema, API layer, component tree, and auth config — ready to ship.**
 
-AppForge is a **6-stage AI compiler** that transforms natural language product descriptions into structured application blueprints. Unlike simple code generators, AppForge runs a multi-stage pipeline with Zod validation, cross-layer consistency checks, intelligent auto-repair, and plan-based quality tiers — producing output that is immediately usable for production development.
+AppForge is a **6-stage AI compiler** that transforms natural language product descriptions into structured, cross-validated application blueprints. Unlike simple code generators, AppForge runs a multi-stage pipeline with Zod validation at every step, cross-layer consistency checks, intelligent auto-repair, and plan-based quality tiers — producing output that is immediately usable for production development.
 
 ---
 
-## Problem
+## Why AppForge
 
 Modern app development has a gap between **idea** and **implementation**:
 
-- Product specs live in docs nobody reads
-- Database schemas are hand-drawn and inconsistent
-- API contracts are undocumented
-- Auth and role logic is bolted on last
-- Scaffolding tools produce empty shells
-
-AppForge bridges this gap. You describe what you want in plain English, and AppForge compiles it into a validated, cross-referenced, export-ready application blueprint.
+| Problem | AppForge Solution |
+|:--------|:------------------|
+| Product specs live in docs nobody reads | Structured JSON config, machine-readable |
+| Database schemas are hand-drawn | Auto-generated Prisma with relations |
+| API contracts are undocumented | Typed endpoints with request/response schemas |
+| Auth and role logic is bolted on last | RBAC baked into every layer |
+| Scaffolding tools produce empty shells | Execution-ready output with SQL, Express, React |
 
 ---
 
-## Architecture
+## How It Works
 
-```text
-User Prompt (Natural Language)
-      ↓
-┌─────────────────────────────────────────────────┐
-│  Stage 1: Intent Extraction                      │
-│  Parse natural language → structured intent      │
-├─────────────────────────────────────────────────┤
-│  Stage 2: System Design                          │
-│  Architecture → pages, endpoints, entities       │
-├─────────────────────────────────────────────────┤
-│  Stage 3: Schema Generation                      │
-│  DB tables + API endpoints + UI pages            │
-├─────────────────────────────────────────────────┤
-│  Stage 4: Refinement                             │
-│  Merge schemas, resolve inconsistencies          │
-├─────────────────────────────────────────────────┤
-│  Stage 5: Validation & Repair                    │
-│  7 invariants + auto-fix + LLM repair            │
-├─────────────────────────────────────────────────┤
-│  Stage 6: Export                                  │
-│  Prisma + Express + React + 6 docs + ZIP bundle  │
-└─────────────────────────────────────────────────┘
-      ↓
-Validated Application Blueprint
+```
+"Build a CRM with login, contacts, dashboard, and analytics"
+                    ↓
+┌───────────────────────────────────────────────────────┐
+│  01  Intent      Parse the goal                       │
+│  02  Design      Define entities                      │
+│  03  Schemas     DB + API + UI                        │
+│  04  Refine      Cross-validate                       │
+│  05  Repair      Auto-fix errors                      │
+│  06  Export      Ready to ship                        │
+└───────────────────────────────────────────────────────┘
+                    ↓
+  Prisma schema · Express server · React components
+  6 planning docs · ZIP bundle
 ```
 
-Each stage is a separate module with its own input/output contract. No single-prompt generation.
+Each stage is a separate module with its own Zod-validated input/output contract. No single-prompt generation.
 
 ---
 
-## Multi-Agent Pipeline
+## Core Capabilities
 
-| Stage | Agent | Purpose |
-| :--- | :--- | :--- |
-| 1 | Intent Extraction | Parse NL into structured intent (app type, features, roles, entities) |
-| 2 | System Design | Architecture blueprint (pages, endpoints, access control) |
-| 3 | Schema Generator | DB tables (5+ cols each) + API endpoints + UI pages |
-| 4 | Cross-Layer Refinement | Merge schemas, resolve DB/API/UI inconsistencies |
-| 5 | Validation & Auto-Repair | 7 invariants + rule-based fix + LLM-assisted repair |
-| 6 | Export & Runtime | Prisma schema + Express server + React components + ZIP bundle |
-
----
-
-## Core Intelligence Modules
-
-### 🧠 1. Intent Extraction Engine
-Parses natural language into structured intent — app type, features, roles, data models, payment gates, and user flows. Handles vague, conflicting, and underspecified prompts with confidence scoring and clarification questions.
-
-### 🏗️ 2. System Design Architect
-Converts intent into a full architecture blueprint — page structure, API endpoints, data entities, access control model, and role-permission mappings. Automatically detects app complexity and selects the right architecture pattern.
-
-### 🗄️ 3. Schema Generator
-Produces concrete database tables (5+ domain-specific columns each), API endpoints with request/response schemas, and UI pages with data source bindings. The output depth scales by plan tier — minimal for Free, exhaustive for Pro.
-
-### 🔍 4. Cross-Layer Refinement
-Merges all schemas and resolves inconsistencies across DB, API, and UI layers. Ensures every API field exists in the database, every UI component maps to a valid endpoint, and every role reference is defined in auth.
-
-### 🛠️ 5. Validation & Auto-Repair Engine
-Enforces 7 cross-layer invariants on every compile. Automatically fixes missing `id` columns, broken FK references, orphaned endpoints, and missing role definitions. When rules can't fix it, LLM-assisted repair fires surgically.
-
-### 📦 6. Export & Runtime Generator
-Produces Prisma schemas, Express servers with JWT auth, React component trees, portable SQL, 6 planning documents (PRD, TRD, App Flow, UI/UX Brief, Backend Schema, Implementation Plan), and ZIP bundles with organized folders.
+| Capability | What It Does |
+|:-----------|:-------------|
+| **6-Stage Pipeline** | Structured compilation with typed contracts between stages |
+| **7 Cross-Layer Invariants** | DB fields exist in API, API routes map to UI, auth roles are defined |
+| **Auto-Repair Engine** | Rule-based fix for missing FKs, broken types, orphaned references |
+| **LLM-Assisted Repair** | When rules can't fix it, surgical LLM intervention fires |
+| **Prompt Analysis Gate** | Detects vague/conflicting prompts before compilation, asks for clarification |
+| **Output Quality Tiers** | Minimal (Free), Standard (Team), Maximum (Pro) |
+| **Multi-Provider LLM** | Groq (fast) → NVIDIA NIM (fallback) → Featherless |
+| **20-Case Eval Suite** | 10 real products + 10 edge cases for quality benchmarking |
+| **Deterministic Offline Mode** | No API key needed — heuristic-based testing |
 
 ---
 
-## Example Decisions
+## Pipeline Stages
 
-| Input Prompt | Output |
-| :--- | :--- |
-| "Build a CRM with login, contacts, dashboard, role-based access, and analytics" | ✅ 5 DB tables, 12 API endpoints, 8 UI pages, 3 roles, validated config |
-| "Create an LMS with courses, quizzes, and student progress" | ✅ 4 tables, 8 endpoints, 5 pages, instructor/student roles |
-| "Build an app" | ⚠️ Needs clarification — confidence 0.35, returns clarification questions |
-| "Build a simple app with advanced AI and blockchain" | ⚠️ Conflicting requirements detected, flagged in assumptions |
-
----
-
-## Features
-
-✅ 6-Stage AI Pipeline with Zod Validation
-
-✅ Cross-Layer Consistency Enforcement (7 invariants)
-
-✅ Intelligent Auto-Repair (rule-based + LLM-assisted)
-
-✅ Prompt Analysis & Clarification Gate
-
-✅ Output Quality Tiers (Minimal / Standard / Maximum)
-
-✅ 3-Tier Pricing System (Free / Pro / Team)
-
-✅ Team Code Sharing with Seat Limits
-
-✅ ZIP Bundle Export with Organized Folders
-
-✅ 20-Case Evaluation Framework
-
-✅ Deterministic Offline Mode
-
-✅ Multi-Provider LLM Support (Groq, NVIDIA NIM, Featherless)
-
-✅ Premium Dark-Mode UI with CSS Variables
+| Stage | Name | Input | Output | LLM Call |
+|:------|:-----|:------|:-------|:---------|
+| 01 | **Intent Extraction** | Natural language prompt | `Intent` — app type, features, roles, entities | Yes (temp 0.2) |
+| 02 | **System Design** | `Intent` | `SystemDesign` — pages, endpoints, access control | Yes (temp 0.1) |
+| 03 | **Schema Generation** | `SystemDesign` + `Intent` | `SchemaOutput` — DB tables, API endpoints, UI pages | Yes (temp 0) |
+| 04 | **Cross-Layer Refinement** | `SchemaOutput` | Refined `SchemaOutput` with consistency fixes | Yes (temp 0) |
+| 05 | **Validation & Repair** | `SchemaOutput` | `ValidationResult` — valid, errors, repairs, score | Only if needed |
+| 06 | **Export** | `SchemaOutput` | Prisma + Express + React + SQL + 6 docs | No (code gen) |
 
 ---
 
-## Technical Ecosystem
+## Example Compilations
+
+| Prompt | Output |
+|:-------|:-------|
+| "Build a CRM with login, contacts, dashboard, role-based access, and analytics" | 5 DB tables, 12 API endpoints, 8 UI pages, 3 roles, validated config |
+| "Create an LMS with courses, quizzes, and student progress" | 4 tables, 8 endpoints, 5 pages, instructor/student roles |
+| "Build an app" | Needs clarification — confidence 0.35, returns clarification questions |
+| "Build a simple app with advanced AI and blockchain" | Conflicting requirements detected, flagged in assumptions |
+
+---
+
+## Tech Stack
 
 | Layer | Technology |
-| :--- | :--- |
+|:------|:-----------|
 | **Framework** | Next.js 16 (App Router) + TypeScript 5.7 |
 | **AI Pipeline** | Groq (primary) / NVIDIA NIM (fallback) — OpenAI-compatible |
 | **Default Model** | `llama-3.3-70b-versatile` (Groq) |
 | **Database** | PostgreSQL via Prisma 7.8 |
 | **Authentication** | Clerk with JWT + Role-Based Access Control |
-| **UI** | React 19 + CSS Variables (dark mode native) |
+| **UI** | React 19 + Tailwind CSS v4 + shadcn/ui |
 | **Validation** | Zod schemas at every pipeline stage |
 | **Export** | JSON, YAML, ZIP (via JSZip) |
+| **Fonts** | Geist (sans) + Geist Mono (code/technical) |
 | **Pricing** | 3-tier system (Free / Pro / Team) with plan gating |
 
 ---
 
-## LLM Provider Comparison
+## Design System
 
-| Provider | Model | Rate Limit | Latency | Best For |
-| :--- | :--- | :--- | :--- | :--- |
-| **Groq** (default) | `llama-3.3-70b-versatile` | ~30 req/min | ~7s/compile | Low latency |
-| **NVIDIA NIM** | `nvidia/llama-3.3-nemotron-super-49b-v1` | ~40 req/min | ~165s/compile | Structured JSON |
-| **Featherless** | `meta-llama/Meta-Llama-3.3-70B-Instruct` | Varies | ~2-5s | Model variety |
+AppForge uses a custom dark-mode design system built on CSS variables and Tailwind CSS v4.
 
-See [docs/tradeoffs.md](docs/tradeoffs.md) for detailed comparison.
+### Color Palette
+
+| Token | Hex | Usage |
+|:------|:----|:------|
+| `forge-950` | `#08080c` | Page background |
+| `forge-900` | `#0e0e14` | Primary surface |
+| `forge-800` | `#16161e` | Elevated surface, cards |
+| `forge-700` | `#1e1e28` | Inputs, panels |
+| `accent` | `#6366f1` | Primary CTA, active states |
+| `accent-hover` | `#818cf8` | Links, code, hover states |
+| `secondary` | `#14b8a6` | Pipeline stages, secondary accent |
+| `success` | `#10b981` | Valid states, completions |
+| `danger` | `#f43f5e` | Errors, destructive actions |
+| `warning` | `#f59e0b` | Assumptions, rate limits |
+
+### Signature Element: Pipeline Visualization
+
+The 6-stage pipeline is the visual centerpiece:
+
+- **Desktop**: Horizontal strip with 56px numbered circles (teal accent), connecting line, animated beam
+- **Mobile**: Vertical layout with left-aligned connecting line
+- **Compiler**: Live stage indicators with pulse animation during compilation
+
+### Typography
+
+- **Geist Sans** — All UI text (12/14/16/18/20/24/30/36px scale)
+- **Geist Mono** — Code blocks, pipeline numbers, status badges, technical labels
+
+### Accessibility
+
+- All interactive elements have visible keyboard focus states (`ring-2 ring-accent/40`)
+- Skip-to-content link on every page
+- WCAG AA contrast ratios on all text/background pairs
+- Semantic HTML with proper heading hierarchy
 
 ---
 
-## Plan Tiers & Output Quality
+## Pages
 
-| Feature | Free | Pro ($19/mo) | Team ($49/mo) |
-| :--- | :--- | :--- | :--- |
-| **Compiles/month** | 10 | 100 | Unlimited |
-| **Modes** | Fast only | Fast + Balanced | All modes |
-| **Output Detail** | Minimal (3-5 cols/table) | Maximum (12-20+ cols) | Standard (8-12 cols) |
-| **Export: JSON + YAML** | ✅ | ✅ | ✅ |
-| **Export: SQL/Express/React** | ❌ | ✅ | ✅ |
-| **Export: ZIP bundle** | ❌ | ✅ | ✅ |
-| **History** | 7 days | 90 days | Unlimited |
-| **Seats** | 1 | 1 | 5 |
-
-AppForge enforces the same premium-gating pattern on itself that it generates for every app it compiles.
-
----
-
-## Evaluation Framework
-
-20-case test suite covering:
-
-- **10 Real Products:** CRM, Marketplace, Blog, Project Tracker, Social Feed, E-Commerce, Analytics Dashboard, SaaS App, Health Tracker, Booking System
-- **10 Edge Cases:** Vague prompts, conflicting requirements, underspecified inputs, overly complex specs, ambiguous roles, technical constraints, circular dependencies, missing auth, payment without model, realtime + scalability conflicts
-
-```bash
-# Deterministic mode (no API key needed)
-npm run eval:deterministic
-
-# Via API
-curl http://localhost:3000/api/evaluate
-```
+| Page | Route | Description |
+|:-----|:------|:------------|
+| **Landing** | `/` | Hero with pipeline strip, metrics, feature cards |
+| **Compiler** | `/compiler` | Two-panel: prompt input + 7-tab results with export |
+| **Dashboard** | `/dashboard` | Stats cards, compilation form, history sidebar |
+| **Demo** | `/demo` | Pre-compiled outputs with split view |
+| **Pricing** | `/pricing` | 3 cards, billing toggle, comparison table, team codes |
+| **Generated** | `/generated/[gid]` | Artifact viewer with markdown preview |
+| **Builder** | `/builder` | Prompt editor with autosave and history |
+| **Sign In** | `/sign-in` | Clerk authentication |
+| **Sign Up** | `/sign-up` | Clerk registration |
 
 ---
 
 ## API Endpoints
 
 | Method | Endpoint | Purpose |
-| :--- | :--- | :--- |
-| POST | `/api/compile` | Main compile endpoint (synchronous) |
-| POST | `/api/generate` | Async generation (returns jobId) |
-| GET | `/api/evaluate` | Run 20-case evaluation suite |
-| GET | `/api/health` | System health check |
-| GET | `/api/metrics` | Dashboard metrics data |
-| POST | `/api/plan/upgrade` | Instant plan upgrade |
-| POST | `/api/plan/join-team` | Join team via code |
-| GET | `/api/generations/[id]/export` | Export as JSON/YAML/ZIP |
+|:-------|:---------|:--------|
+| `POST` | `/api/compile` | Main compile endpoint (synchronous) |
+| `POST` | `/api/generate` | Async generation (returns jobId) |
+| `GET` | `/api/evaluate` | Run 20-case evaluation suite |
+| `GET` | `/api/health` | System health check |
+| `GET` | `/api/metrics` | Dashboard metrics data |
+| `POST` | `/api/plan/upgrade` | Instant plan upgrade |
+| `POST` | `/api/plan/join-team` | Join team via code |
+| `GET/POST` | `/api/generations` | CRUD for generation records |
+| `GET` | `/api/generations/[id]` | Single generation detail |
+| `GET` | `/api/generations/[id]/export` | Export as JSON/YAML/ZIP |
+| `GET` | `/api/generated/[gid]/download` | Download artifact ZIP |
+
+---
+
+## Plan Tiers
+
+| Feature | Free | Pro ($19/mo) | Team ($49/mo) |
+|:--------|:-----|:-------------|:--------------|
+| Compiles/month | 10 | 100 | Unlimited |
+| Modes | Fast only | Fast + Balanced | All modes |
+| Output detail | Minimal (3-5 cols) | Maximum (12-20+ cols) | Standard (8-12 cols) |
+| JSON + YAML export | ✅ | ✅ | ✅ |
+| SQL / Express / React | ❌ | ✅ | ✅ |
+| ZIP bundle | ❌ | ✅ | ✅ |
+| History | 7 days | 90 days | Unlimited |
+| Seats | 1 | 1 | 5 |
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+ (recommended: 20+)
 - PostgreSQL database (Supabase free tier works)
 - At least one LLM API key (Groq or NVIDIA NIM)
 
 ### Installation
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/yourusername/AppForge.git
-   cd AppForge
-   ```
+```bash
+# 1. Clone
+git clone https://github.com/yourusername/AppForge.git
+cd AppForge
 
-2. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+# 2. Install
+npm install
 
-3. **Set Up Environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys (see Environment Variables below)
-   ```
+# 3. Configure
+cp .env.example .env
+# Edit .env with your API keys (see Environment Variables below)
 
-4. **Push Database Schema**
-   ```bash
-   npx prisma db push
-   npx prisma generate
-   ```
+# 4. Database
+npx prisma db push
+npx prisma generate
 
-5. **Start Development Server**
-   ```bash
-   npm run dev
-   ```
+# 5. Start
+npm run dev
+```
 
-6. **Access the Application**
-   Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+Open **[http://localhost:3000](http://localhost:3000)**.
 
----
-
-## Environment Variables
+### Environment Variables
 
 | Variable | Required | Description |
-| :--- | :--- | :--- |
+|:---------|:---------|:------------|
 | `LLM_PROVIDER` | No | `groq` (default) / `nvidia` / `featherless` |
 | `GROQ_API_KEY` | Yes* | Groq API key (`gsk_...`) |
 | `NVIDIA_API_KEY` | Yes* | NVIDIA NIM API key (`nvapi-...`) |
@@ -276,82 +252,83 @@ curl http://localhost:3000/api/evaluate
 
 ## Project Architecture
 
-```text
+```
 AppForge/
 ├── proxy.ts                        # Clerk auth (Next.js 16)
 ├── app/
+│   ├── globals.css                 # Design system variables + Tailwind
+│   ├── layout.tsx                  # Root layout (ClerkProvider + nav)
+│   ├── page.tsx                    # Landing page
 │   ├── api/
-│   │   ├── compile/route.ts        # Main compile endpoint
+│   │   ├── compile/route.ts        # Main compile endpoint (624 lines)
 │   │   ├── generate/route.ts       # Async generation
 │   │   ├── evaluate/route.ts       # 20-case evaluation suite
 │   │   ├── health/route.ts         # System health check
 │   │   ├── metrics/route.ts        # Dashboard metrics
 │   │   ├── plan/upgrade/route.ts   # Plan upgrade API
 │   │   ├── plan/join-team/route.ts # Team join API
-│   │   └── generations/            # CRUD + ZIP/JSON/YAML export
+│   │   ├── generations/            # CRUD + export
+│   │   └── webhooks/clerk/         # Clerk webhook handler
 │   ├── compiler/page.tsx           # Two-panel compiler UI
-│   ├── dashboard/page.tsx          # Stats, form, history
+│   ├── dashboard/page.tsx          # Stats + form + history
 │   ├── demo/page.tsx               # Pre-compiled examples
-│   ├── pricing/page.tsx            # 3-tier pricing cards
-│   └── page.tsx                    # Landing with pipeline strip
+│   ├── pricing/page.tsx            # 3-tier pricing
+│   ├── generated/[gid]/page.tsx    # Artifact viewer
+│   ├── builder/page.tsx            # Prompt editor
+│   ├── sign-in/                    # Clerk sign-in
+│   ├── sign-up/                    # Clerk sign-up
+│   └── components/
+│       └── auth-controls.tsx       # Sign in/up + UserButton
+├── components/
+│   ├── Hero.tsx                    # Landing hero section
+│   ├── ExamplePrompts.tsx          # Quick-start prompt chips
+│   ├── GenerationStatus.tsx        # Error classification UI
+│   ├── generation-form.tsx         # Generation input form
+│   ├── generation-detail.tsx       # Tabbed result viewer
+│   ├── generation-history.tsx      # Sidebar history list
+│   ├── loading-spinner.tsx         # Loading indicator
+│   ├── metrics-dashboard.tsx       # Metrics display
+│   ├── upgrade-banner.tsx          # Upgrade CTA
+│   ├── theme-provider.tsx          # next-themes wrapper
+│   ├── builder/
+│   │   └── editor.tsx              # Prompt editor with autosave
+│   └── ui/                         # 57 shadcn/ui components
 ├── lib/
 │   ├── compiler/
 │   │   ├── core.ts                 # 5-stage pipeline + validation
-│   │   ├── export.ts               # Prisma/API/UI generation + docs
+│   │   ├── export.ts               # Stage 6 + planning docs
 │   │   └── evaluation.ts           # 20-case test suite
-│   ├── runtime/generators.ts       # SQL, Express, React generation
+│   ├── runtime/
+│   │   └── generators.ts           # SQL, Express, React generation
 │   ├── ai.ts                       # LLM provider registry + fallback
 │   ├── plan-limits.ts              # Plan gating + detail levels
 │   ├── schemas.ts                  # Zod schemas
 │   ├── validation.ts               # Prompt analysis + consistency
 │   ├── pipeline.ts                 # Orchestrator + DB persistence
-│   └── db.ts                       # Prisma client
-├── prisma/schema.prisma            # Database models
-├── components/                     # UI components
-├── docs/tradeoffs.md               # LLM provider comparison
-└── Changes IN this Project/        # Change log
+│   ├── metrics.ts                  # Quality scoring + metrics
+│   ├── db.ts                       # Prisma client singleton
+│   └── clerk-user.ts               # Clerk auth helper
+├── prisma/schema.prisma            # 6 models
+├── styles/globals.css              # shadcn/ui oklch theme
+├── hooks/                          # Custom React hooks
+├── docs/                           # Documentation
+├── eval/                           # Evaluation data
+└── UI_AUDIT.md                     # Design system documentation
 ```
 
 ---
 
-## Design Aesthetics
+## Evaluation
 
-Built with a **premium dark-mode design system** using CSS variables:
+```bash
+# Deterministic mode (no API key needed)
+npm run eval:deterministic
 
-- **Frosted Glass Nav** — Fixed 48px nav with backdrop blur
-- **Pipeline Strip** — Animated beam connecting 6 compiler stages
-- **Two-Panel Compiler** — Sidebar + tabbed results (7 views)
-- **Plan Gating** — Real-time limits with upgrade prompts
-- **Zero Hardcoded Colors** — All via CSS variable system
+# Via API
+curl http://localhost:3000/api/evaluate
+```
 
----
-
-## Pages
-
-| Page | Description |
-| :--- | :--- |
-| **Landing** (`/`) | Hero with pipeline strip, metrics, feature cards |
-| **Compiler** (`/compiler`) | Two-panel: prompt input + 7-tab results with export |
-| **Dashboard** (`/dashboard`) | Stats cards, compilation form, history sidebar |
-| **Demo** (`/demo`) | Pre-compiled outputs with split view |
-| **Pricing** (`/pricing`) | 3 cards, billing toggle, comparison table, team codes |
-
----
-
-## Project Status
-
-- ✅ 6-Stage AI Pipeline
-- ✅ Cross-Layer Validation (7 invariants)
-- ✅ Auto-Repair Engine (rule-based + LLM)
-- ✅ Prompt Analysis & Clarification
-- ✅ Output Quality Tiers
-- ✅ 3-Tier Pricing with Plan Gating
-- ✅ Team Code System with Seat Limits
-- ✅ ZIP Bundle Export
-- ✅ 20-Case Evaluation Framework
-- ✅ Multi-Provider LLM Support
-- ✅ Premium Dark-Mode UI
-- ✅ Deterministic Offline Mode
+20-case test suite: 10 real products (CRM, Marketplace, Blog, etc.) + 10 edge cases (vague prompts, conflicting requirements, circular dependencies).
 
 ---
 

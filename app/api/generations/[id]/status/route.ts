@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import { createLogger } from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,
@@ -69,7 +70,8 @@ export async function GET(
       errorMessage: generation.errorMessage,
     })
   } catch (error) {
-    console.error('[API Error] /api/generations/[id]/status:', error)
+    const routeLogger = createLogger({ route: '/api/generations/[id]/status' })
+    routeLogger.error({ err: error, route: '/api/generations/[id]/status' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

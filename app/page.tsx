@@ -3,7 +3,8 @@
 import { useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import Hero from '@/components/Hero'
+import { OnboardingTourLazy } from '@/components/onboarding-tour-lazy'
 
 const STAGES = [
   { n: '01', label: 'Intent', desc: 'Parse the goal' },
@@ -27,88 +28,95 @@ export default function Page() {
   return (
     <main>
       {/* ── Hero ────────────────────────────────────────────────── */}
-      <section style={{ paddingTop:80, paddingBottom:64, textAlign:'center', position:'relative', overflow:'hidden' }}>
-        <div style={{ position:'absolute', top:'8%', left:'50%', transform:'translateX(-50%)', width:600, height:350, background:'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%)', pointerEvents:'none' }} />
+      <Hero />
 
-        <div style={{ maxWidth:700, margin:'0 auto', position:'relative' }}>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'4px 12px', borderRadius:999, border:'1px solid var(--border)', background:'var(--surface-1)', marginBottom:32 }}>
-            <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--fill-accent)', animation:'pulse-dot 2s ease-in-out infinite' }} />
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em' }}>Natural language compiler</span>
-          </div>
-
-          <h1 style={{ fontSize:52, fontWeight:700, lineHeight:'1.08', letterSpacing:'-0.02em', color:'var(--text-primary)', marginBottom:20 }}>
-            Your product spec,<br />
-            <span style={{ color:'var(--text-accent)' }}>machine-readable.</span>
-          </h1>
-
-          <p style={{ fontSize:16, color:'var(--text-secondary)', lineHeight:'1.6', maxWidth:520, margin:'0 auto 36px' }}>
-            Describe what you&apos;re building. AppForge runs it through a 6-stage compiler and returns a validated database schema, API layer, component tree, and auth config — ready to ship.
+      {/* ── Pipeline Strip (Signature Element) ──────────────────── */}
+      <section className="py-12 px-6 border-y border-white/[0.06]">
+        <div className="max-w-[960px] mx-auto">
+          <p className="font-mono text-[11px] text-forge-400 uppercase tracking-[0.1em] text-center mb-10">
+            Compilation pipeline
           </p>
 
-          <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
-            <Link href="/compiler" style={{ background:'var(--fill-accent)', color:'#fff', borderRadius:'var(--radius)', padding:'10px 24px', fontSize:14, fontWeight:500, textDecoration:'none' }}>Open compiler →</Link>
-            <Link href="/demo" style={{ background:'transparent', color:'var(--text-secondary)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'10px 24px', fontSize:14, fontWeight:500, textDecoration:'none' }}>See examples</Link>
+          {/* Desktop: horizontal */}
+          <div className="hidden md:block relative">
+            {/* Connecting line */}
+            <div className="absolute top-7 left-0 right-0 h-px bg-forge-600" />
+            {/* Animated beam */}
+            <div
+              className="absolute top-7 left-0 h-px w-20 pipeline-beam"
+              style={{ background: 'linear-gradient(90deg, transparent, var(--fill-accent), transparent)' }}
+            />
+
+            <div className="flex justify-between relative z-10">
+              {STAGES.map((s) => (
+                <div key={s.n} className="flex flex-col items-center gap-3">
+                  <div className="w-14 h-14 rounded-full border border-secondary/40 bg-forge-800 flex items-center justify-center hover:border-secondary/70 transition-colors">
+                    <span className="font-mono text-sm text-secondary font-medium">{s.n}</span>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-forge-50 font-medium m-0">{s.label}</p>
+                    <p className="text-xs text-forge-400 m-0 mt-0.5">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <p style={{ marginTop:20, fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)' }}>No credit card · Free tier · NVIDIA NIM powered</p>
-        </div>
-      </section>
-
-      {/* ── Pipeline Strip ──────────────────────────────────────── */}
-      <section style={{ padding:'48px 24px', borderTop:'1px solid var(--border)', borderBottom:'1px solid var(--border)' }}>
-        <div style={{ maxWidth:900, margin:'0 auto' }}>
-          <p style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', textAlign:'center', marginBottom:40 }}>Compilation pipeline</p>
-          <div style={{ display:'flex', justifyContent:'space-between', position:'relative' }}>
-            <div style={{ position:'absolute', top:20, left:0, right:0, height:1, background:'var(--border)' }} />
-            <div style={{ position:'absolute', top:20, left:0, height:1, width:80, background:'linear-gradient(90deg, transparent, var(--fill-accent), transparent)' }} className="pipeline-beam" />
-            {STAGES.map((s) => (
-              <div key={s.n} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:12, position:'relative', zIndex:1 }}>
-                <div style={{ width:40, height:40, borderRadius:'50%', border:'1px solid var(--fill-accent)', background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--text-accent)', fontWeight:500 }}>{s.n}</span>
+          {/* Mobile: vertical */}
+          <div className="md:hidden relative pl-8">
+            <div className="absolute top-0 bottom-0 left-[26px] w-px bg-forge-600" />
+            <div className="space-y-6 relative">
+              {STAGES.map((s) => (
+                <div key={s.n} className="flex items-start gap-4 relative">
+                  <div className="absolute -left-8 w-14 h-14 rounded-full border border-secondary/40 bg-forge-800 flex items-center justify-center shrink-0">
+                    <span className="font-mono text-sm text-secondary font-medium">{s.n}</span>
+                  </div>
+                  <div className="pt-3">
+                    <p className="text-sm text-forge-50 font-medium m-0">{s.label}</p>
+                    <p className="text-xs text-forge-400 m-0 mt-0.5">{s.desc}</p>
+                  </div>
                 </div>
-                <div style={{ textAlign:'center' }}>
-                  <p style={{ fontSize:13, color:'var(--text-primary)', fontWeight:500, margin:0 }}>{s.label}</p>
-                  <p style={{ fontSize:11, color:'var(--text-muted)', margin:'2px 0 0' }}>{s.desc}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── Metrics ─────────────────────────────────────────────── */}
-      <section style={{ padding:'48px 24px' }}>
-        <div style={{ maxWidth:700, margin:'0 auto', display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:32 }}>
+      <section className="py-12 px-6">
+        <div className="max-w-[700px] mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8">
           {[
-            { v:'6', l:'Pipeline stages', s:'with Zod validation' },
-            { v:'7', l:'Cross-layer invariants', s:'enforced on every compile' },
-            { v:'20', l:'Eval test cases', s:'real products + edge cases' },
+            { v: '6', l: 'Pipeline stages', s: 'with Zod validation' },
+            { v: '7', l: 'Cross-layer invariants', s: 'enforced on every compile' },
+            { v: '20', l: 'Eval test cases', s: 'real products + edge cases' },
           ].map((m) => (
-            <div key={m.v} style={{ textAlign:'center' }}>
-              <p style={{ fontSize:44, fontWeight:700, color:'var(--text-primary)', letterSpacing:'-0.02em', margin:0 }}>{m.v}</p>
-              <p style={{ fontSize:13, color:'var(--text-secondary)', margin:'8px 0 4px' }}>{m.l}</p>
-              <p style={{ fontSize:11, color:'var(--text-muted)', margin:0 }}>{m.s}</p>
+            <div key={m.v} className="text-center">
+              <p className="text-4xl md:text-5xl font-bold text-forge-50 tracking-tight m-0">{m.v}</p>
+              <p className="text-sm text-forge-300 m-0 mt-2 mb-1">{m.l}</p>
+              <p className="text-xs text-forge-400 m-0">{m.s}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── Features ────────────────────────────────────────────── */}
-      <section style={{ padding:'48px 24px' }}>
-        <div style={{ maxWidth:900, margin:'0 auto', display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16 }}>
+      <section className="py-12 px-6">
+        <div className="max-w-[960px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { icon:'⬡', title:'Multi-stage pipeline', body:'Six distinct stages with typed contracts. Each validates its input before running.' },
-            { icon:'⚡', title:'Auto-repair engine', body:"Broken schemas get fixed automatically — missing FK, wrong types, orphaned references." },
-            { icon:'◈', title:'Execution-ready output', body:'Get a Prisma schema, Express server with JWT auth, and React component tree.' },
+            { icon: '⬡', title: 'Multi-stage pipeline', body: 'Six distinct stages with typed contracts. Each validates its input before running.' },
+            { icon: '⚡', title: 'Auto-repair engine', body: 'Broken schemas get fixed automatically — missing FK, wrong types, orphaned references.' },
+            { icon: '◈', title: 'Execution-ready output', body: 'Get a Prisma schema, Express server with JWT auth, and React component tree.' },
           ].map((f) => (
-            <div key={f.title} style={{ background:'var(--surface-1)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:24 }}>
-              <p style={{ fontSize:20, color:'var(--text-accent)', margin:'0 0 16px' }}>{f.icon}</p>
-              <h3 style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:'0 0 8px' }}>{f.title}</h3>
-              <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:'1.6', margin:0 }}>{f.body}</p>
+            <div key={f.title} className="bg-forge-800 border border-white/[0.06] rounded-xl p-6 hover:border-white/[0.12] transition-colors">
+              <p className="text-xl text-accent-hover m-0 mb-4">{f.icon}</p>
+              <h3 className="text-sm font-semibold text-forge-50 m-0 mb-2">{f.title}</h3>
+              <p className="text-sm text-forge-300 leading-relaxed m-0">{f.body}</p>
             </div>
           ))}
         </div>
       </section>
+
+      <OnboardingTourLazy />
     </main>
   )
 }

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { canExportFormat, type PlanTier } from '@/lib/plan-limits'
 import JSZip from 'jszip'
+import { createLogger } from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,
@@ -58,7 +59,17 @@ export async function GET(
     }
 
     const config = (generation as any).appConfig?.config ?? generation.config ?? null
-    const artifacts = (generation as any).appConfig?.artifacts ?? null
+    const rawArtifacts = (generation as any).appConfig?.artifacts ?? null
+    const overrides = (generation as any).appConfig?.artifactsOverride ?? null
+
+    // Merge: overrides take precedence over original artifacts
+    const artifacts: Record<string, string> | null = rawArtifacts
+      ? { ...(rawArtifacts as Record<string, string>), ...Object.fromEntries(
+          Object.entries(overrides as Record<string, { content: string }> || {})
+            .filter(([key]) => key in (rawArtifacts as Record<string, string>))
+            .map(([key, val]) => [key, val.content])
+        ) }
+      : null
 
     if (!config) {
       return NextResponse.json({ error: 'No config found for this generation' }, { status: 404 })
@@ -243,7 +254,8 @@ docs/
       },
     })
   } catch (error) {
-    console.error('[API Error] /api/generations/[id]/export:', error)
+    const routeLogger = createLogger({ route: '/api/generations/[id]/export' })
+    routeLogger.error({ err: error, route: '/api/generations/[id]/export' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

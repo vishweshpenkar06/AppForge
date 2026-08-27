@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getUserMetrics, getSystemMetrics } from '@/lib/metrics'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import { createLogger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,7 +45,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(metrics)
   } catch (error) {
-    console.error('[API Error] /api/metrics:', error)
+    const routeLogger = createLogger({ route: '/api/metrics' })
+    routeLogger.error({ err: error, route: '/api/metrics' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

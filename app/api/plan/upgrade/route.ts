@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { createTeamCode } from '@/lib/team-code'
+import { createLogger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
     let user
+    const routeLogger = createLogger({ route: '/api/plan/upgrade' })
     if (process.env.NODE_ENV !== 'production') {
       user = await prisma.user.upsert({
         where: { clerkId: 'dev-user' },
@@ -50,7 +52,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, plan: updated.plan, teamCode })
   } catch (error) {
-    console.error('[API Error] /api/plan/upgrade:', error)
+    const routeLogger = createLogger({ route: '/api/plan/upgrade' })
+    routeLogger.error({ err: error, route: '/api/plan/upgrade' }, 'Request failed')
     return NextResponse.json({ error: 'Failed to upgrade' }, { status: 500 })
   }
 }

@@ -20,6 +20,7 @@ model User {
   clerkId           String    @unique
   email             String    @unique
   displayName       String?
+  isAdmin           Boolean   @default(false)
   plan              PlanTier  @default(free)
   planStartedAt     DateTime  @default(now())
   compilesThisMonth Int       @default(0)
@@ -32,7 +33,10 @@ model User {
   memberOfTeam      TeamCode? @relation("TeamMembers", fields: [memberOfTeamId], references: [id])
 
   generations       Generation[]
+  templates         Template[]
   evalRuns          EvalRun[]
+  apiKeys           ApiKey[]
+  webhookEndpoints  WebhookEndpoint[]
 
   @@map("users")
 }
@@ -59,6 +63,7 @@ model Generation {
   mode            String   @default("balanced") // fast | balanced | precise
   status          String   @default("pending") // pending | running | success | completed | failed
   errorMessage    String?
+  isFavorite      Boolean  @default(false)
   
   config          Json?
   metadata        Json?
@@ -72,6 +77,8 @@ model Generation {
   pipelineStages  PipelineStage[]
   appConfig       AppConfig?
   evalResults     EvalResult[]
+  sourceTemplates        Template[] @relation("SourceFor")
+  generatedFromTemplates Template[] @relation("GeneratedFrom")
 
   @@index([userId])
   @@index([status])
@@ -106,6 +113,7 @@ model AppConfig {
   
   config          Json     @default("{}")
   artifacts       Json?    // generated file contents: { "path": "content", ... }
+  artifactsOverride Json?  // user edits: { "path": { "content": "...", "editedAt": "..." } }
   validationPassed Boolean
   repairsApplied  Json?    // array of { field, before, after }
   schemaVersion   String   @default("1.0")
@@ -148,4 +156,64 @@ model EvalResult {
 
   @@index([evalRunId])
   @@map("eval_results")
+}
+
+model CacheEntry {
+  id        String   @id @default(cuid())
+  cacheKey  String   @unique
+  result    Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@map("cache_entries")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyHash     String    @unique
+  label       String
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([keyHash])
+  @@map("api_keys")
+}
+
+model Template {
+  id                    String   @id @default(cuid())
+  authorId              String
+  author                User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title                 String
+  description           String?
+  sourceGenerationId    String
+  sourceGeneration      Generation @relation("SourceFor", fields: [sourceGenerationId], references: [id], onDelete: Cascade)
+  generatedFromId       String?
+  generatedFrom         Generation? @relation("GeneratedFrom", fields: [generatedFromId], references: [id], onDelete: SetNull)
+  isPublic              Boolean  @default(true)
+  useCount              Int      @default(0)
+  createdAt             DateTime @default(now())
+
+  @@index([authorId])
+  @@index([isPublic])
+  @@map("templates")
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url       String
+  secret    String
+  events    String[] // e.g. ["generation.completed", "generation.failed"]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("webhook_endpoints")
 }

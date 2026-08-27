@@ -1,23 +1,38 @@
 'use client'
 
 import Link from 'next/link'
-import { useUser, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
+import { useUser, UserButton } from '@clerk/nextjs'
 
 export default function AuthControls() {
   const { isSignedIn } = useUser()
 
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+    <div className="flex items-center gap-2">
       {!isSignedIn && (
         <>
-          <Link href="/sign-in" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Sign in</Link>
-          <Link href="/compiler" style={{ background:'var(--fill-accent)', color:'#fff', borderRadius:'var(--radius)', padding:'6px 14px', fontSize:13, fontWeight:500, textDecoration:'none' }}>Get started</Link>
+          <Link
+            href="/sign-in"
+            className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md px-2 py-1"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/compiler"
+            className="bg-accent text-white rounded-lg px-3 py-1.5 text-sm font-medium no-underline hover:bg-accent-hover transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950"
+          >
+            Start compiling
+          </Link>
         </>
       )}
       {isSignedIn && (
         <>
-          <Link href="/pricing" style={{ fontSize:10, fontWeight:500, padding:'2px 8px', borderRadius:20, background:'var(--fill-accent-subtle)', color:'var(--text-accent)', textTransform:'uppercase', letterSpacing:'0.04em', textDecoration:'none' }}>Free</Link>
-          <UserButton appearance={{ elements: { userButtonAvatarBox: { width:28, height:28 } } }} />
+          <Link
+            href="/pricing"
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent-subtle text-accent-hover no-underline uppercase tracking-wider hover:bg-accent/20 transition-colors"
+          >
+            Free
+          </Link>
+          <UserButton appearance={{ elements: { userButtonAvatarBox: { width: 28, height: 28 } } }} />
         </>
       )}
     </div>
