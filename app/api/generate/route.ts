@@ -85,6 +85,14 @@ export async function POST(request: NextRequest) {
             totalLatencyMs: result.totalLatencyMs,
           }).catch(() => {})
         }
+        // Dispatch webhooks for this user
+        dispatchWebhooks(user.id, 'generation.completed', {
+          jobId: generation.id,
+          prompt: prompt.substring(0, 200),
+          mode,
+          success: result.success,
+          totalLatencyMs: result.totalLatencyMs,
+        }).catch(() => {})
       })
       .catch((error) => {
         console.error(`[Pipeline Error] Generation ${generation.id}:`, error)
@@ -96,6 +104,13 @@ export async function POST(request: NextRequest) {
             errorMessage: error.message || 'Unknown error during generation',
           },
         }).catch(console.error)
+        // Dispatch webhooks for failure
+        dispatchWebhooks(user.id, 'generation.failed', {
+          jobId: generation.id,
+          prompt: prompt.substring(0, 200),
+          mode,
+          error: error.message || 'Unknown error',
+        }).catch(() => {})
       })
 
     return NextResponse.json({
