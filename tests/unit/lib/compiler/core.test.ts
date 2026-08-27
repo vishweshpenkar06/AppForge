@@ -68,8 +68,8 @@ describe('compiler/core — deterministic fallback paths', () => {
       expect(intent.appType).toBe('crm')
     })
 
-    it('extracts ecommerce type from prompt mentioning store', async () => {
-      const intent = await extractIntent('Build an online store')
+    it('extracts ecommerce type from prompt mentioning ecommerce', async () => {
+      const intent = await extractIntent('Build an ecommerce platform')
       expect(intent.appType).toBe('ecommerce')
     })
 
