@@ -199,3 +199,35 @@ Checklist:
 13. Update `builder/page.tsx` and `builder/editor.tsx`
 14. Update all components (forms, status, history, etc.)
 15. Final review — contrast ratios, focus states, copy pass
+
+---
+
+## Part 5: Self-Critique (Post-Implementation)
+
+### Checklist: Would this look like a generic AI-generated template?
+
+- [x] **Distinctive color palette**: Indigo + teal combo, not default blue-on-white. The teal secondary accent is unusual for this type of product.
+- [x] **Deliberate type scale**: 12/14/16/18/20/24/30/36px progression. Mono font reserved for code/technical content (pipeline stages, labels, status badges).
+- [x] **Pipeline as signature element**: 56px numbered circles with teal accent on desktop, animated beam, vertical layout on mobile. The pipeline strip is the visual centerpiece.
+- [x] **Consistent 4px spacing grid**: All padding, margin, gap values are multiples of 4px.
+- [x] **Clear button hierarchy**: One indigo primary per screen. Secondary/ghost variants for less important actions.
+- [x] **Active voice copy**: "Generate app" (not "Submit"), "Start compiling" (not "Get started"), "Describe your app to start compiling" (not "No data").
+- [x] **No filler text**: Removed "Welcome to the future of AI-powered development!" style copy. Replaced with specific, actionable descriptions.
+- [x] **Responsive breakpoints**: sm/md/lg throughout. Compiler sidebar hides on mobile. Landing page pipeline stacks vertically.
+- [x] **Keyboard focus states**: All interactive elements have visible `focus-visible:ring-2 focus-visible:ring-accent/40`.
+- [x] **Loading/empty/error states**: Skeleton shimmer for loading, directional empty states ("Describe your app above to get started"), error cards with retry actions.
+
+### What prevents this from being generic:
+
+1. **The pipeline visualization** — numbered stages (01-06) with teal accent, animated beam, and the "Compilation pipeline" label. This is specific to AppForge's product.
+2. **The color palette** — indigo primary + teal secondary + cool-toned neutrals. Not the default `blue-500` / `gray-100` template.
+3. **Mono font for technical content** — Pipeline stage numbers, status badges, and labels use Geist Mono. This signals "developer tool" not "SaaS product".
+4. **The dark theme is intentional** — `forge-950` (#08080c) is darker than typical gray-900. The subtle indigo tint in the glow and accent creates depth.
+5. **Copy voice** — "Machine-readable", "cross-layer invariants", "Zod validation" — technical language that speaks to developers.
+
+### Potential improvements (not in scope):
+
+- Add a subtle grain/texture overlay to the background for more tactile feel
+- Add stage-specific icons to the pipeline (not just numbers)
+- Add a subtle gradient border on the hero glow
+- Make the pricing toggle animated (slide instead of instant swap)
