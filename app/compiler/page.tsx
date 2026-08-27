@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { UpgradeBanner } from '@/components/upgrade-banner'
 import PipelineLiveView from '@/components/PipelineLiveView'
 
