@@ -12,6 +12,7 @@ export async function GET(
 ) {
   try {
     let userId: string | null = null
+    const routeLogger = createLogger({ route: '/api/generations/[id]/export' })
 
     if (process.env.NODE_ENV !== 'production') {
       userId = 'dev-user'
@@ -19,6 +20,8 @@ export async function GET(
       const authResult = await auth()
       userId = authResult.userId
     }
+
+    routeLogger.bind({ userId })
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -244,7 +247,8 @@ docs/
       },
     })
   } catch (error) {
-    console.error('[API Error] /api/generations/[id]/export:', error)
+    const routeLogger = createLogger({ route: '/api/generations/[id]/export' })
+    routeLogger.error({ err: error, route: '/api/generations/[id]/export' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

@@ -20,6 +20,7 @@ import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { analyzePromptClarity } from '@/lib/validation'
 import { canCompile, canUseMode, PLAN_LIMITS, getDetailLevel, TOKEN_MULTIPLIER, type PlanTier } from '@/lib/plan-limits'
 import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
+import { authenticateViaApiKey, buildApiKeyRateLimitKey } from '@/middleware/verify-api-key'
 import { createLogger } from '@/lib/logger'
 
 type NormalizedComponent = {
@@ -138,14 +139,26 @@ interface CompileResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<CompileResponse>> {
-  // In development, allow unauthenticated access for testing
+  // ── Auth: API key first, then Clerk session fallback ──────────
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
-    const authResult = await auth()
-    userId = authResult.userId
-  } else {
-    // Dev mode: use a default user ID
+  let apiKeyId: string | null = null
+
+  if (process.env.NODE_ENV !== 'production') {
+    // Dev mode: skip auth entirely
     userId = 'dev-user'
+  } else {
+    // 1) Try API key from Authorization header
+    const apiKeyAuth = await authenticateViaApiKey(request)
+    if (apiKeyAuth) {
+      userId = apiKeyAuth.userId
+      apiKeyId = apiKeyAuth.keyId
+    }
+
+    // 2) Fall back to Clerk session
+    if (!userId) {
+      const authResult = await auth()
+      userId = authResult.userId
+    }
   }
 
   if (!userId) {
@@ -154,7 +167,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
 
   // Rate-limit: 5 generations/day per user (skipped in dev mode)
   if (process.env.NODE_ENV === 'production') {
-    const rlKey = buildRateLimitKey(userId)
+    const rlKey = apiKeyId
+      ? buildApiKeyRateLimitKey(apiKeyId)
+      : buildRateLimitKey(userId)
     const rl = checkRateLimit(rlKey)
     if (!rl.allowed) {
       return NextResponse.json(

@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger'
 export async function POST(request: NextRequest) {
   try {
     let user
+    const routeLogger = createLogger({ route: '/api/plan/join-team' })
     if (process.env.NODE_ENV !== 'production') {
       user = await prisma.user.upsert({
         where: { clerkId: 'dev-user' },

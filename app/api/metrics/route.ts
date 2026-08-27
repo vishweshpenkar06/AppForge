@@ -7,6 +7,7 @@ import { createLogger } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
     let userId: string | null = null
+    const routeLogger = createLogger({ route: '/api/metrics' })
 
     if (process.env.NODE_ENV !== 'production') {
       userId = 'dev-user'
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
       const authResult = await auth()
       userId = authResult.userId
     }
+
+    routeLogger.bind({ userId })
 
     const scope = request.nextUrl.searchParams.get('scope') || 'user'
 
@@ -45,7 +48,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(metrics)
   } catch (error) {
-    console.error('[API Error] /api/metrics:', error)
+    const routeLogger = createLogger({ route: '/api/metrics' })
+    routeLogger.error({ err: error, route: '/api/metrics' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

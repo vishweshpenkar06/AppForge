@@ -34,7 +34,7 @@ async function handleHistory(): Promise<NextResponse> {
     return NextResponse.json({ success: true, runs })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to fetch history'
-    console.error('[EVAL] History fetch error:', errorMessage)
+    routeLogger.error({ err: error, route: '/api/evaluate/history' }, errorMessage)
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
