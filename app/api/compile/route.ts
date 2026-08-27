@@ -19,6 +19,7 @@ import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { analyzePromptClarity } from '@/lib/validation'
 import { canCompile, canUseMode, PLAN_LIMITS, getDetailLevel, TOKEN_MULTIPLIER, type PlanTier } from '@/lib/plan-limits'
+import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
 
 type NormalizedComponent = {
   name: string
@@ -148,6 +149,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
 
   if (!userId) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Rate-limit: 5 generations/day per user (skipped in dev mode)
+  if (process.env.NODE_ENV === 'production') {
+    const rlKey = buildRateLimitKey(userId)
+    const rl = checkRateLimit(rlKey)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'rate_limited', resetAt: rl.resetAt.toISOString() },
+        { status: 429 }
+      )
+    }
   }
 
   let generation: { id: string } | null = null

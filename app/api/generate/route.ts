@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { generateApplication } from '@/lib/pipeline'
+import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,15 @@ export async function POST(request: NextRequest) {
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const rlKey = buildRateLimitKey(userId)
+    const rl = checkRateLimit(rlKey)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'rate_limited', resetAt: rl.resetAt.toISOString() },
+        { status: 429 }
+      )
     }
 
     const { prompt, mode = 'balanced' } = await request.json()
