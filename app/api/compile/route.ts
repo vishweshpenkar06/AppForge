@@ -597,7 +597,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       console.warn('Failed to persist generation/appConfig', err)
     }
 
-    return NextResponse.json({
+    const compileResponse = {
       success: true,
       jobId: generation.id,
       config: normalizedConfig,
@@ -628,7 +628,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         express: runtimeExpress,
         react: runtimeReact,
       },
-    })
+    }
+    await setCache(prompt, mode, compileResponse).catch(() => {})
+    return NextResponse.json(compileResponse)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error during compilation'
 
