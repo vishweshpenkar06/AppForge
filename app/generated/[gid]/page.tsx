@@ -139,65 +139,84 @@ export default async function GeneratedPage({ params }: GeneratedPageProps) {
           </div>
         </div>
 
-        <section className="rounded-2xl border border-white/[0.06] bg-forge-800/50 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Rocket className="h-4 w-4 text-success" />
-            <h2 className="font-semibold">Deploy</h2>
-          </div>
-          <p className="text-sm text-forge-400 mb-4">
-            Push the generated code to a new GitHub repository, then deploy it to Vercel in one click.
-          </p>
-          <DeployButton generationId={gid} />
-        </section>
+        <Tabs defaultValue="artifacts" className="space-y-5">
+          <TabsList>
+            <TabsTrigger value="artifacts" className="gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              Artifacts
+            </TabsTrigger>
+            <TabsTrigger value="edit" className="gap-1.5">
+              <Code2 className="h-3.5 w-3.5" />
+              Edit
+            </TabsTrigger>
+          </TabsList>
 
-        <section className="grid gap-5 pt-3 md:grid-cols-2 xl:grid-cols-3">
-          {artifacts.map((artifact) => (
-            <article key={artifact.name} className="rounded-2xl border border-white/[0.06] bg-forge-800/50 p-5 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]">
-              <div className="mb-4 flex items-center justify-between gap-3">
+          <TabsContent value="artifacts">
+            <section className="rounded-2xl border border-white/[0.06] bg-forge-800/50 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Rocket className="h-4 w-4 text-success" />
+                <h2 className="font-semibold">Deploy</h2>
+              </div>
+              <p className="text-sm text-forge-400 mb-4">
+                Push the generated code to a new GitHub repository, then deploy it to Vercel in one click.
+              </p>
+              <DeployButton generationId={gid} />
+            </section>
+
+            <section className="grid gap-5 pt-3 md:grid-cols-2 xl:grid-cols-3">
+              {artifacts.map((artifact) => (
+                <article key={artifact.name} className="rounded-2xl border border-white/[0.06] bg-forge-800/50 p-5 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-accent-hover" />
+                      <h2 className="font-semibold text-forge-50">{artifact.name}</h2>
+                    </div>
+                    <a
+                      href={`/generated/${gid}/${artifact.name}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1 text-xs font-medium text-forge-200 transition hover:bg-white/[0.06]"
+                    >
+                      Open
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
+                  <div className="rounded-xl border border-white/[0.06] bg-forge-900 p-4">
+                    {renderMarkdownPreview(artifact.file)}
+                  </div>
+                </article>
+              ))}
+            </section>
+
+            <section className="rounded-2xl border border-white/[0.06] bg-forge-800/50 p-5">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-accent-hover" />
-                  <h2 className="font-semibold text-forge-50">{artifact.name}</h2>
+                  <LayoutGrid className="h-4 w-4 text-accent-hover" />
+                  <h2 className="font-semibold">Available files</h2>
                 </div>
-                <a
-                  href={`/generated/${gid}/${artifact.name}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1 text-xs font-medium text-forge-200 transition hover:bg-white/[0.06]"
-                >
-                  Open
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+                <span className="text-sm text-forge-400">{artifacts.length} docs</span>
               </div>
-              <div className="rounded-xl border border-white/[0.06] bg-forge-900 p-4">
-                {renderMarkdownPreview(artifact.file)}
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {artifacts.map((artifact) => (
+                  <a
+                    key={artifact.name}
+                    href={`/generated/${gid}/${artifact.name}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-sm text-forge-200 transition hover:bg-white/[0.06]"
+                  >
+                    <span>{artifact.name}</span>
+                    <ExternalLink className="h-3.5 w-3.5 text-forge-400" />
+                  </a>
+                ))}
               </div>
-            </article>
-          ))}
-        </section>
+            </section>
+          </TabsContent>
 
-        <section className="rounded-2xl border border-white/[0.06] bg-forge-800/50 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <LayoutGrid className="h-4 w-4 text-accent-hover" />
-              <h2 className="font-semibold">Available files</h2>
-            </div>
-            <span className="text-sm text-forge-400">{artifacts.length} docs</span>
-          </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {artifacts.map((artifact) => (
-              <a
-                key={artifact.name}
-                href={`/generated/${gid}/${artifact.name}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-sm text-forge-200 transition hover:bg-white/[0.06]"
-              >
-                <span>{artifact.name}</span>
-                <ExternalLink className="h-3.5 w-3.5 text-forge-400" />
-              </a>
-            ))}
-          </div>
-        </section>
+          <TabsContent value="edit">
+            <ArtifactEditor generationId={gid} />
+          </TabsContent>
+        </Tabs>
       </div>
     </main>
   )

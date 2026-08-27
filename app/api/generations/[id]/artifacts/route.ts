@@ -101,7 +101,7 @@ export async function PATCH(
     await prisma.appConfig.update({
       where: { generationId: id },
       data: {
-        artifactsOverride: updatedOverrides,
+        artifactsOverride: updatedOverrides as any,
       },
     })
 
