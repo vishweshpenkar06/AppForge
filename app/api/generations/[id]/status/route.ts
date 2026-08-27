@@ -10,7 +10,6 @@ export async function GET(
 ) {
   try {
     let userId: string | null = null
-    const routeLogger = createLogger({ route: '/api/generations/[id]/status' })
 
     if (process.env.NODE_ENV !== 'production') {
       userId = 'dev-user'
