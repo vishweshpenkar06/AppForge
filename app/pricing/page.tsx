@@ -25,7 +25,7 @@ const PLANS = [
     period: '/mo',
     description: 'For shipping real products',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--text-accent)" stroke="var(--text-accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--fill-accent)" stroke="var(--fill-accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     ),
@@ -109,59 +109,54 @@ export default function PricingPage() {
   }
 
   return (
-    <div style={{ minHeight:'100vh' }}>
-      <div style={{ maxWidth:900, margin:'0 auto', padding:'32px 24px 60px', textAlign:'center' }}>
-        <p style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:12 }}>Pricing</p>
-        <h1 style={{ fontSize:32, fontWeight:700, color:'var(--text-primary)', marginBottom:8 }}>Simple, transparent pricing</h1>
-        <p style={{ fontSize:14, color:'var(--text-secondary)', marginBottom:24 }}>The compiler is always free to try. Upgrade when you need more.</p>
+    <div className="min-h-screen">
+      <div className="max-w-[900px] mx-auto px-4 md:px-6 py-8 md:py-12 text-center">
+        <p className="font-mono text-[11px] text-forge-400 uppercase tracking-[0.1em] mb-3">Pricing</p>
+        <h1 className="text-3xl font-bold text-forge-50 mb-2">Simple, transparent pricing</h1>
+        <p className="text-sm text-forge-300 mb-6">The compiler is always free to try. Upgrade when you need more.</p>
 
         {/* Toggle */}
-        <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:4, borderRadius:999, background:'var(--surface-1)', border:'1px solid var(--border)', marginBottom:40 }}>
-          <button onClick={() => setYearly(false)} style={{ padding:'6px 16px', borderRadius:999, fontSize:12, fontWeight:500, border:'none', cursor:'pointer', transition:'all 0.15s',
-            background: !yearly ? 'var(--fill-accent)' : 'transparent', color: !yearly ? '#fff' : 'var(--text-muted)' }}>Monthly</button>
-          <button onClick={() => setYearly(true)} style={{ padding:'6px 16px', borderRadius:999, fontSize:12, fontWeight:500, border:'none', cursor:'pointer', transition:'all 0.15',
-            background: yearly ? 'var(--fill-accent)' : 'transparent', color: yearly ? '#fff' : 'var(--text-muted)' }}>Yearly <span style={{ fontSize:10, opacity:0.7 }}>-20%</span></button>
+        <div className="inline-flex items-center gap-2 p-1 rounded-full bg-forge-800 border border-white/[0.06] mb-10">
+          <button onClick={() => setYearly(false)}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium border-none cursor-pointer transition-all
+              ${!yearly ? 'bg-accent text-white' : 'bg-transparent text-forge-400 hover:text-forge-300'}`}>Monthly</button>
+          <button onClick={() => setYearly(true)}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium border-none cursor-pointer transition-all
+              ${yearly ? 'bg-accent text-white' : 'bg-transparent text-forge-400 hover:text-forge-300'}`}>Yearly <span className="text-[10px] opacity-70">-20%</span></button>
         </div>
 
         {/* Cards */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16, textAlign:'left' }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
           {PLANS.map((plan) => (
-            <div key={plan.name} style={{
-              background:'var(--surface-1)', borderRadius:12, padding:'24px 20px', position:'relative',
-              border: plan.highlighted ? '2px solid var(--fill-accent)' : '1px solid var(--border)',
-              transition:'transform 0.2s, border-color 0.2s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = plan.highlighted ? 'var(--fill-accent)' : 'var(--border-strong)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = plan.highlighted ? 'var(--fill-accent)' : 'var(--border)' }}
-            >
+            <div key={plan.name} className={`bg-forge-800 rounded-xl p-5 relative transition-all
+              ${plan.highlighted ? 'border-2 border-accent' : 'border border-white/[0.06] hover:border-white/[0.12]'}`}>
               {plan.highlighted && (
-                <div style={{ position:'absolute', top:-10, left:20, background:'var(--fill-accent)', color:'#fff', fontSize:11, fontWeight:500, padding:'2px 10px', borderRadius:20 }}>Most popular</div>
+                <div className="absolute -top-2.5 left-5 bg-accent text-white text-[11px] font-medium px-2.5 py-0.5 rounded-full">Most popular</div>
               )}
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+              <div className="flex items-center gap-2 mb-2">
                 {plan.icon}
-                <p style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:0 }}>{plan.name}</p>
+                <p className="text-sm font-semibold text-forge-50 m-0">{plan.name}</p>
               </div>
-              <p style={{ fontSize:12, color:'var(--text-muted)', margin:'0 0 16px' }}>{plan.description}</p>
-              <div style={{ display:'flex', alignItems:'baseline', gap:2, marginBottom:20 }}>
-                <span style={{ fontSize:32, fontWeight:700, color:'var(--text-primary)' }}>{yearly ? plan.yearlyPrice : plan.monthlyPrice}</span>
-                <span style={{ fontSize:13, color:'var(--text-muted)' }}>{plan.period}</span>
+              <p className="text-xs text-forge-400 m-0 mb-4">{plan.description}</p>
+              <div className="flex items-baseline gap-0.5 mb-5">
+                <span className="text-3xl font-bold text-forge-50">{yearly ? plan.yearlyPrice : plan.monthlyPrice}</span>
+                <span className="text-sm text-forge-400">{plan.period}</span>
               </div>
               {yearly && plan.monthlyPrice !== '$0' && (
-                <p style={{ fontSize:11, color:'var(--text-accent)', margin:'-12px 0 16px', fontFamily:'var(--font-mono)' }}>
+                <p className="text-[11px] text-accent-hover m-0 -mt-3 mb-4 font-mono">
                   Billed yearly · Save {plan.name === 'Pro' ? '$48' : '$120'}
                 </p>
               )}
-              <button onClick={() => handleUpgrade(plan.name)} style={{
-                width:'100%', padding:'9px', borderRadius:'var(--radius)', fontSize:13, fontWeight:500, marginBottom:20, cursor:'pointer',
-                background: plan.highlighted ? 'var(--fill-accent)' : 'transparent',
-                color: plan.highlighted ? '#fff' : 'var(--text-secondary)',
-                border: plan.highlighted ? 'none' : '1px solid var(--border)',
-              }}>{plan.cta}</button>
-              <div style={{ borderTop:'1px solid var(--border)', paddingTop:16, display:'flex', flexDirection:'column', gap:10 }}>
+              <button onClick={() => handleUpgrade(plan.name)}
+                className={`w-full py-2.5 rounded-xl text-sm font-medium mb-5 cursor-pointer transition-colors
+                  ${plan.highlighted
+                    ? 'bg-accent text-white border-none hover:bg-accent-hover'
+                    : 'bg-transparent text-forge-300 border border-white/[0.06] hover:bg-forge-700'}`}>{plan.cta}</button>
+              <div className="border-t border-white/[0.06] pt-4 flex flex-col gap-2.5">
                 {plan.features.map((f) => (
-                  <div key={f} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
-                    <span style={{ color:'var(--text-accent)', fontSize:12, marginTop:1 }}>✓</span>
-                    <span style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.5 }}>{f}</span>
+                  <div key={f} className="flex gap-2 items-start">
+                    <span className="text-accent-hover text-xs mt-0.5">✓</span>
+                    <span className="text-xs text-forge-300 leading-relaxed">{f}</span>
                   </div>
                 ))}
               </div>
@@ -170,28 +165,28 @@ export default function PricingPage() {
         </div>
 
         {/* Comparison toggle */}
-        <button onClick={() => setShowComparison(!showComparison)} style={{ marginTop:32, fontSize:12, color:'var(--text-muted)', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-mono)' }}>
+        <button onClick={() => setShowComparison(!showComparison)}
+          className="mt-8 text-xs text-forge-400 bg-transparent border-none cursor-pointer font-mono hover:text-forge-300 transition-colors">
           {showComparison ? 'Hide comparison ↑' : 'See full feature comparison ↓'}
         </button>
 
         {showComparison && (
-          <div style={{ marginTop:24, borderRadius:'var(--radius)', border:'1px solid var(--border)', overflow:'hidden', textAlign:'left' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+          <div className="mt-6 rounded-xl border border-white/[0.06] overflow-hidden text-left">
+            <table className="w-full border-collapse text-xs">
               <thead>
-                <tr style={{ background:'var(--surface-1)' }}>
-                  <th style={{ padding:'12px 16px', textAlign:'left', color:'var(--text-muted)', fontWeight:500, borderBottom:'1px solid var(--border)' }}>Feature</th>
-                  <th style={{ padding:'12px 16px', textAlign:'center', color:'var(--text-muted)', fontWeight:500, borderBottom:'1px solid var(--border)' }}>Free</th>
-                  <th style={{ padding:'12px 16px', textAlign:'center', color:'var(--text-accent)', fontWeight:500, borderBottom:'1px solid var(--border)' }}>Pro</th>
-                  <th style={{ padding:'12px 16px', textAlign:'center', color:'var(--text-muted)', fontWeight:500, borderBottom:'1px solid var(--border)' }}>Team</th>
+                <tr className="bg-forge-800">
+                  <th className="px-4 py-3 text-left text-forge-400 font-medium border-b border-white/[0.06]">Feature</th>
+                  <th className="px-4 py-3 text-center text-forge-400 font-medium border-b border-white/[0.06]">Free</th>
+                  <th className="px-4 py-3 text-center text-accent-hover font-medium border-b border-white/[0.06]">Pro</th>
+                  <th className="px-4 py-3 text-center text-forge-400 font-medium border-b border-white/[0.06]">Team</th>
                 </tr>
               </thead>
               <tbody>
                 {COMPARISON.map((row, i) => (
-                  <tr key={row.feature} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--surface-1)' }}>
-                    <td style={{ padding:'10px 16px', color:'var(--text-secondary)', borderBottom:'1px solid var(--border)' }}>{row.feature}</td>
+                  <tr key={row.feature} className={i % 2 === 0 ? '' : 'bg-forge-800/50'}>
+                    <td className="px-4 py-2.5 text-forge-300 border-b border-white/[0.06]">{row.feature}</td>
                     {(['free', 'pro', 'team'] as const).map((plan) => (
-                      <td key={plan} style={{ padding:'10px 16px', textAlign:'center', borderBottom:'1px solid var(--border)',
-                        color: plan === 'pro' ? 'var(--text-accent)' : 'var(--text-secondary)' }}>
+                      <td key={plan} className={`px-4 py-2.5 text-center border-b border-white/[0.06] ${plan === 'pro' ? 'text-accent-hover' : 'text-forge-300'}`}>
                         {typeof row[plan] === 'boolean' ? (row[plan] ? '✓' : '—') : String(row[plan])}
                       </td>
                     ))}
@@ -203,31 +198,27 @@ export default function PricingPage() {
         )}
 
         {/* Team code input */}
-        <div style={{ maxWidth:400, margin:'40px auto 0', padding:20, background:'var(--surface-1)', border:'1px solid var(--border)', borderRadius:'var(--radius)', textAlign:'left' }}>
-          <p style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)', margin:'0 0 4px' }}>Have a team code?</p>
-          <p style={{ fontSize:12, color:'var(--text-muted)', margin:'0 0 12px' }}>Join a Team plan someone shared with you.</p>
-          <div style={{ display:'flex', gap:8 }}>
+        <div className="max-w-[400px] mx-auto mt-10 p-5 bg-forge-800 border border-white/[0.06] rounded-xl text-left">
+          <p className="text-sm font-semibold text-forge-50 m-0 mb-1">Have a team code?</p>
+          <p className="text-xs text-forge-400 m-0 mb-3">Join a Team plan someone shared with you.</p>
+          <div className="flex gap-2">
             <input
               value={teamCodeInput}
               onChange={(e) => setTeamCodeInput(e.target.value.toUpperCase())}
               placeholder="TEAM-XXXXXXXX"
-              style={{ flex:1, fontSize:13, padding:'8px 10px', border:'1px solid var(--border)', borderRadius:'var(--radius)', background:'var(--surface-2)', color:'var(--text-primary)', fontFamily:'var(--font-mono)', outline:'none' }}
+              className="flex-1 text-sm px-2.5 py-2 border border-white/[0.06] rounded-xl bg-forge-700 text-forge-50 font-mono outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
             />
-            <button onClick={handleJoinTeam} style={{ fontSize:13, padding:'8px 16px', borderRadius:'var(--radius)', background:'var(--fill-accent)', color:'#fff', border:'none', cursor:'pointer', fontWeight:500 }}>Join</button>
+            <button onClick={handleJoinTeam}
+              className="text-sm px-4 py-2 rounded-xl bg-accent text-white border-none cursor-pointer font-medium hover:bg-accent-hover transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">Join</button>
           </div>
         </div>
       </div>
 
       {/* Toast notification */}
       {notification && (
-        <div style={{
-          position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)',
-          background:'var(--surface-2)', border:'1px solid var(--text-success)',
-          borderRadius:'var(--radius)', padding:'12px 20px', display:'flex', alignItems:'center', gap:8,
-          boxShadow:'0 4px 16px rgba(0,0,0,0.2)', zIndex:100,
-        }}>
-          <span style={{ color:'var(--text-success)' }}>✓</span>
-          <span style={{ fontSize:13, color:'var(--text-primary)' }}>{notification}</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-forge-700 border border-success/30 rounded-xl px-5 py-3 flex items-center gap-2 shadow-lg z-50">
+          <span className="text-success">✓</span>
+          <span className="text-sm text-forge-50">{notification}</span>
         </div>
       )}
     </div>
