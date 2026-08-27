@@ -19,6 +19,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 }
 
 async function handleHistory(): Promise<NextResponse> {
+  const routeLogger = createLogger({ route: '/api/evaluate/history' })
   try {
     const runs = await prisma.evalRun.findMany({
       orderBy: { createdAt: 'desc' },
@@ -40,6 +41,7 @@ async function handleHistory(): Promise<NextResponse> {
 
 async function handleRunEvaluation(): Promise<NextResponse> {
   const { userId } = await auth()
+  const routeLogger = createLogger({ route: '/api/evaluate', userId })
 
   try {
     console.log('[EVAL] Starting evaluation framework...')
