@@ -20,6 +20,7 @@ import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { analyzePromptClarity } from '@/lib/validation'
 import { canCompile, canUseMode, PLAN_LIMITS, getDetailLevel, TOKEN_MULTIPLIER, type PlanTier } from '@/lib/plan-limits'
 import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
+import { getCache, setCache } from '@/lib/cache'
 import { authenticateViaApiKey, buildApiKeyRateLimitKey } from '@/middleware/verify-api-key'
 import { createLogger } from '@/lib/logger'
 
@@ -199,6 +200,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       )
     }
 
+    // ── Cache check ──────────────────────────────────────────────
+    const { hit: cacheHit, data: cachedResult } = await getCache(prompt, mode)
+    if (cacheHit) {
+      console.log(`[${userId}] Cache hit for prompt: ${prompt.substring(0, 50)}...`)
+      return NextResponse.json({ ...cachedResult, cached: true })
+    }
+
     const startTime = Date.now()
     const stageTimes: Record<string, number> = {}
 
@@ -350,14 +358,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         await prisma.generation.update({ where: { id: generation.id }, data: { status: 'success', completedAt: new Date(), totalLatencyMs: Date.now() - startTime } })
       } catch (err) { console.warn('Failed to persist snake fallback', err) }
 
-      return NextResponse.json({
+      const snakeResponse = {
         success: true, jobId: generation.id, config: normalizedConfig, docs,
         implementationPlan: { summary: 'Snake game (fallback)', prismaSchema, apiHandlers, uiPages, rbac: {}, checklist: ['Wire UI canvas', 'Hook up score API', 'Persist scores'] },
         downloadUrl: `/api/generations/${generation.id}/export?format=zip`,
         validation: { valid: true, errors: [], warnings: [], score: 100 },
         execution: { executable: true, issues: [], readyForDeployment: false },
         metrics: { latency: Date.now() - startTime, inputTokens: 0, outputTokens: 0, stageTimes: {} },
-      })
+      }
+      await setCache(prompt, mode, snakeResponse).catch(() => {})
+      return NextResponse.json(snakeResponse)
     }
 
     // ========================================================================

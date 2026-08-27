@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { runEvaluation, formatReport } from '@/lib/compiler/evaluation'
 import { createLogger } from '@/lib/logger'
+import { prisma } from '@/lib/db'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const action = request.nextUrl.searchParams.get('action')

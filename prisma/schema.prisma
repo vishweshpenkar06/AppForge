@@ -151,6 +151,18 @@ model EvalResult {
   @@map("eval_results")
 }
 
+model CacheEntry {
+  id        String   @id @default(cuid())
+  cacheKey  String   @unique
+  result    Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@map("cache_entries")
+}
+
 model ApiKey {
   id          String    @id @default(cuid())
   userId      String

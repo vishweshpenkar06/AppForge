@@ -47,8 +47,8 @@ interface LogEntry {
 const recentLogs: LogEntry[] = []
 const MAX_BUFFER_SIZE = 1000
 
-const originalLog = baseLogger.info.bind(baseLogger)
-baseLogger.info = function (...args: Parameters<typeof originalLog>) {
+const originalInfo = baseLogger.info.bind(baseLogger)
+baseLogger.info = function (...args: Parameters<typeof originalInfo>) {
   const entry = args[1] ?? args[0]
   if (typeof entry === 'object' && entry !== null) {
     recentLogs.push({
@@ -59,8 +59,8 @@ baseLogger.info = function (...args: Parameters<typeof originalLog>) {
     } satisfies LogEntry)
     if (recentLogs.length > MAX_BUFFER_SIZE) recentLogs.shift()
   }
-  return originalLog.apply(this, args)
-} as typeof originalLog
+  return originalInfo(...args)
+} as typeof originalInfo
 
 /**
  * Query recent error logs for a dashboard widget.
