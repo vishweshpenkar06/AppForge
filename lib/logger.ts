@@ -62,6 +62,36 @@ baseLogger.info = function (...args: Parameters<typeof originalInfo>) {
   return originalInfo(...args)
 } as typeof originalInfo
 
+const originalError = baseLogger.error.bind(baseLogger)
+baseLogger.error = function (...args: Parameters<typeof originalError>) {
+  const entry = args[1] ?? args[0]
+  if (typeof entry === 'object' && entry !== null) {
+    recentLogs.push({
+      timestamp: new Date().toISOString(),
+      level: 'error',
+      ...(entry as object),
+      message: typeof args[0] === 'string' ? args[0] : (entry as any).msg ?? '',
+    } satisfies LogEntry)
+    if (recentLogs.length > MAX_BUFFER_SIZE) recentLogs.shift()
+  }
+  return originalError(...args)
+} as typeof originalError
+
+const originalWarn = baseLogger.warn.bind(baseLogger)
+baseLogger.warn = function (...args: Parameters<typeof originalWarn>) {
+  const entry = args[1] ?? args[0]
+  if (typeof entry === 'object' && entry !== null) {
+    recentLogs.push({
+      timestamp: new Date().toISOString(),
+      level: 'warn',
+      ...(entry as object),
+      message: typeof args[0] === 'string' ? args[0] : (entry as any).msg ?? '',
+    } satisfies LogEntry)
+    if (recentLogs.length > MAX_BUFFER_SIZE) recentLogs.shift()
+  }
+  return originalWarn(...args)
+} as typeof originalWarn
+
 /**
  * Query recent error logs for a dashboard widget.
  * Filters by route, userId, or time window.

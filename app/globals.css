@@ -143,6 +143,77 @@ body {
   50% { opacity: 1; transform: scale(1.15); }
 }
 
+.pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.pulse-dot-slow {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.pulse-dot-fast {
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+/* ============================================================================
+   SPINNER
+   ============================================================================ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--fill-accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+.spinner-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 1.5px;
+}
+.spinner-lg {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-width: 2.5px;
+}
+
+/* ============================================================================
+   ALERT BARS
+   ============================================================================ */
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.alert-error {
+  border-color: rgba(244,63,94,0.3);
+  background: var(--bg-danger);
+  color: var(--text-danger);
+}
+
+.alert-warning {
+  border-color: rgba(245,158,11,0.3);
+  background: var(--bg-warning);
+  color: var(--text-warning);
+}
+
+.alert-success {
+  border-color: rgba(16,185,129,0.3);
+  background: var(--bg-success);
+  color: var(--text-success);
+}
+
 /* ============================================================================
    UTILITIES
    ============================================================================ */
