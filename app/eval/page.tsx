@@ -1,4 +1,4 @@
-import { EvalDashboard } from '@/components/eval-dashboard'
+import { EvalDashboardLazy } from '@/components/eval-dashboard-lazy'
 
 export const metadata = {
   title: 'Evaluation — AppForge',
@@ -8,7 +8,7 @@ export const metadata = {
 export default function EvalPage() {
   return (
     <div className="max-w-[1100px] mx-auto px-4 md:px-6 py-8 md:py-12">
-      <EvalDashboard />
+      <EvalDashboardLazy />
     </div>
   )
 }
