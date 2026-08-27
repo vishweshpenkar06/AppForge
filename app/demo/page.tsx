@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 
 const DEMOS = [
   {
@@ -70,49 +69,48 @@ export default function DemoPage() {
 
   return (
     <div>
-      <div style={{ maxWidth:1100, margin:'0 auto', padding:'32px 24px 48px' }}>
+      <div className="max-w-[1100px] mx-auto px-4 md:px-6 py-8 md:py-12">
         {/* Header */}
-        <p style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>Examples</p>
-        <h1 style={{ fontSize:28, fontWeight:700, color:'var(--text-primary)', margin:'0 0 8px' }}>Pre-compiled outputs</h1>
-        <p style={{ fontSize:13, color:'var(--text-secondary)', margin:'0 0 32px' }}>Real outputs from the compiler. No cherry-picking.</p>
+        <p className="font-mono text-[11px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-2">Examples</p>
+        <h1 className="text-2xl font-bold text-forge-50 m-0 mb-2">Pre-compiled outputs</h1>
+        <p className="text-sm text-forge-300 m-0 mb-8">Real outputs from the compiler. No cherry-picking.</p>
 
         {/* Tabs */}
-        <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap' }}>
+        <div className="flex gap-2 mb-6 flex-wrap">
           {DEMOS.map((d, i) => (
-            <button key={i} onClick={() => setSelected(i)} style={{
-              padding:'8px 16px', borderRadius:'var(--radius)', fontSize:13, fontFamily:'var(--font-mono)', cursor:'pointer', border:'none',
-              background: selected === i ? 'var(--fill-accent)' : 'var(--surface-1)',
-              color: selected === i ? '#fff' : 'var(--text-secondary)',
-            }}>{d.label}</button>
+            <button key={i} onClick={() => setSelected(i)}
+              className={`px-4 py-2 rounded-xl text-sm font-mono cursor-pointer border-none transition-colors
+                ${selected === i ? 'bg-accent text-white' : 'bg-forge-800 text-forge-300 hover:bg-forge-700'}`}>{d.label}</button>
           ))}
         </div>
 
         {/* Split view */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, borderRadius:'var(--radius)', overflow:'hidden', border:'1px solid var(--border)' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl overflow-hidden border border-white/[0.06]">
           {/* Input */}
-          <div style={{ background:'var(--surface-1)', padding:24 }}>
-            <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 16px' }}>Prompt</p>
-            <p style={{ fontSize:13, color:'var(--text-secondary)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0 }}>&quot;{demo.prompt}&quot;</p>
+          <div className="bg-forge-800 p-6">
+            <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-4">Prompt</p>
+            <p className="text-sm text-forge-300 font-mono leading-relaxed m-0">&quot;{demo.prompt}&quot;</p>
 
-            <div style={{ marginTop:24, paddingTop:20, borderTop:'1px solid var(--border)' }}>
-              <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 12px' }}>Result</p>
-              <div style={{ display:'flex', gap:16, fontSize:12, fontFamily:'var(--font-mono)' }}>
-                <span style={{ color:'var(--text-success)' }}>✓ {demo.output.validation?.score}/100</span>
-                <span style={{ color:'var(--text-muted)' }}>{demo.output.database?.tables?.length || 0} tables</span>
-                <span style={{ color:'var(--text-muted)' }}>{demo.output.api?.endpoints?.length || 0} endpoints</span>
+            <div className="mt-6 pt-5 border-t border-white/[0.06]">
+              <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-3">Result</p>
+              <div className="flex gap-4 text-xs font-mono">
+                <span className="text-success">✓ {demo.output.validation?.score}/100</span>
+                <span className="text-forge-400">{demo.output.database?.tables?.length || 0} tables</span>
+                <span className="text-forge-400">{demo.output.api?.endpoints?.length || 0} endpoints</span>
               </div>
             </div>
           </div>
 
           {/* Output */}
-          <div style={{ background:'var(--surface-0)', padding:24, overflow:'auto', maxHeight:600 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-              <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:0 }}>Output</p>
-              <button onClick={handleCopy} style={{ fontSize:10, fontFamily:'var(--font-mono)', color:'var(--text-muted)', background:'none', border:'none', cursor:'pointer' }}>
+          <div className="bg-forge-900 p-6 overflow-auto max-h-[600px]">
+            <div className="flex justify-between items-center mb-4">
+              <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0">Output</p>
+              <button onClick={handleCopy}
+                className="text-[10px] font-mono text-forge-400 bg-transparent border-none cursor-pointer hover:text-forge-300 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">
                 {copied ? '✓ Copied' : 'Copy'}
               </button>
             </div>
-            <pre style={{ fontSize:12, fontFamily:'var(--font-mono)', color:'var(--text-secondary)', lineHeight:'1.7', margin:0, whiteSpace:'pre-wrap' }}>
+            <pre className="text-xs font-mono text-forge-300 leading-7 m-0 whitespace-pre-wrap">
               {JSON.stringify(demo.output, null, 2)}
             </pre>
           </div>
