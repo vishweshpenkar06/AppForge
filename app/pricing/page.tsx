@@ -70,6 +70,7 @@ export default function PricingPage() {
   const [teamCodeInput, setTeamCodeInput] = useState('')
 
   async function handleUpgrade(planName: string) {
+    track('plan_upgrade_clicked', { plan: planName, billing: yearly ? 'yearly' : 'monthly' })
     try {
       const res = await fetch('/api/plan/upgrade', {
         method: 'POST',

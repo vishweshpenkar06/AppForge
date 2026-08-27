@@ -1,7 +1,10 @@
+'use client'
+
 import fs from 'fs'
 import path from 'path'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Download, ExternalLink, FileText, LayoutGrid, Rocket } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, Download, ExternalLink, FileText, LayoutGrid, Rocket, Share2 } from 'lucide-react'
 import { DeployButton } from '@/components/deploy-button'
 
 type GeneratedPageProps = {
