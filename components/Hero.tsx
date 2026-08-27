@@ -2,160 +2,71 @@ import Link from 'next/link'
 
 export default function Hero() {
   return (
-    <section
-      style={{
-        paddingTop: 80,
-        paddingBottom: 64,
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+    <section className="relative overflow-hidden pt-20 pb-16 md:pt-24 md:pb-20 text-center">
       {/* Glow */}
       <div
+        className="absolute top-[8%] left-1/2 -translate-x-1/2 w-[600px] h-[350px] pointer-events-none"
         style={{
-          position: 'absolute',
-          top: '8%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 600,
-          height: 350,
-          background:
-            'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%)',
-          pointerEvents: 'none',
+          background: 'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%)',
         }}
       />
 
-      <div style={{ maxWidth: 700, margin: '0 auto', position: 'relative' }}>
+      <div className="relative max-w-[700px] mx-auto px-6">
         {/* Badge */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '4px 12px',
-            borderRadius: 999,
-            border: '1px solid var(--border)',
-            background: 'var(--surface-1)',
-            marginBottom: 32,
-          }}
-        >
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/[0.06] bg-forge-800 mb-8">
           <div
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: 'var(--fill-accent)',
-              animation: 'pulse-dot 2s ease-in-out infinite',
-            }}
+            className="w-1.5 h-1.5 rounded-full bg-accent"
+            style={{ animation: 'pulse-dot 2s ease-in-out infinite' }}
           />
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              color: 'var(--text-muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-            }}
-          >
+          <span className="font-mono text-[11px] text-forge-400 uppercase tracking-[0.1em]">
             Natural language compiler
           </span>
         </div>
 
         {/* Headline */}
-        <h1
-          style={{
-            fontSize: 52,
-            fontWeight: 700,
-            lineHeight: '1.08',
-            letterSpacing: '-0.02em',
-            color: 'var(--text-primary)',
-            marginBottom: 20,
-          }}
-        >
+        <h1 className="text-4xl md:text-[52px] font-bold leading-[1.08] tracking-tight text-forge-50 mb-5">
           Your product spec,
           <br />
-          <span style={{ color: 'var(--text-accent)' }}>machine-readable.</span>
+          <span className="text-accent-hover">machine-readable.</span>
         </h1>
 
         {/* Value prop */}
-        <p
-          style={{
-            fontSize: 16,
-            color: 'var(--text-secondary)',
-            lineHeight: '1.6',
-            maxWidth: 520,
-            margin: '0 auto 36px',
-          }}
-        >
+        <p className="text-base md:text-lg text-forge-300 leading-relaxed max-w-[520px] mx-auto mb-9">
           Describe what you&apos;re building. AppForge runs it through a 6-stage
           compiler and returns a validated database schema, API layer, component
           tree, and auth config — ready to ship.
         </p>
 
         {/* Video / GIF placeholder */}
-        <div
-          style={{
-            maxWidth: 640,
-            margin: '0 auto 40px',
-            borderRadius: 'var(--radius)',
-            border: '1px solid var(--border)',
-            overflow: 'hidden',
-            background: 'var(--surface-1)',
-          }}
-        >
+        <div className="max-w-[640px] mx-auto mb-10 rounded-xl border border-white/[0.06] overflow-hidden bg-forge-800">
           <video
             autoPlay
             loop
             muted
             playsInline
             src="/demo/appforge-demo.mp4"
-            style={{ display: 'block', width: '100%', height: 'auto' }}
+            className="block w-full h-auto"
           />
         </div>
 
         {/* CTAs */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+        <div className="flex gap-3 justify-center">
           <Link
             href="/compiler"
-            style={{
-              background: 'var(--fill-accent)',
-              color: '#fff',
-              borderRadius: 'var(--radius)',
-              padding: '10px 24px',
-              fontSize: 14,
-              fontWeight: 500,
-              textDecoration: 'none',
-            }}
+            className="bg-accent text-white rounded-xl px-6 py-2.5 text-sm font-medium no-underline hover:bg-accent-hover transition-colors shadow-[0_10px_30px_rgba(99,102,241,0.18)] focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950"
           >
             Open compiler →
           </Link>
           <Link
             href="/demo"
-            style={{
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              padding: '10px 24px',
-              fontSize: 14,
-              fontWeight: 500,
-              textDecoration: 'none',
-            }}
+            className="border border-forge-600 text-forge-300 rounded-xl px-6 py-2.5 text-sm font-medium no-underline hover:bg-forge-800 hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950"
           >
             See examples
           </Link>
         </div>
 
         {/* Tagline */}
-        <p
-          style={{
-            marginTop: 20,
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            color: 'var(--text-muted)',
-          }}
-        >
+        <p className="mt-5 font-mono text-[11px] text-forge-400">
           No credit card · Free tier · NVIDIA NIM powered
         </p>
       </div>
