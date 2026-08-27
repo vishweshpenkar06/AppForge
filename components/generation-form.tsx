@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ExamplePrompts } from './ExamplePrompts'
 
 interface GenerationFormProps {
   onGenerationCreated?: (jobId: string) => void
@@ -64,6 +65,13 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <label className="block text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">
+          Quick Start
+        </label>
+        <ExamplePrompts onSelect={setPrompt} disabled={loading} />
+      </div>
+
       <div>
         <label htmlFor="prompt" className="block text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">
           App Description
