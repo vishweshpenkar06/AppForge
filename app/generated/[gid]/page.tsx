@@ -1,8 +1,10 @@
 import fs from 'fs'
 import path from 'path'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Download, ExternalLink, FileText, LayoutGrid, Rocket } from 'lucide-react'
+import { ArrowLeft, Download, ExternalLink, FileText, LayoutGrid, Rocket, Code2 } from 'lucide-react'
 import { DeployButton } from '@/components/deploy-button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import ArtifactEditor from '@/components/ArtifactEditor'
 import { PublishTemplateButton } from '@/components/publish-template-button'
 
 type GeneratedPageProps = {
