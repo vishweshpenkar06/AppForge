@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import Link from 'next/link'
 import { UpgradeBanner } from '@/components/upgrade-banner'
 
 interface CompileResult {
@@ -110,36 +109,30 @@ export default function CompilerPage() {
   const assumptions = result?.config?.intent?.assumptions || result?.config?.intent?.assumptions_made || result?.assumptions || []
 
   return (
-    <div style={{ display:'flex', height:'calc(100vh - 48px)' }}>
+    <div className="flex h-[calc(100vh-48px)]">
       {/* ── Left Panel ──────────────────────────────────────────── */}
-      <aside style={{ width:260, flexShrink:0, borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', background:'var(--surface-0)' }}>
-        <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)' }}>
-          <h1 style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:0 }}>Compiler</h1>
-          <p style={{ fontSize:11, color:'var(--text-muted)', margin:'2px 0 0' }}>Describe your product</p>
+      <aside className="w-64 shrink-0 border-r border-white/[0.06] flex flex-col bg-forge-950 hidden lg:flex">
+        <div className="px-5 py-4 border-b border-white/[0.06]">
+          <h1 className="text-sm font-semibold text-forge-50 m-0">Compiler</h1>
+          <p className="text-[11px] text-forge-400 m-0 mt-0.5">Describe your product</p>
         </div>
 
-        <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'16px 20px', gap:12, overflow:'auto' }}>
+        <div className="flex-1 flex flex-col p-5 gap-3 overflow-auto">
           <textarea
             ref={textareaRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Build a CRM with login, contacts, dashboard..."
             disabled={loading}
-            style={{
-              flex:1, width:'100%', minHeight:140, background:'var(--surface-2)', border:'1px solid var(--border)',
-              borderRadius:'var(--radius)', padding:12, fontSize:13, color:'var(--text-primary)',
-              fontFamily:'var(--font-mono)', resize:'none', outline:'none', lineHeight:'1.6',
-            }}
-            onFocus={(e) => e.currentTarget.style.borderColor = 'var(--fill-accent)'}
-            onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            className="flex-1 w-full min-h-[140px] bg-forge-800 border border-white/[0.06] rounded-xl p-3 text-sm text-forge-50 font-mono resize-none outline-none leading-relaxed placeholder:text-forge-500 focus:border-accent transition-colors"
           />
 
           <div>
-            <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 6px' }}>Try an example</p>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+            <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-1.5">Try an example</p>
+            <div className="flex flex-wrap gap-1.5">
               {EXAMPLES.map((ex) => (
                 <button key={ex} onClick={() => { setPrompt(ex); handleCompile(ex) }}
-                  style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer', fontFamily:'var(--font-mono)' }}>
+                  className="text-[11px] px-2.5 py-1 rounded-md border border-white/[0.06] bg-forge-800 text-forge-300 cursor-pointer font-mono hover:border-white/[0.12] hover:text-forge-200 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">
                   {ex}
                 </button>
               ))}
@@ -147,21 +140,21 @@ export default function CompilerPage() {
           </div>
 
           <div>
-            <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 6px' }}>Mode</p>
+            <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-1.5">Mode</p>
             <select value={mode} onChange={(e) => setMode(e.target.value)}
-              style={{ width:'100%', height:36, background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'0 10px', fontSize:12, color:'var(--text-primary)', fontFamily:'var(--font-mono)', cursor:'pointer' }}>
+              className="w-full h-9 bg-forge-800 border border-white/[0.06] rounded-xl px-2.5 text-xs text-forge-50 font-mono cursor-pointer focus-visible:ring-2 focus-visible:ring-accent/40 focus:outline-none">
               <option value="fast">Fast — lower quality</option>
               <option value="balanced">Balanced — recommended</option>
               <option value="precise">Precise — higher quality</option>
             </select>
-            <p style={{ fontSize:11, color:'var(--text-muted)', marginTop:4 }}>
-              Output detail: <span style={{ color:'var(--text-accent)', fontWeight:500 }}>Standard</span> · <a href="/pricing" style={{ color:'var(--text-accent)', textDecoration:'none' }}>upgrade for more depth</a>
+            <p className="text-[11px] text-forge-400 mt-1 m-0">
+              Output detail: <span className="text-accent-hover font-medium">Standard</span> · <a href="/pricing" className="text-accent-hover no-underline hover:underline">upgrade for more</a>
             </p>
           </div>
 
           <button onClick={() => handleCompile()} disabled={loading || !prompt.trim()}
-            style={{ width:'100%', background:'var(--fill-accent)', color:'#fff', border:'none', borderRadius:'var(--radius)', padding:'10px 0', fontSize:13, fontWeight:600, cursor:'pointer', opacity: loading || !prompt.trim() ? 0.4 : 1 }}>
-            {loading ? 'Compiling...' : 'Compile →'}
+            className="w-full bg-accent text-white border-none rounded-xl py-2.5 text-sm font-semibold cursor-pointer hover:bg-accent-hover transition-colors disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950">
+            {loading ? 'Compiling...' : 'Generate app'}
           </button>
 
           {upgradeInfo && <UpgradeBanner message={upgradeInfo.error} currentPlan={upgradeInfo.currentPlan} />}
@@ -169,32 +162,33 @@ export default function CompilerPage() {
 
         {/* Assumptions */}
         {assumptions.length > 0 && !loading && (
-          <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)' }}>
-            <div style={{ padding:12, borderRadius:'var(--radius)', border:'1px solid var(--bg-warning)', background:'var(--bg-warning)' }}>
-              <p style={{ fontSize:11, fontWeight:600, color:'var(--text-warning)', margin:'0 0 6px' }}>Assumptions</p>
+          <div className="px-5 py-3 border-t border-white/[0.06]">
+            <div className="p-3 rounded-xl border border-warning/30 bg-warning-subtle">
+              <p className="text-[11px] font-semibold text-warning m-0 mb-1.5">Assumptions</p>
               {assumptions.map((a: string, i: number) => (
-                <p key={i} style={{ fontSize:11, color:'var(--text-secondary)', fontFamily:'var(--font-mono)', margin:'2px 0' }}>· {a}</p>
+                <p key={i} className="text-[11px] text-forge-300 font-mono m-0.5">· {a}</p>
               ))}
             </div>
           </div>
         )}
 
         {/* Pipeline */}
-        <div style={{ padding:'16px 20px', borderTop:'1px solid var(--border)' }}>
-          <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 12px' }}>Pipeline</p>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        <div className="px-5 py-4 border-t border-white/[0.06]">
+          <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-3">Pipeline</p>
+          <div className="flex flex-col gap-2">
             {STAGES.map((stage, i) => (
-              <div key={stage} style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <div style={{
-                  width:20, height:20, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontFamily:'var(--font-mono)', flexShrink:0,
-                  background: stageStatus[i] === 'done' ? 'var(--text-success)' : stageStatus[i] === 'active' ? 'var(--fill-accent)' : 'transparent',
-                  border: stageStatus[i] === 'pending' ? '1px solid var(--border)' : 'none',
-                  color: stageStatus[i] === 'done' || stageStatus[i] === 'active' ? '#fff' : 'var(--text-muted)',
-                  animation: stageStatus[i] === 'active' ? 'pulse-dot 1.5s ease-in-out infinite' : 'none',
-                }}>
+              <div key={stage} className="flex items-center gap-2.5">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono shrink-0 transition-all duration-200
+                  ${stageStatus[i] === 'done' ? 'bg-success text-white' :
+                    stageStatus[i] === 'active' ? 'bg-accent text-white' :
+                    'border border-white/[0.06] text-forge-400'}`}
+                  style={stageStatus[i] === 'active' ? { animation: 'pulse-dot 1.5s ease-in-out infinite' } : undefined}>
                   {stageStatus[i] === 'done' ? '✓' : String(i + 1)}
                 </div>
-                <span style={{ fontSize:12, fontFamily:'var(--font-mono)', color: stageStatus[i] === 'done' ? 'var(--text-secondary)' : stageStatus[i] === 'active' ? 'var(--text-primary)' : 'var(--text-muted)' }}>{stage}</span>
+                <span className={`text-xs font-mono transition-colors
+                  ${stageStatus[i] === 'done' ? 'text-forge-300' :
+                    stageStatus[i] === 'active' ? 'text-forge-50' :
+                    'text-forge-400'}`}>{stage}</span>
               </div>
             ))}
           </div>
@@ -202,133 +196,149 @@ export default function CompilerPage() {
       </aside>
 
       {/* ── Right Panel ─────────────────────────────────────────── */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Tab bar */}
-        <div style={{ display:'flex', borderBottom:'1px solid var(--border)', alignItems:'center', flexShrink:0 }}>
-          <div style={{ display:'flex', overflow:'auto', flex:1 }}>
+        <div className="flex border-b border-white/[0.06] items-center shrink-0">
+          <div className="flex overflow-auto flex-1">
             {TABS.map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)} style={{
-                padding:'12px 16px', fontSize:12, fontFamily:'var(--font-mono)', whiteSpace:'nowrap',
-                border:'none', borderBottom:'2px solid', cursor:'pointer', background:'transparent',
-                borderBottomColor: activeTab === tab ? 'var(--fill-accent)' : 'transparent',
-                color: activeTab === tab ? 'var(--text-primary)' : 'var(--text-muted)',
-              }}>{tab}</button>
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-4 py-3 text-xs font-mono whitespace-nowrap border-b-2 -mb-px transition-colors bg-transparent cursor-pointer
+                  ${activeTab === tab ? 'border-accent text-forge-50' : 'border-transparent text-forge-400 hover:text-forge-300'}`}>
+                {tab}
+              </button>
             ))}
           </div>
-          <div style={{ padding:'0 16px', display:'flex', gap:6, flexShrink:0, alignItems:'center' }}>
-            <button onClick={() => handleExport('json')} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer' }}>JSON</button>
-            <button onClick={() => handleExport('yaml')} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer' }}>YAML</button>
-            <button onClick={handleExportZip} style={{ fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--fill-accent)', background:'var(--fill-accent-subtle)', color:'var(--text-accent)', cursor:'pointer' }}>ZIP ↓</button>
+          <div className="px-4 flex gap-1.5 shrink-0 items-center">
+            <button onClick={() => handleExport('json')} className="text-[11px] font-mono px-2.5 py-1 rounded-md border border-white/[0.06] bg-forge-800 text-forge-300 cursor-pointer hover:border-white/[0.12] hover:text-forge-200 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">JSON</button>
+            <button onClick={() => handleExport('yaml')} className="text-[11px] font-mono px-2.5 py-1 rounded-md border border-white/[0.06] bg-forge-800 text-forge-300 cursor-pointer hover:border-white/[0.12] hover:text-forge-200 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">YAML</button>
+            <button onClick={handleExportZip} className="text-[11px] font-mono px-2.5 py-1 rounded-md border border-accent/30 bg-accent-subtle text-accent-hover cursor-pointer hover:bg-accent/20 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">ZIP ↓</button>
             {exportError && (
-              <span style={{ fontSize:11, color:'var(--text-warning)', fontFamily:'var(--font-mono)', marginLeft:4 }}>{exportError}</span>
+              <span className="text-[11px] text-warning font-mono ml-1">{exportError}</span>
             )}
           </div>
         </div>
 
         {/* Content */}
-        <div style={{ flex:1, overflow:'auto', padding:24 }}>
+        <div className="flex-1 overflow-auto p-6">
           {!result && !loading && (
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12, textAlign:'center' }}>
-              <div style={{ width:48, height:48, borderRadius:12, background:'var(--fill-accent-subtle)', border:'1px solid rgba(99,102,241,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>⬡</div>
-              <p style={{ fontSize:13, color:'var(--text-secondary)', margin:0 }}>Enter a prompt and click Compile</p>
-              <p style={{ fontSize:11, color:'var(--text-muted)', margin:0 }}>Output will appear across 7 tabs</p>
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+              <div className="w-12 h-12 rounded-xl bg-accent-subtle border border-accent/20 flex items-center justify-center text-2xl">⬡</div>
+              <p className="text-sm text-forge-300 m-0">Enter a prompt and click Generate app</p>
+              <p className="text-[11px] text-forge-400 m-0">Output appears across 7 tabs</p>
             </div>
           )}
 
           {loading && !result && (
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%' }}>
-              <p style={{ fontSize:13, color:'var(--text-secondary)' }}>Compiling through 6 pipeline stages...</p>
+            <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex gap-2">
+                  {STAGES.map((_, i) => (
+                    <div key={i} className={`w-2 h-2 rounded-full transition-all duration-300
+                      ${i < currentStage ? 'bg-success' :
+                        i === currentStage ? 'bg-accent scale-125' :
+                        'bg-forge-600'}`}
+                      style={i === currentStage ? { animation: 'pulse-dot 1s ease-in-out infinite' } : undefined} />
+                  ))}
+                </div>
+                <p className="text-sm text-forge-300 m-0">
+                  {currentStage >= 0 ? `Stage ${currentStage + 1}: ${STAGES[currentStage]}` : 'Starting compilation...'}
+                </p>
+              </div>
             </div>
           )}
 
           {result && !result.success && (
-            <div style={{ padding:24, borderRadius:'var(--radius)', border:'1px solid var(--bg-danger)', background:'var(--bg-danger)' }}>
-              <p style={{ fontSize:13, fontWeight:600, color:'var(--text-danger)', margin:'0 0 4px' }}>Compilation Failed</p>
-              <p style={{ fontSize:13, color:'var(--text-secondary)', margin:0 }}>{result.error}</p>
+            <div className="p-6 rounded-xl border border-danger/30 bg-danger-subtle">
+              <p className="text-sm font-semibold text-danger m-0 mb-1">Compilation failed</p>
+              <p className="text-sm text-forge-300 m-0">{result.error}</p>
             </div>
           )}
 
           {result?.success && activeTab === 'Config' && (
-            <div style={{ position:'relative' }}>
-              <button onClick={handleCopy} style={{ position:'absolute', top:12, right:12, zIndex:10, fontSize:11, fontFamily:'var(--font-mono)', padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text-secondary)', cursor:'pointer' }}>
+            <div className="relative">
+              <button onClick={handleCopy} className="absolute top-3 right-3 z-10 text-[11px] font-mono px-2.5 py-1 rounded-md border border-white/[0.06] bg-forge-800 text-forge-300 cursor-pointer hover:border-white/[0.12] hover:text-forge-200 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">
                 {copied ? '✓ Copied' : 'Copy'}
               </button>
-              <pre style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', fontSize:12, overflow:'auto', maxHeight:'calc(100vh - 180px)', color:'var(--text-secondary)', border:'1px solid var(--border)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0 }}>
+              <pre className="bg-forge-800 p-6 rounded-xl text-xs overflow-auto max-h-[calc(100vh-180px)] text-forge-300 border border-white/[0.06] font-mono leading-7 m-0">
                 {JSON.stringify(result.config, null, 2)}
               </pre>
             </div>
           )}
 
           {result?.success && activeTab === 'SQL' && (
-            <pre style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', fontSize:12, overflow:'auto', maxHeight:'calc(100vh - 180px)', color:'var(--text-accent)', border:'1px solid var(--border)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0, whiteSpace:'pre-wrap' }}>
+            <pre className="bg-forge-800 p-6 rounded-xl text-xs overflow-auto max-h-[calc(100vh-180px)] text-accent-hover border border-white/[0.06] font-mono leading-7 m-0 whitespace-pre-wrap">
               {result.runtime?.sql || '-- No SQL generated'}
             </pre>
           )}
 
           {result?.success && activeTab === 'Express' && (
-            <pre style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', fontSize:12, overflow:'auto', maxHeight:'calc(100vh - 180px)', color:'var(--text-warning)', border:'1px solid var(--border)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0, whiteSpace:'pre-wrap' }}>
+            <pre className="bg-forge-800 p-6 rounded-xl text-xs overflow-auto max-h-[calc(100vh-180px)] text-warning border border-white/[0.06] font-mono leading-7 m-0 whitespace-pre-wrap">
               {result.runtime?.express || '// No Express server generated'}
             </pre>
           )}
 
           {result?.success && activeTab === 'React' && (
-            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <div className="flex flex-col gap-3">
               {result.runtime?.react && Object.keys(result.runtime.react).length > 0 ? (
                 Object.entries(result.runtime.react).map(([path, content]) => (
-                  <div key={path} style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', border:'1px solid var(--border)' }}>
-                    <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>{path}</p>
-                    <pre style={{ fontSize:12, color:'var(--text-accent)', overflow:'auto', maxHeight:200, fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0, whiteSpace:'pre-wrap' }}>{content}</pre>
+                  <div key={path} className="bg-forge-800 p-6 rounded-xl border border-white/[0.06]">
+                    <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-2">{path}</p>
+                    <pre className="text-xs text-accent-hover overflow-auto max-h-[200px] font-mono leading-7 m-0 whitespace-pre-wrap">{content}</pre>
                   </div>
                 ))
-              ) : <p style={{ fontSize:13, color:'var(--text-muted)' }}>No React files generated.</p>}
+              ) : <p className="text-sm text-forge-400">No React files generated.</p>}
             </div>
           )}
 
           {result?.success && activeTab === 'Validation' && (
-            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                <div style={{ padding:16, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
-                  <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>Status</p>
-                  <p style={{ fontSize:14, fontWeight:600, color: result.validation?.valid ? 'var(--text-success)' : 'var(--text-danger)', margin:0 }}>{result.validation?.valid ? 'VALID' : 'INVALID'}</p>
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl border border-white/[0.06] bg-forge-800">
+                  <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-2">Status</p>
+                  <p className={`text-base font-semibold m-0 ${result.validation?.valid ? 'text-success' : 'text-danger'}`}>
+                    {result.validation?.valid ? 'VALID' : 'INVALID'}
+                  </p>
                 </div>
-                <div style={{ padding:16, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
-                  <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>Score</p>
-                  <p style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:0 }}>{result.validation?.score}/100</p>
-                  <div style={{ width:'100%', height:4, background:'var(--surface-2)', borderRadius:2, marginTop:8 }}>
-                    <div style={{ height:4, background:'var(--fill-accent)', borderRadius:2, width:`${result.validation?.score || 0}%` }} />
+                <div className="p-4 rounded-xl border border-white/[0.06] bg-forge-800">
+                  <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-2">Score</p>
+                  <p className="text-base font-semibold text-forge-50 m-0">{result.validation?.score}/100</p>
+                  <div className="w-full h-1 bg-forge-700 rounded mt-2">
+                    <div className="h-1 bg-accent rounded transition-all" style={{ width: `${result.validation?.score || 0}%` }} />
                   </div>
                 </div>
               </div>
               {result.validation?.repairs && result.validation.repairs.length > 0 && (
-                <div style={{ padding:16, borderRadius:'var(--radius)', border:'1px solid var(--bg-success)', background:'var(--bg-success)' }}>
-                  <p style={{ fontSize:11, fontWeight:600, color:'var(--text-success)', margin:'0 0 8px', fontFamily:'var(--font-mono)' }}>Repairs Made</p>
-                  {result.validation.repairs.map((r, i) => <p key={i} style={{ fontSize:12, color:'var(--text-secondary)', fontFamily:'var(--font-mono)', margin:'2px 0' }}>✓ {r}</p>)}
+                <div className="p-4 rounded-xl border border-success/30 bg-success-subtle">
+                  <p className="text-[11px] font-semibold text-success m-0 mb-2 font-mono">Repairs Made</p>
+                  {result.validation.repairs.map((r, i) => (
+                    <p key={i} className="text-xs text-forge-300 font-mono m-0.5">✓ {r}</p>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
           {result?.success && activeTab === 'Docs' && result.docs && (
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {Object.entries(result.docs).map(([key, content]) => (
-                <div key={key} style={{ background:'var(--surface-1)', padding:24, borderRadius:'var(--radius)', border:'1px solid var(--border)' }}>
-                  <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 12px' }}>{key.replace(/([A-Z])/g, ' $1').trim()}</p>
-                  <pre style={{ maxHeight:240, overflow:'auto', whiteSpace:'pre-wrap', fontSize:12, lineHeight:'1.7', color:'var(--text-secondary)', fontFamily:'var(--font-mono)', margin:0 }}>{content}</pre>
+                <div key={key} className="bg-forge-800 p-6 rounded-xl border border-white/[0.06]">
+                  <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-3">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+                  <pre className="max-h-[240px] overflow-auto whitespace-pre-wrap text-xs leading-7 text-forge-300 font-mono m-0">{content}</pre>
                 </div>
               ))}
             </div>
           )}
 
           {result?.success && activeTab === 'Metrics' && (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16 }}>
-              <div style={{ padding:20, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
-                <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:0 }}>Total Latency</p>
-                <p style={{ fontSize:24, fontWeight:700, color:'var(--text-primary)', margin:'8px 0 0', letterSpacing:'-0.02em' }}>{result.metrics?.latency}ms</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="p-5 rounded-xl border border-white/[0.06] bg-forge-800">
+                <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0">Total Latency</p>
+                <p className="text-2xl font-bold text-forge-50 m-0 mt-2 tracking-tight">{result.metrics?.latency}ms</p>
               </div>
               {result.metrics?.stageTimes && Object.entries(result.metrics.stageTimes).map(([stage, time]) => (
-                <div key={stage} style={{ padding:20, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
-                  <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:0 }}>{stage.replace(/-/g, ' ')}</p>
-                  <p style={{ fontSize:24, fontWeight:700, color:'var(--text-primary)', margin:'8px 0 0', letterSpacing:'-0.02em' }}>{time}ms</p>
+                <div key={stage} className="p-5 rounded-xl border border-white/[0.06] bg-forge-800">
+                  <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0">{stage.replace(/-/g, ' ')}</p>
+                  <p className="text-2xl font-bold text-forge-50 m-0 mt-2 tracking-tight">{time}ms</p>
                 </div>
               ))}
             </div>
