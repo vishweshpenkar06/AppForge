@@ -6,6 +6,11 @@ const logger = createLogger({ module: 'webhook-dispatch' })
 
 export type WebhookEvent = 'generation.completed' | 'generation.failed'
 
+export const AVAILABLE_EVENTS: { value: WebhookEvent; label: string }[] = [
+  { value: 'generation.completed', label: 'Generation completed' },
+  { value: 'generation.failed', label: 'Generation failed' },
+]
+
 interface WebhookPayload {
   event: WebhookEvent
   timestamp: string
@@ -14,25 +19,23 @@ interface WebhookPayload {
 
 /**
  * Generate a new webhook signing secret.
- * Returns the raw secret (to show once) and the hex-encoded version (for storage).
+ * Returns the raw secret (to show once to the user) and the stored version (for DB).
+ * The stored value IS the raw secret — we need it to sign outgoing payloads.
  */
 export function generateWebhookSecret(): { raw: string; stored: string } {
   const raw = randomBytes(32).toString('base64url')
-  const stored = createHmac('sha256', 'appforge-webhook-secret').update(raw).digest('hex')
-  return { raw, stored }
+  return { raw, stored: raw }
 }
 
 /**
- * Sign a JSON payload using HMAC-SHA256 with the endpoint's stored secret.
- * The signature is computed over `rawSecret + body` to match typical webhook patterns.
+ * Sign a JSON payload using HMAC-SHA256.
  */
-export function signPayload(rawSecret: string, body: string): string {
-  return createHmac('sha256', rawSecret).update(body).digest('hex')
+export function signPayload(secret: string, body: string): string {
+  return createHmac('sha256', secret).update(body).digest('hex')
 }
 
 /**
  * Dispatch a single webhook to an endpoint.
- * Note: `endpoint.secret` is the HMAC secret (stored as base64url).
  */
 async function dispatchSingle(
   endpoint: { id: string; url: string; secret: string },
