@@ -22,6 +22,8 @@ export async function POST(req: Request) {
     })
   }
 
+  const routeLogger = createLogger({ route: '/api/webhooks/clerk' })
+
   const body = await req.text()
 
   const wh = new Webhook(WEBHOOK_SECRET)
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
       'svix-signature': svix_signature,
     })
   } catch (err) {
-    console.error('Error verifying webhook:', err)
+    routeLogger.error({ err, route: '/api/webhooks/clerk' }, 'Webhook verification failed')
     return new Response('Error occurred', {
       status: 400,
     })
@@ -58,7 +60,7 @@ export async function POST(req: Request) {
       })
       console.log(`[Webhook] User created: ${id}`)
     } catch (error) {
-      console.error('[Webhook] Error creating user:', error)
+      routeLogger.error({ err: error, route: '/api/webhooks/clerk', clerkEvent: 'user.created' }, 'Error creating user')
       // If user already exists, that's fine
     }
   }
@@ -78,7 +80,7 @@ export async function POST(req: Request) {
 
       console.log(`[Webhook] User deleted: ${id}`)
     } catch (error) {
-      console.error('[Webhook] Error deleting user:', error)
+      routeLogger.error({ err: error, route: '/api/webhooks/clerk', clerkEvent: 'user.deleted' }, 'Error deleting user')
     }
   }
 

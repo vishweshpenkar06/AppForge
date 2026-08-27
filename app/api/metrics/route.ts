@@ -16,8 +16,6 @@ export async function GET(request: NextRequest) {
       userId = authResult.userId
     }
 
-    routeLogger.bind({ userId })
-
     const scope = request.nextUrl.searchParams.get('scope') || 'user'
 
     if (!userId) {

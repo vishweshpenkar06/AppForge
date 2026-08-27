@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, plan: 'team' })
   } catch (error) {
-    console.error('[API Error] /api/plan/join-team:', error)
+    const routeLogger = createLogger({ route: '/api/plan/join-team' })
+    routeLogger.error({ err: error, route: '/api/plan/join-team' }, 'Request failed')
     return NextResponse.json({ error: 'Failed to join team' }, { status: 500 })
   }
 }

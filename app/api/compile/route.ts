@@ -205,7 +205,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
     // Ensure we have a DB user record to attach this generation to
     let user
     if (process.env.NODE_ENV === 'production') {
-      user = await getOrCreateCurrentUserRecord()
+      if (apiKeyId) {
+        // API-key auth: look up user by clerkId (no Clerk session available)
+        user = await prisma.user.findUnique({ where: { clerkId: userId! } })
+      } else {
+        user = await getOrCreateCurrentUserRecord()
+      }
     } else {
       // Dev mode: find or create a dev user
       user = await prisma.user.upsert({

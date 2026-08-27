@@ -19,8 +19,6 @@ export async function GET(
       userId = authResult.userId
     }
 
-    routeLogger.bind({ userId })
-
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

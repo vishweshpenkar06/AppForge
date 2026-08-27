@@ -7,7 +7,6 @@ import { createLogger } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   try {
     let userId: string | null = null
-    const routeLogger = createLogger({ route: '/api/generations' })
 
     if (process.env.NODE_ENV !== 'production') {
       userId = 'dev-user'
@@ -15,8 +14,6 @@ export async function GET(request: NextRequest) {
       const authResult = await auth()
       userId = authResult.userId
     }
-
-    routeLogger.bind({ userId })
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
