@@ -1,11 +1,9 @@
-'use client'
-
 import fs from 'fs'
 import path from 'path'
 import { notFound } from 'next/navigation'
-import { useState } from 'react'
-import { ArrowLeft, Download, ExternalLink, FileText, LayoutGrid, Rocket, Share2 } from 'lucide-react'
+import { ArrowLeft, Download, ExternalLink, FileText, LayoutGrid, Rocket } from 'lucide-react'
 import { DeployButton } from '@/components/deploy-button'
+import { PublishTemplateButton } from '@/components/publish-template-button'
 
 type GeneratedPageProps = {
   params: Promise<{ gid: string }>
@@ -127,6 +125,7 @@ export default async function GeneratedPage({ params }: GeneratedPageProps) {
                 <Download className="h-4 w-4" />
                 Download ZIP
               </a>
+              <PublishTemplateButton generationId={gid} />
               <a
                 href="/dashboard"
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-forge-50 transition hover:bg-white/[0.06]"

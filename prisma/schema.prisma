@@ -36,6 +36,7 @@ model User {
   templates         Template[]
   evalRuns          EvalRun[]
   apiKeys           ApiKey[]
+  webhookEndpoints  WebhookEndpoint[]
 
   @@map("users")
 }
@@ -76,6 +77,8 @@ model Generation {
   pipelineStages  PipelineStage[]
   appConfig       AppConfig?
   evalResults     EvalResult[]
+  templates       Template[]
+  sourceTemplates Template[]
 
   @@index([userId])
   @@index([status])
@@ -196,4 +199,19 @@ model Template {
   @@index([authorId])
   @@index([isPublic])
   @@map("templates")
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url       String
+  secret    String
+  events    String[] // e.g. ["generation.completed", "generation.failed"]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("webhook_endpoints")
 }
