@@ -56,11 +56,9 @@ export function useCompileStream(): UseCompileStreamReturn {
     const controller = new AbortController()
     abortRef.current = controller
 
-    let eventSource: EventSource | null = null
     let fallbackTriggered = false
 
     const cleanup = () => {
-      eventSource?.close()
       if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current)
     }
 
