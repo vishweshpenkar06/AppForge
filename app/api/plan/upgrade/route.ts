@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { createTeamCode } from '@/lib/team-code'
+import { createLogger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {

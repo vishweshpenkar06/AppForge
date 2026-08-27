@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { canExportFormat, type PlanTier } from '@/lib/plan-limits'
 import JSZip from 'jszip'
+import { createLogger } from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,

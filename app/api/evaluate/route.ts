@@ -5,8 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { prisma } from '@/lib/db'
 import { runEvaluation, formatReport } from '@/lib/compiler/evaluation'
+import { createLogger } from '@/lib/logger'
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const action = request.nextUrl.searchParams.get('action')
@@ -82,7 +82,7 @@ async function handleRunEvaluation(): Promise<NextResponse> {
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Evaluation failed'
-    console.error('[EVAL] Error:', errorMessage)
+    routeLogger.error({ err: error, route: '/api/evaluate' }, errorMessage)
 
     return NextResponse.json(
       {

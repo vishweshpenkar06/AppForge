@@ -33,6 +33,7 @@ model User {
 
   generations       Generation[]
   evalRuns          EvalRun[]
+  apiKeys           ApiKey[]
 
   @@map("users")
 }
@@ -148,4 +149,18 @@ model EvalResult {
 
   @@index([evalRunId])
   @@map("eval_results")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyHash     String    @unique
+  label       String
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([keyHash])
+  @@map("api_keys")
 }

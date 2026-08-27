@@ -1,8 +1,6 @@
 // lib/github-export.ts
 // GitHub repo creation + file push + Vercel deploy URL generation
 
-import JSZip from 'jszip'
-
 const GITHUB_API = 'https://api.github.com'
 
 type AppConfig = {
@@ -111,8 +109,8 @@ export async function pushFilesToRepo(
 
   // 2. Create tree
   onProgress?.({ step: 'pushing_files', current: entries.length + 1, total: entries.length + 2 })
-  const treeItems = entries.map(([path, , ], i) => ({
-    path,
+  const treeItems = entries.map(([filePath], i) => ({
+    path: filePath,
     mode: '100644',
     type: 'blob' as const,
     sha: blobShas[i],

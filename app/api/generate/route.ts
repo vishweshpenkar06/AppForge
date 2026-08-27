@@ -4,10 +4,12 @@ import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { generateApplication } from '@/lib/pipeline'
 import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
+import { createLogger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth()
+    const routeLogger = createLogger({ route: '/api/generate', userId })
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -79,7 +81,8 @@ export async function POST(request: NextRequest) {
       message: 'Generation started',
     })
   } catch (error) {
-    console.error('[API Error] /api/generate:', error)
+    const routeLogger = createLogger({ route: '/api/generate' })
+    routeLogger.error({ err: error, route: '/api/generate' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

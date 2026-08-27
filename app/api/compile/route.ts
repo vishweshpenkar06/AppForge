@@ -20,6 +20,7 @@ import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { analyzePromptClarity } from '@/lib/validation'
 import { canCompile, canUseMode, PLAN_LIMITS, getDetailLevel, TOKEN_MULTIPLIER, type PlanTier } from '@/lib/plan-limits'
 import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
+import { createLogger } from '@/lib/logger'
 
 type NormalizedComponent = {
   name: string
@@ -164,6 +165,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
   }
 
   let generation: { id: string } | null = null
+  const routeLogger = createLogger({ route: '/api/compile', userId })
 
   try {
     const { prompt, mode = 'balanced' } = (await request.json()) as CompileRequest
@@ -600,7 +602,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error during compilation'
 
-    console.error(`[${userId}] Compilation error:`, errorMessage)
+    routeLogger.error({ err: error, generationId: generation?.id }, errorMessage)
 
     try {
       if (generation?.id) {

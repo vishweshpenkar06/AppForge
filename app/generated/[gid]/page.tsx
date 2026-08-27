@@ -1,7 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Download, ExternalLink, FileText, LayoutGrid } from 'lucide-react'
+import { ArrowLeft, Download, ExternalLink, FileText, LayoutGrid, Rocket } from 'lucide-react'
+import { DeployButton } from '@/components/deploy-button'
 
 type GeneratedPageProps = {
   params: Promise<{ gid: string }>
@@ -133,6 +134,17 @@ export default async function GeneratedPage({ params }: GeneratedPageProps) {
             </div>
           </div>
         </div>
+
+        <section className="rounded-2xl border border-white/[0.06] bg-forge-800/50 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Rocket className="h-4 w-4 text-success" />
+            <h2 className="font-semibold">Deploy</h2>
+          </div>
+          <p className="text-sm text-forge-400 mb-4">
+            Push the generated code to a new GitHub repository, then deploy it to Vercel in one click.
+          </p>
+          <DeployButton generationId={gid} />
+        </section>
 
         <section className="grid gap-5 pt-3 md:grid-cols-2 xl:grid-cols-3">
           {artifacts.map((artifact) => (
