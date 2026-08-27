@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { generateApplication } from '@/lib/pipeline'
 import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
+import { getCache, setCache } from '@/lib/cache'
 import { createLogger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
@@ -40,6 +41,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ── Cache check ──────────────────────────────────────────────
+    const { hit: cacheHit, data: cachedResult } = await getCache(prompt, mode)
+    if (cacheHit) {
+      console.log(`[Cache] Hit for generate prompt: ${prompt.substring(0, 50)}...`)
+      return NextResponse.json({ ...cachedResult, cached: true })
+    }
+
     // Create or sync the database user on demand so webhooks are not a hard dependency.
     const user = await getOrCreateCurrentUserRecord()
 
@@ -63,17 +71,31 @@ export async function POST(request: NextRequest) {
     // Start async pipeline execution
     // In production, this would be a background job (BullMQ/Redis)
     // For now, we'll start it and let it run asynchronously
-    generateApplication(generation.id, prompt, mode).catch((error) => {
-      console.error(`[Pipeline Error] Generation ${generation.id}:`, error)
-      // Update generation record with error
-      prisma.generation.update({
-        where: { id: generation.id },
-        data: {
-          status: 'failed',
-          errorMessage: error.message || 'Unknown error during generation',
-        },
-      }).catch(console.error)
-    })
+    generateApplication(generation.id, prompt, mode)
+      .then(async (result) => {
+        if (result.success) {
+          await setCache(prompt, mode, {
+            jobId: generation.id,
+            status: 'completed',
+            config: result.appConfig,
+            implementationPlan: result.implementationPlan,
+            docs: result.docs,
+            stages: result.stages,
+            totalLatencyMs: result.totalLatencyMs,
+          }).catch(() => {})
+        }
+      })
+      .catch((error) => {
+        console.error(`[Pipeline Error] Generation ${generation.id}:`, error)
+        // Update generation record with error
+        prisma.generation.update({
+          where: { id: generation.id },
+          data: {
+            status: 'failed',
+            errorMessage: error.message || 'Unknown error during generation',
+          },
+        }).catch(console.error)
+      })
 
     return NextResponse.json({
       jobId: generation.id,
