@@ -53,10 +53,10 @@ export function MetricsDashboard() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {cards.map((card) => (
-        <div key={card.label} className="p-5 rounded-xl border border-[var(--bg-border)] bg-[var(--bg-surface)]">
-          <p className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">{card.label}</p>
-          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2 tracking-tight">{card.value}</p>
-          <p className="text-[10px] text-[var(--text-muted)] mt-1">{card.sub}</p>
+        <div key={card.label} className="p-5 rounded-xl border border-white/[0.06] bg-forge-800">
+          <p className="text-[10px] font-mono text-forge-400 uppercase tracking-wider">{card.label}</p>
+          <p className="text-2xl font-bold text-forge-50 mt-2 tracking-tight">{card.value}</p>
+          <p className="text-[10px] text-forge-400 mt-1">{card.sub}</p>
         </div>
       ))}
     </div>
