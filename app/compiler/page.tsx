@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { UpgradeBanner } from '@/components/upgrade-banner'
 import PipelineLiveView from '@/components/PipelineLiveView'
@@ -26,6 +26,21 @@ type Tab = typeof TABS[number]
 const EXAMPLES = ['CRM with analytics', 'LMS platform', 'Food delivery', 'SaaS invoicing']
 
 export default function CompilerPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-[calc(100vh-48px)] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-forge-400">Loading compiler...</p>
+        </div>
+      </div>
+    }>
+      <CompilerContent />
+    </Suspense>
+  )
+}
+
+function CompilerContent() {
   const [prompt, setPrompt] = useState('')
   const [result, setResult] = useState<CompileResult | null>(null)
   const [loading, setLoading] = useState(false)

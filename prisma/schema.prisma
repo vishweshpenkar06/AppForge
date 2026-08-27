@@ -77,7 +77,8 @@ model Generation {
   pipelineStages  PipelineStage[]
   appConfig       AppConfig?
   evalResults     EvalResult[]
-  sourceTemplates Template[]        @relation("SourceFor")
+  sourceTemplates        Template[] @relation("SourceFor")
+  generatedFromTemplates Template[] @relation("GeneratedFrom")
 
   @@index([userId])
   @@index([status])

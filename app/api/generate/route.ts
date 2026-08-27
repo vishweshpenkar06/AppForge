@@ -6,6 +6,7 @@ import { generateApplication } from '@/lib/pipeline'
 import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
 import { getCache, setCache } from '@/lib/cache'
 import { createLogger } from '@/lib/logger'
+import { dispatchWebhooks } from '@/lib/webhook-dispatch'
 
 export async function POST(request: NextRequest) {
   try {
