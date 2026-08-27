@@ -10,6 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const routeLogger = createLogger({ route: '/api/generations/[id]', generationId: id })
 
     // Dev mode: skip auth checks
     if (process.env.NODE_ENV !== 'production') {
@@ -95,7 +96,8 @@ export async function GET(
 
     return NextResponse.json(out)
   } catch (error) {
-    console.error('[API Error] /api/generations/[id]:', error)
+    const routeLogger = createLogger({ route: '/api/generations/[id]' })
+    routeLogger.error({ err: error, route: '/api/generations/[id]' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',
