@@ -18,7 +18,7 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
     setError(null)
 
     if (!prompt.trim()) {
-      setError('Please describe your application')
+      setError('Describe your application to start compiling')
       return
     }
 
@@ -38,7 +38,7 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Generation failed')
+        throw new Error(errorData.error || 'Compilation failed')
       }
 
       const data = await response.json()
@@ -53,7 +53,7 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
       if (jobId) {
         onGenerationCreated?.(jobId)
       } else {
-        setError('Generation completed but no job id returned')
+        setError('Compilation completed but no job id returned')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -66,14 +66,14 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label className="block text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">
+        <label className="block text-xs font-mono text-forge-400 uppercase tracking-wider mb-2">
           Quick Start
         </label>
         <ExamplePrompts onSelect={setPrompt} disabled={loading} />
       </div>
 
       <div>
-        <label htmlFor="prompt" className="block text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">
+        <label htmlFor="prompt" className="block text-xs font-mono text-forge-400 uppercase tracking-wider mb-2">
           App Description
         </label>
         <textarea
@@ -81,16 +81,16 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Build a project management app with auth, teams, tasks, and real-time notifications..."
-          className="w-full h-32 px-4 py-3 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg
-                     text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)]
-                     font-mono resize-none focus:outline-none focus:border-[var(--accent-primary)]
+          className="w-full h-32 px-4 py-3 bg-forge-700 border border-white/[0.06] rounded-lg
+                     text-sm text-forge-50 placeholder-forge-500
+                     font-mono resize-none focus:outline-none focus:border-accent
                      transition-colors leading-relaxed"
           disabled={loading}
         />
       </div>
 
       <div>
-        <label htmlFor="mode" className="block text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider mb-2">
+        <label htmlFor="mode" className="block text-xs font-mono text-forge-400 uppercase tracking-wider mb-2">
           Mode
         </label>
         <select
@@ -98,9 +98,9 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
           value={mode}
           onChange={(e) => setMode(e.target.value as typeof mode)}
           disabled={loading}
-          className="w-full h-10 px-3 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg
-                     text-sm text-[var(--text-primary)] font-mono
-                     focus:outline-none focus:border-[var(--accent-primary)] transition-colors
+          className="w-full h-10 px-3 bg-forge-700 border border-white/[0.06] rounded-lg
+                     text-sm text-forge-50 font-mono
+                     focus:outline-none focus:border-accent transition-colors
                      appearance-none cursor-pointer"
         >
           <option value="fast">Fast — lower quality, faster</option>
@@ -110,7 +110,7 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg border border-[var(--error)]/20 bg-[var(--error)]/5 text-sm text-[var(--error)]">
+        <div className="p-3 rounded-lg border border-danger/20 bg-danger-subtle text-sm text-danger">
           {error}
         </div>
       )}
@@ -118,7 +118,7 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
       <button
         type="submit"
         disabled={loading || !prompt.trim()}
-        className="w-full btn-primary py-3 text-sm font-semibold disabled:opacity-40"
+        className="w-full bg-accent text-white rounded-xl py-3 text-sm font-semibold cursor-pointer hover:bg-accent-hover transition-colors disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950"
       >
         {loading ? (
           <span className="flex items-center gap-2 justify-center">
@@ -128,7 +128,7 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
             </svg>
             Compiling...
           </span>
-        ) : 'Generate Application Config'}
+        ) : 'Generate app'}
       </button>
     </form>
   )
