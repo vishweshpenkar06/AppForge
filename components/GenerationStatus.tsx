@@ -55,20 +55,20 @@ function classifyError(errorMessage: string): {
 
 function RateLimitState({ resetsAt, onRetry }: { resetsAt: string; onRetry?: () => void }) {
   return (
-    <div className="p-4 rounded-lg border border-[var(--bg-warning)] bg-[var(--bg-warning)]/30">
+    <div className="p-4 rounded-lg border border-warning/30 bg-warning-subtle">
       <div className="flex items-start gap-3">
-        <ClockIcon className="w-5 h-5 text-[var(--text-warning)] flex-shrink-0 mt-0.5" />
+        <ClockIcon className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-warning)]">Daily limit reached</p>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
+          <p className="text-sm font-semibold text-warning">Daily limit reached</p>
+          <p className="text-xs text-forge-300 mt-1">
             Resets at {resetsAt}. Upgrade your plan for more compiles.
           </p>
           {onRetry && (
             <button
               onClick={onRetry}
               className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-md
-                         border border-[var(--text-warning)]/30 text-[var(--text-warning)]
-                         hover:bg-[var(--text-warning)]/10 transition-colors"
+                         border border-warning/30 text-warning
+                         hover:bg-warning/10 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40"
             >
               <RefreshCwIcon className="w-3 h-3" />
               Retry
@@ -84,13 +84,13 @@ function ProviderFallbackState({ detail }: { detail?: string }) {
   return (
     <div className="flex items-center gap-3 py-8">
       <div className="relative">
-        <Loader2Icon className="w-5 h-5 text-[var(--text-accent)] animate-spin" />
+        <Loader2Icon className="w-5 h-5 text-accent-hover animate-spin" />
       </div>
       <div>
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-forge-300">
           {detail || 'Provider unavailable, retrying with fallback...'}
         </p>
-        <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-mono">
+        <p className="text-[10px] text-forge-400 mt-0.5 font-mono">
           Switching to backup provider
         </p>
       </div>
@@ -100,12 +100,12 @@ function ProviderFallbackState({ detail }: { detail?: string }) {
 
 function AllProvidersFailedState({ detail, onRetry }: { detail?: string; onRetry?: () => void }) {
   return (
-    <div className="p-4 rounded-lg border border-[var(--bg-danger)] bg-[var(--bg-danger)]/30">
+    <div className="p-4 rounded-lg border border-danger/30 bg-danger-subtle">
       <div className="flex items-start gap-3">
-        <AlertTriangleIcon className="w-5 h-5 text-[var(--text-danger)] flex-shrink-0 mt-0.5" />
+        <AlertTriangleIcon className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-danger)]">All providers failed</p>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
+          <p className="text-sm font-semibold text-danger">All providers failed</p>
+          <p className="text-xs text-forge-300 mt-1">
             {detail
               ? `${detail}. Please try again in a moment.`
               : 'All available AI providers are temporarily unavailable. Please try again in a moment.'}
@@ -114,8 +114,8 @@ function AllProvidersFailedState({ detail, onRetry }: { detail?: string; onRetry
             <button
               onClick={onRetry}
               className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-md
-                         border border-[var(--text-danger)]/30 text-[var(--text-danger)]
-                         hover:bg-[var(--text-danger)]/10 transition-colors"
+                         border border-danger/30 text-danger
+                         hover:bg-danger/10 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40"
             >
               <RefreshCwIcon className="w-3 h-3" />
               Retry
@@ -129,20 +129,20 @@ function AllProvidersFailedState({ detail, onRetry }: { detail?: string; onRetry
 
 function GenericErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="p-4 rounded-lg border border-[var(--bg-danger)] bg-[var(--bg-danger)]/30">
+    <div className="p-4 rounded-lg border border-danger/30 bg-danger-subtle">
       <div className="flex items-start gap-3">
-        <AlertTriangleIcon className="w-5 h-5 text-[var(--text-danger)] flex-shrink-0 mt-0.5" />
+        <AlertTriangleIcon className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-danger)]">Compilation failed</p>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
+          <p className="text-sm font-semibold text-danger">Compilation failed</p>
+          <p className="text-xs text-forge-300 mt-1">
             Something went wrong during generation. Please try again.
           </p>
           {onRetry && (
             <button
               onClick={onRetry}
               className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-md
-                         border border-[var(--text-danger)]/30 text-[var(--text-danger)]
-                         hover:bg-[var(--text-danger)]/10 transition-colors"
+                         border border-danger/30 text-danger
+                         hover:bg-danger/10 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40"
             >
               <RefreshCwIcon className="w-3 h-3" />
               Retry
@@ -157,8 +157,8 @@ function GenericErrorState({ message, onRetry }: { message: string; onRetry?: ()
 function PendingState() {
   return (
     <div className="flex items-center gap-3 py-8">
-      <Loader2Icon className="w-5 h-5 text-[var(--text-accent)] animate-spin" />
-      <p className="text-sm text-[var(--text-secondary)]">Compiling...</p>
+      <Loader2Icon className="w-5 h-5 text-accent-hover animate-spin" />
+      <p className="text-sm text-forge-300">Compiling...</p>
     </div>
   )
 }
