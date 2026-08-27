@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import Hero from '@/components/Hero'
-import OnboardingTour from '@/components/OnboardingTour'
+import { OnboardingTourLazy } from '@/components/onboarding-tour-lazy'
 
 const STAGES = [
   { n: '01', label: 'Intent', desc: 'Parse the goal' },
@@ -116,7 +116,7 @@ export default function Page() {
         </div>
       </section>
 
-      <OnboardingTour />
+      <OnboardingTourLazy />
     </main>
   )
 }
