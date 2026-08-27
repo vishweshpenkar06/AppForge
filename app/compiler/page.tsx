@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { UpgradeBanner } from '@/components/upgrade-banner'
+import PipelineLiveView from '@/components/PipelineLiveView'
 
 interface CompileResult {
   success: boolean
@@ -33,7 +34,31 @@ export default function CompilerPage() {
   const [copied, setCopied] = useState(false)
   const [upgradeInfo, setUpgradeInfo] = useState<{ error: string; currentPlan: string } | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [liveMode, setLiveMode] = useState(false)
+  const [streaming, setStreaming] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleLiveResult = useCallback((r: any) => {
+    setStreaming(false)
+    setLoading(false)
+    setCurrentStage(-1)
+    if (r.upgradeRequired) {
+      setUpgradeInfo({ error: r.error, currentPlan: r.currentPlan })
+      setResult(null)
+    } else if (r.status === 'needs_clarification') {
+      setResult({ success: false, error: `Prompt needs more detail: ${(r.detectedIssues || []).join('; ')}` })
+    } else {
+      setUpgradeInfo(null)
+      setResult(r)
+    }
+  }, [])
+
+  const handleLiveError = useCallback((msg: string) => {
+    setStreaming(false)
+    setLoading(false)
+    setCurrentStage(-1)
+    setResult({ success: false, error: msg })
+  }, [])
 
   const stageStatus = STAGES.map((_, i) => {
     if (currentStage < 0) return 'pending'
