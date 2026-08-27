@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { GenerationStatus } from './GenerationStatus'
 
 interface GenerationDetailProps {
   generationId: string
@@ -64,6 +65,7 @@ export function GenerationDetail({ generationId }: GenerationDetailProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<DetailTab>('Overview')
+  const [retryKey, setRetryKey] = useState(0)
 
   const fetchGeneration = async (opts?: { silent?: boolean }) => {
     try {
@@ -78,7 +80,7 @@ export function GenerationDetail({ generationId }: GenerationDetailProps) {
     }
   }
 
-  useEffect(() => { setGeneration(null); setError(null); setLoading(true); void fetchGeneration() }, [generationId])
+  useEffect(() => { setGeneration(null); setError(null); setLoading(true); void fetchGeneration() }, [generationId, retryKey])
   useEffect(() => {
     if (generation?.status !== 'pending') return
     const interval = setInterval(() => void fetchGeneration({ silent: true }), 2000)
@@ -88,8 +90,15 @@ export function GenerationDetail({ generationId }: GenerationDetailProps) {
   if (loading) return <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" /></div>
   if (error) return <div className="p-4 rounded-lg border border-[var(--error)]/20 bg-[var(--error)]/5 text-sm text-[var(--error)]">{error}</div>
   if (!generation) return <div className="p-4 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-surface)] text-sm text-[var(--text-muted)]">Not found</div>
-  if (generation.status === 'pending') return <div className="flex items-center gap-3 py-8"><div className="w-5 h-5 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" /><p className="text-sm text-[var(--text-secondary)]">Compiling...</p></div>
-  if (generation.status === 'failed') return <div className="p-4 rounded-lg border border-[var(--error)]/20 bg-[var(--error)]/5"><p className="text-sm font-semibold text-[var(--error)] mb-1">Failed</p><p className="text-xs text-[var(--text-secondary)]">{generation.errorMessage}</p></div>
+  if (generation.status === 'pending' || generation.status === 'failed') {
+    return (
+      <GenerationStatus
+        status={generation.status}
+        errorMessage={generation.errorMessage}
+        onRetry={() => setRetryKey((k) => k + 1)}
+      />
+    )
+  }
 
   const config = generation.config
   const roles = toList(config?.intent?.userRoles)
