@@ -92,17 +92,10 @@ Analyze this codebase and return the AppConfig JSON.`
 
   let config: Record<string, unknown>
   try {
-    config = extractJSON<Record<string, unknown>>(result.text)
+    const parsed = extractJSON<Record<string, unknown>>(result.text)
+    config = parsed ?? {}
   } catch {
-    // If LLM output is not valid JSON, wrap it in a minimal config
-    config = {
-      metadata: { name: 'Unknown Repo', description: 'Could not parse reverse-compile output.' },
-      intent: { appType: 'other', primaryFeatures: [], userRoles: ['user'], authRequired: false, paymentRequired: false, dataModels: [] },
-      database: { tables: [] },
-      api: { routes: [] },
-      ui: { pages: [] },
-      auth: { provider: 'none', roles: [] },
-    }
+    config = {}
   }
 
   // Ensure required top-level keys exist

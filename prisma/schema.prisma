@@ -77,7 +77,6 @@ model Generation {
   pipelineStages  PipelineStage[]
   appConfig       AppConfig?
   evalResults     EvalResult[]
-  templates       Template[]        @relation("GeneratedFrom")
   sourceTemplates Template[]        @relation("SourceFor")
 
   @@index([userId])
@@ -192,6 +191,8 @@ model Template {
   description           String?
   sourceGenerationId    String
   sourceGeneration      Generation @relation("SourceFor", fields: [sourceGenerationId], references: [id], onDelete: Cascade)
+  generatedFromId       String?
+  generatedFrom         Generation? @relation("GeneratedFrom", fields: [generatedFromId], references: [id], onDelete: SetNull)
   isPublic              Boolean  @default(true)
   useCount              Int      @default(0)
   createdAt             DateTime @default(now())

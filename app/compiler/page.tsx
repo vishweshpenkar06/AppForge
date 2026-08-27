@@ -37,7 +37,24 @@ export default function CompilerPage() {
   const [exportError, setExportError] = useState<string | null>(null)
   const [liveMode, setLiveMode] = useState(false)
   const [streaming, setStreaming] = useState(false)
+  const [templateName, setTemplateName] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const templateId = searchParams.get('templateId')
+    if (!templateId) return
+
+    fetch(`/api/templates/${templateId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.sourceGeneration?.prompt) {
+          setPrompt(data.sourceGeneration.prompt)
+          setTemplateName(data.title)
+        }
+      })
+      .catch(() => {})
+  }, [searchParams])
 
   const handleLiveResult = useCallback((r: any) => {
     setStreaming(false)
@@ -151,6 +168,20 @@ export default function CompilerPage() {
         </div>
 
         <div className="flex-1 flex flex-col p-5 gap-3 overflow-auto">
+          {templateName && (
+            <div className="flex items-center justify-between rounded-xl border border-accent/20 bg-accent-subtle px-3 py-2">
+              <p className="text-[11px] text-accent-hover font-mono m-0">
+                Using template: <span className="font-semibold">{templateName}</span>
+              </p>
+              <button
+                onClick={() => { setTemplateName(null); setPrompt('') }}
+                className="text-[10px] text-forge-400 hover:text-forge-200 cursor-pointer bg-transparent border-none p-0 font-mono"
+              >
+                clear
+              </button>
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             value={prompt}

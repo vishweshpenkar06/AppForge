@@ -72,6 +72,7 @@ export default function RootLayout({
 
             <div className="hidden md:flex items-center gap-6">
               <Link href="/compiler" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Compiler</Link>
+              <Link href="/templates" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Templates</Link>
               <Link href="/demo" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Examples</Link>
               <Link href="/dashboard" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Dashboard</Link>
               <Link href="/pricing" className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md">Pricing</Link>
