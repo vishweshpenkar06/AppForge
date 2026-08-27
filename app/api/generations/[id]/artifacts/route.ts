@@ -87,7 +87,7 @@ export async function PATCH(
 
     // Get existing overrides or initialize empty
     const existingOverrides =
-      (generation.appConfig.artifactsOverride as Record<string, ArtifactOverride>) || {}
+      (generation.appConfig.artifactsOverride as unknown as Record<string, ArtifactOverride>) || {}
 
     // Merge the edit into overrides
     const updatedOverrides: Record<string, ArtifactOverride> = {
