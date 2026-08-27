@@ -24,7 +24,18 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const artifacts = generation.appConfig.artifacts as Record<string, string>
+  const rawArtifacts = generation.appConfig.artifacts as Record<string, string>
+  const overrides = (generation.appConfig.artifactsOverride as Record<string, { content: string }>) || {}
+
+  // Merge: overrides take precedence
+  const artifacts: Record<string, string> = {
+    ...rawArtifacts,
+    ...Object.fromEntries(
+      Object.entries(overrides)
+        .filter(([key]) => key in rawArtifacts)
+        .map(([key, val]) => [key, val.content])
+    ),
+  }
 
   const chunks: Buffer[] = []
   const archive = archiver('zip', { zlib: { level: 9 } })

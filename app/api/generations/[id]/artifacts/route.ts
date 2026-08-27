@@ -170,7 +170,7 @@ export async function GET(
 
     const artifacts = (generation.appConfig.artifacts as Record<string, string>) || {}
     const overrides =
-      (generation.appConfig.artifactsOverride as Record<string, ArtifactOverride>) || {}
+      (generation.appConfig.artifactsOverride as unknown as Record<string, ArtifactOverride>) || {}
 
     // Merge: overrides take precedence
     const merged: Record<string, string> = { ...artifacts }

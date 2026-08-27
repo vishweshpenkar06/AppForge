@@ -59,7 +59,17 @@ export async function GET(
     }
 
     const config = (generation as any).appConfig?.config ?? generation.config ?? null
-    const artifacts = (generation as any).appConfig?.artifacts ?? null
+    const rawArtifacts = (generation as any).appConfig?.artifacts ?? null
+    const overrides = (generation as any).appConfig?.artifactsOverride ?? null
+
+    // Merge: overrides take precedence over original artifacts
+    const artifacts: Record<string, string> | null = rawArtifacts
+      ? { ...(rawArtifacts as Record<string, string>), ...Object.fromEntries(
+          Object.entries(overrides as Record<string, { content: string }> || {})
+            .filter(([key]) => key in (rawArtifacts as Record<string, string>))
+            .map(([key, val]) => [key, val.content])
+        ) }
+      : null
 
     if (!config) {
       return NextResponse.json({ error: 'No config found for this generation' }, { status: 404 })
