@@ -102,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateRes
   }
 
   // Validate events
-  const validEventValues = AVAILABLE_EVENTS.map((e) => e.value)
+  const validEventValues = AVAILABLE_EVENTS.map((e) => e.value) as string[]
   const validEvents = events.filter((e) => validEventValues.includes(e))
   if (validEvents.length === 0) {
     return NextResponse.json(
