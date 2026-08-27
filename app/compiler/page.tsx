@@ -73,6 +73,13 @@ export default function CompilerPage() {
     setLoading(true)
     setResult(null)
     setUpgradeInfo(null)
+
+    if (liveMode) {
+      setStreaming(true)
+      setCurrentStage(0)
+      return
+    }
+
     setCurrentStage(0)
     const iv = setInterval(() => setCurrentStage((p) => { if (p >= 5) { clearInterval(iv); return p } return p + 1 }), 2000)
     try {
@@ -175,6 +182,29 @@ export default function CompilerPage() {
             <p className="text-[11px] text-forge-400 mt-1 m-0">
               Output detail: <span className="text-accent-hover font-medium">Standard</span> · <a href="/pricing" className="text-accent-hover no-underline hover:underline">upgrade for more</a>
             </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <div
+                role="switch"
+                aria-checked={liveMode}
+                tabIndex={0}
+                onClick={() => setLiveMode((v) => !v)}
+                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setLiveMode((v) => !v) } }}
+                className={`relative w-8 h-[18px] rounded-full transition-colors ${
+                  liveMode ? 'bg-accent' : 'bg-forge-700'
+                }`}
+              >
+                <div
+                  className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                    liveMode ? 'translate-x-[16px]' : 'translate-x-[2px]'
+                  }`}
+                />
+              </div>
+              <span className="text-[11px] font-mono text-forge-400">Live mode</span>
+            </label>
+            <span className="text-[10px] text-forge-500 font-mono">SSE</span>
           </div>
 
           <button onClick={() => handleCompile()} disabled={loading || !prompt.trim()}
