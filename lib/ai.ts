@@ -259,8 +259,9 @@ function isRetryableError(error: unknown): boolean {
 }
 
 /**
- * Core LLM call with provider-aware routing and fallback.
- * Tries the primary provider first; on 429/timeout, falls back to the secondary provider.
+ * Core LLM call with provider-aware routing, retry with backoff, and fallback.
+ * Retries the primary provider up to 2 times with exponential backoff before
+ * falling back to the secondary provider.
  */
 export async function callLLM(options: LLMCallOptions) {
   const startTime = Date.now()
@@ -304,9 +305,14 @@ export async function callLLM(options: LLMCallOptions) {
     const data = await response.json()
     const latencyMs = Date.now() - startTime
 
+    const content = data.choices?.[0]?.message?.content
+    if (content == null) {
+      throw new Error(`LLM API returned empty choices [${provider}]`)
+    }
+
     return {
       success: true,
-      output: data.choices[0].message.content,
+      output: content,
       latencyMs,
       inputTokens: data.usage?.prompt_tokens || 0,
       outputTokens: data.usage?.completion_tokens || 0,
@@ -315,30 +321,43 @@ export async function callLLM(options: LLMCallOptions) {
     }
   }
 
-  try {
-    // Try primary provider
-    return await callProvider(ACTIVE_PROVIDER)
-  } catch (primaryError) {
-    // If retryable and fallback exists, try fallback provider
-    if (FALLBACK_PROVIDER && isRetryableError(primaryError)) {
-      try {
-        console.warn(`[LLM] Primary provider '${ACTIVE_PROVIDER}' failed, trying fallback '${FALLBACK_PROVIDER}'`)
-        return await callProvider(FALLBACK_PROVIDER)
-      } catch (fallbackError) {
-        // Both failed — throw the primary error with fallback context
-        const latencyMs = Date.now() - startTime
-        const err = primaryError instanceof Error ? primaryError : new Error('Unknown error')
-        err.message = `LLM call failed (primary: ${ACTIVE_PROVIDER}, fallback: ${FALLBACK_PROVIDER} also failed): ${err.message} (${latencyMs}ms)`
-        throw err
+  const MAX_PRIMARY_RETRIES = 2
+
+  // Try primary provider with retry + exponential backoff
+  let lastPrimaryError: unknown
+  for (let attempt = 0; attempt <= MAX_PRIMARY_RETRIES; attempt++) {
+    try {
+      return await callProvider(ACTIVE_PROVIDER)
+    } catch (err) {
+      lastPrimaryError = err
+      if (attempt < MAX_PRIMARY_RETRIES && isRetryableError(err)) {
+        const delay = Math.min(1000 * 2 ** attempt, 8000)
+        console.warn(`[LLM] Primary '${ACTIVE_PROVIDER}' attempt ${attempt + 1} failed, retrying in ${delay}ms...`)
+        await new Promise((r) => setTimeout(r, delay))
+      } else {
+        break
       }
     }
-
-    // Non-retryable or no fallback — throw original error
-    const latencyMs = Date.now() - startTime
-    const err = primaryError instanceof Error ? primaryError : new Error('Unknown error')
-    err.message = `LLM call failed [${ACTIVE_PROVIDER}]: ${err.message} (${latencyMs}ms)`
-    throw err
   }
+
+  // Primary exhausted — try fallback if available
+  if (FALLBACK_PROVIDER) {
+    try {
+      console.warn(`[LLM] Primary '${ACTIVE_PROVIDER}' exhausted, trying fallback '${FALLBACK_PROVIDER}'`)
+      return await callProvider(FALLBACK_PROVIDER)
+    } catch (fallbackError) {
+      const latencyMs = Date.now() - startTime
+      const err = lastPrimaryError instanceof Error ? lastPrimaryError : new Error('Unknown error')
+      err.message = `LLM call failed (primary: ${ACTIVE_PROVIDER}, fallback: ${FALLBACK_PROVIDER} also failed): ${err.message} (${latencyMs}ms)`
+      throw err
+    }
+  }
+
+  // No fallback — throw primary error
+  const latencyMs = Date.now() - startTime
+  const err = lastPrimaryError instanceof Error ? lastPrimaryError : new Error('Unknown error')
+  err.message = `LLM call failed [${ACTIVE_PROVIDER}]: ${err.message} (${latencyMs}ms)`
+  throw err
 }
 
 /**

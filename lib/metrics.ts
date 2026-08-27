@@ -223,48 +223,47 @@ export async function getUserMetrics(userId: string) {
 
 /**
  * Get system-wide metrics
+ *
+ * Uses SQL aggregation (groupBy / aggregate) instead of loading all
+ * generation records into memory.  Token sums come from pipeline_stages
+ * via a single SUM query; mode breakdown uses GROUP BY.
  */
 export async function getSystemMetrics() {
   try {
-    const totalGenerations = await prisma.generation.count()
-    const completedGenerations = await prisma.generation.count({
-      where: { status: { in: ['completed', 'success'] } },
-    })
-    const failedGenerations = await prisma.generation.count({
-      where: { status: 'failed' },
-    })
+    const [
+      totalGenerations,
+      completedGenerations,
+      failedGenerations,
+      modeGroups,
+      tokenAgg,
+    ] = await Promise.all([
+      prisma.generation.count(),
+      prisma.generation.count({
+        where: { status: { in: ['completed', 'success'] } },
+      }),
+      prisma.generation.count({
+        where: { status: 'failed' },
+      }),
+      prisma.generation.groupBy({
+        by: ['mode'],
+        _count: true,
+      }),
+      prisma.pipelineStage.aggregate({
+        _sum: { inputTokens: true, outputTokens: true },
+      }),
+    ])
 
-    const generations = await prisma.generation.findMany({
-      select: {
-        mode: true,
-        pipelineStages: {
-          select: {
-            inputTokens: true,
-            outputTokens: true,
-          },
-        },
-      },
-    })
-
-    const modes = {
-      fast: 0,
-      balanced: 0,
-      precise: 0,
+    const modes = { fast: 0, balanced: 0, precise: 0 }
+    for (const group of modeGroups) {
+      const key = group.mode as keyof typeof modes
+      if (key in modes) {
+        modes[key] = group._count
+      }
     }
 
-    let totalTokens = 0
-
-    generations.forEach((gen) => {
-      if (gen.mode) {
-        modes[gen.mode as keyof typeof modes]++
-      }
-      if (gen.pipelineStages && gen.pipelineStages.length > 0) {
-        gen.pipelineStages.forEach((s: any) => {
-          if (s.inputTokens) totalTokens += s.inputTokens
-          if (s.outputTokens) totalTokens += s.outputTokens
-        })
-      }
-    })
+    const totalInputTokens = tokenAgg._sum.inputTokens ?? 0
+    const totalOutputTokens = tokenAgg._sum.outputTokens ?? 0
+    const totalTokens = totalInputTokens + totalOutputTokens
 
     return {
       totalGenerations,

@@ -239,7 +239,8 @@ export function assessRepairDifficulty(errors: ValidationError[]): {
     recommendedApproach = 'No repairs needed'
   } else if (errorCount <= 2 && errorTypes.has('consistency_error')) {
     recommendedApproach = 'Minor reference fix - update field names or add missing references'
-  } else if (errorCount <= 3) {
+  } else if (errorCount <= 5) {
+    difficulty = 'moderate'
     recommendedApproach = 'Multiple issues found - repair targeted sections'
   } else {
     difficulty = 'hard'
@@ -249,7 +250,10 @@ export function assessRepairDifficulty(errors: ValidationError[]): {
 
   // Consistency errors in complex relationships are hard to auto-fix
   const complexConsistencyErrors = errors.filter((e) =>
-    e.field?.includes('foreignKey') || e.field?.includes('relationship')
+    e.field?.includes('foreign_key') ||
+    e.field?.includes('foreignKey') ||
+    e.field?.includes('relationship') ||
+    e.field?.includes('foreign_key.table')
   )
   if (complexConsistencyErrors.length > 1) {
     difficulty = 'hard'
@@ -319,6 +323,7 @@ export function repairAppConfig(
   const repaired = JSON.parse(JSON.stringify(config))
 
   for (const error of errors) {
+    // Fix broken foreign key references
     if (error.field?.includes('foreign_key') || error.field?.includes('foreignKey')) {
       const match = error.field.match(/tables\.(\w+)\.columns\.(\w+)/)
       if (match) {
@@ -328,6 +333,69 @@ export function repairAppConfig(
         if (col?.foreign_key) {
           changes.push({ field: error.field, before: col.foreign_key, after: null })
           delete col.foreign_key
+        }
+      }
+    }
+
+    // Fix missing id column in tables
+    if (error.field?.includes('database.tables') && error.message?.includes('id')) {
+      const match = error.field.match(/tables\.(\w+)/)
+      if (match) {
+        const tableName = match[1]
+        const table = repaired.database?.tables?.find((t: any) => t.name === tableName)
+        if (table && !table.columns?.some((c: any) => c.name === 'id')) {
+          table.columns = table.columns || []
+          table.columns.unshift({
+            name: 'id',
+            type: 'uuid',
+            primary_key: true,
+            nullable: false,
+          })
+          changes.push({
+            field: `database.tables.${tableName}.columns.id`,
+            before: null,
+            after: { name: 'id', type: 'uuid', primary_key: true },
+          })
+        }
+      }
+    }
+
+    // Fix missing timestamp columns
+    if (error.field?.includes('database.tables') && error.message?.includes('timestamp')) {
+      const match = error.field.match(/tables\.(\w+)/)
+      if (match) {
+        const tableName = match[1]
+        const table = repaired.database?.tables?.find((t: any) => t.name === tableName)
+        if (table) {
+          table.columns = table.columns || []
+          const hasCreatedAt = table.columns.some((c: any) => c.name === 'createdAt')
+          const hasUpdatedAt = table.columns.some((c: any) => c.name === 'updatedAt')
+          if (!hasCreatedAt) {
+            table.columns.push({
+              name: 'createdAt',
+              type: 'timestamptz',
+              nullable: false,
+              default: 'now()',
+            })
+            changes.push({
+              field: `database.tables.${tableName}.columns.createdAt`,
+              before: null,
+              after: { name: 'createdAt', type: 'timestamptz' },
+            })
+          }
+          if (!hasUpdatedAt) {
+            table.columns.push({
+              name: 'updatedAt',
+              type: 'timestamptz',
+              nullable: false,
+              default: 'now()',
+            })
+            changes.push({
+              field: `database.tables.${tableName}.columns.updatedAt`,
+              before: null,
+              after: { name: 'updatedAt', type: 'timestamptz' },
+            })
+          }
         }
       }
     }

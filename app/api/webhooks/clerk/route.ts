@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
 
   if (!WEBHOOK_SECRET) {
-    throw new Error('CLERK_WEBHOOK_SECRET is not set')
+    return NextResponse.json({ error: 'CLERK_WEBHOOK_SECRET is not set' }, { status: 500 })
   }
 
   const headerPayload = await headers()
