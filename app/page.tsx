@@ -115,6 +115,8 @@ export default function Page() {
           ))}
         </div>
       </section>
+
+      <OnboardingTour />
     </main>
   )
 }
