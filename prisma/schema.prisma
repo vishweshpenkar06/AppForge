@@ -62,6 +62,7 @@ model Generation {
   mode            String   @default("balanced") // fast | balanced | precise
   status          String   @default("pending") // pending | running | success | completed | failed
   errorMessage    String?
+  isFavorite      Boolean  @default(false)
   
   config          Json?
   metadata        Json?
@@ -75,7 +76,6 @@ model Generation {
   pipelineStages  PipelineStage[]
   appConfig       AppConfig?
   evalResults     EvalResult[]
-  templates       Template[]
 
   @@index([userId])
   @@index([status])
@@ -110,6 +110,7 @@ model AppConfig {
   
   config          Json     @default("{}")
   artifacts       Json?    // generated file contents: { "path": "content", ... }
+  artifactsOverride Json?  // user edits: { "path": { "content": "...", "editedAt": "..." } }
   validationPassed Boolean
   repairsApplied  Json?    // array of { field, before, after }
   schemaVersion   String   @default("1.0")

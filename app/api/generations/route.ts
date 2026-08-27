@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         status: true,
         mode: true,
         createdAt: true,
+        isFavorite: true,
       },
     })
 

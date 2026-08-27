@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ExamplePrompts } from './ExamplePrompts'
+import { track } from '@/lib/analytics'
 
 interface GenerationFormProps {
   onGenerationCreated?: (jobId: string) => void
@@ -23,6 +24,7 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
     }
 
     setLoading(true)
+    track('prompt_submitted', { mode, prompt_length: prompt.trim().length })
 
     let artifactWindow: Window | null = null
     try {
@@ -51,11 +53,13 @@ export function GenerationForm({ onGenerationCreated }: GenerationFormProps) {
 
       const jobId = data.jobId || data.id || null
       if (jobId) {
+        track('generation_completed', { mode, job_id: jobId })
         onGenerationCreated?.(jobId)
       } else {
         setError('Compilation completed but no job id returned')
       }
     } catch (err) {
+      track('generation_failed', { mode, error: err instanceof Error ? err.message : 'unknown' })
       setError(err instanceof Error ? err.message : 'An error occurred')
       if (artifactWindow) { try { artifactWindow.close() } catch {} }
     } finally {

@@ -1,5 +1,7 @@
 'use client'
 
+import { track } from '@/lib/analytics'
+
 const EXAMPLES = [
   'Build a task tracker with auth, projects, and drag-and-drop boards',
   'Build a recipe sharing app with user profiles, ratings, and search',
@@ -19,7 +21,10 @@ export function ExamplePrompts({ onSelect, disabled }: ExamplePromptsProps) {
           key={text}
           type="button"
           disabled={disabled}
-          onClick={() => onSelect(text)}
+          onClick={() => {
+            track('example_prompt_clicked', { prompt: text })
+            onSelect(text)
+          }}
           className="px-3 py-1.5 text-xs font-mono rounded-lg border border-white/[0.06]
                      bg-forge-700 text-forge-400
                      hover:border-accent/40 hover:text-forge-200
