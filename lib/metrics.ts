@@ -152,59 +152,51 @@ export async function recordGenerationMetrics(
 
 /**
  * Get aggregated metrics for a user
+ *
+ * Uses SQL aggregation instead of loading all generation records into memory.
  */
 export async function getUserMetrics(userId: string) {
   try {
-    const generations = await prisma.generation.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        status: true,
-        mode: true,
-        createdAt: true,
-        completedAt: true,
-        totalLatencyMs: true,
-        pipelineStages: {
-          select: {
-            inputTokens: true,
-            outputTokens: true,
-          },
-        },
-      },
-    })
+    const [
+      totalGenerations,
+      completedGenerations,
+      failedGenerations,
+      modeGroups,
+      tokenAgg,
+      durationAgg,
+    ] = await Promise.all([
+      prisma.generation.count({ where: { userId } }),
+      prisma.generation.count({
+        where: { userId, status: { in: ['completed', 'success'] } },
+      }),
+      prisma.generation.count({
+        where: { userId, status: 'failed' },
+      }),
+      prisma.generation.groupBy({
+        by: ['mode'],
+        where: { userId },
+        _count: true,
+      }),
+      prisma.pipelineStage.aggregate({
+        _sum: { inputTokens: true, outputTokens: true },
+        where: { generation: { userId } },
+      }),
+      prisma.generation.aggregate({
+        _sum: { totalLatencyMs: true },
+        where: { userId },
+      }),
+    ])
 
-    const totalGenerations = generations.length
-    const completedGenerations = generations.filter((g) =>
-      ['completed', 'success'].includes(g.status)
-    ).length
-    const failedGenerations = generations.filter((g) => g.status === 'failed').length
-
-    const modes = {
-      fast: 0,
-      balanced: 0,
-      precise: 0,
+    const modes = { fast: 0, balanced: 0, precise: 0 }
+    for (const group of modeGroups) {
+      const key = group.mode as keyof typeof modes
+      if (key in modes) {
+        modes[key] = group._count
+      }
     }
 
-    let totalTokens = 0
-    let totalDuration = 0
-
-    generations.forEach((gen) => {
-      if (gen.mode) {
-        modes[gen.mode as keyof typeof modes]++
-      }
-
-      // Sum tokens from pipeline stages when available
-      if (gen.pipelineStages && gen.pipelineStages.length > 0) {
-        gen.pipelineStages.forEach((s: any) => {
-          if (s.inputTokens) totalTokens += s.inputTokens
-          if (s.outputTokens) totalTokens += s.outputTokens
-        })
-      }
-
-      if (typeof gen.totalLatencyMs === 'number') {
-        totalDuration += gen.totalLatencyMs
-      }
-    })
+    const totalTokens = (tokenAgg._sum.inputTokens ?? 0) + (tokenAgg._sum.outputTokens ?? 0)
+    const totalDuration = durationAgg._sum.totalLatencyMs ?? 0
 
     return {
       totalGenerations,
