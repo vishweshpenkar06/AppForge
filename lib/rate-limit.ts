@@ -10,7 +10,7 @@
  */
 
 const WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
-const MAX_REQUESTS = 5
+const MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 5
 
 interface Entry {
   timestamps: number[]
