@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 const DEMOS = [
   {
@@ -76,9 +77,12 @@ export default function DemoPage() {
         <p className="text-sm text-forge-300 m-0 mb-8">Real outputs from the compiler. No cherry-picking.</p>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
+        <div className="flex gap-2 mb-6 flex-wrap" role="tablist">
           {DEMOS.map((d, i) => (
             <button key={i} onClick={() => setSelected(i)}
+              role="tab"
+              aria-selected={selected === i}
+              aria-controls="demo-output"
               className={`px-4 py-2 rounded-xl text-sm font-mono cursor-pointer border-none transition-colors
                 ${selected === i ? 'bg-accent text-white' : 'bg-forge-800 text-forge-300 hover:bg-forge-700'}`}>{d.label}</button>
           ))}
@@ -91,6 +95,13 @@ export default function DemoPage() {
             <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-4">Prompt</p>
             <p className="text-sm text-forge-300 font-mono leading-relaxed m-0">&quot;{demo.prompt}&quot;</p>
 
+            <Link
+              href={`/compiler?prompt=${encodeURIComponent(demo.prompt)}`}
+              className="inline-flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-xs font-medium no-underline hover:bg-accent/20 transition-colors"
+            >
+              Try this prompt →
+            </Link>
+
             <div className="mt-6 pt-5 border-t border-white/[0.06]">
               <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-3">Result</p>
               <div className="flex gap-4 text-xs font-mono">
@@ -102,7 +113,7 @@ export default function DemoPage() {
           </div>
 
           {/* Output */}
-          <div className="bg-forge-900 p-6 overflow-auto max-h-[600px]">
+          <div id="demo-output" role="tabpanel" className="bg-forge-900 p-6 overflow-auto max-h-[600px]">
             <div className="flex justify-between items-center mb-4">
               <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0">Output</p>
               <button onClick={handleCopy}

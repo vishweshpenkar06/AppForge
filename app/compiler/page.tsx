@@ -58,17 +58,20 @@ function CompilerContent() {
 
   useEffect(() => {
     const templateId = searchParams.get('templateId')
-    if (!templateId) return
-
-    fetch(`/api/templates/${templateId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.sourceGeneration?.prompt) {
-          setPrompt(data.sourceGeneration.prompt)
-          setTemplateName(data.title)
-        }
-      })
-      .catch(() => {})
+    const promptParam = searchParams.get('prompt')
+    if (templateId) {
+      fetch(`/api/templates/${templateId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.sourceGeneration?.prompt) {
+            setPrompt(data.sourceGeneration.prompt)
+            setTemplateName(data.title)
+          }
+        })
+        .catch(() => {})
+    } else if (promptParam) {
+      setPrompt(promptParam)
+    }
   }, [searchParams])
 
   const handleLiveResult = useCallback((r: any) => {
@@ -415,6 +418,22 @@ function CompilerContent() {
                   </div>
                 </div>
               </div>
+              {result.validation?.errors && result.validation.errors.length > 0 && (
+                <div className="p-4 rounded-xl border border-danger/30 bg-danger/5">
+                  <p className="text-[11px] font-semibold text-danger m-0 mb-2 font-mono">Errors</p>
+                  {result.validation.errors.map((e, i) => (
+                    <p key={i} className="text-xs text-forge-300 font-mono m-0.5">✕ {e}</p>
+                  ))}
+                </div>
+              )}
+              {result.validation?.warnings && result.validation.warnings.length > 0 && (
+                <div className="p-4 rounded-xl border border-warning/30 bg-warning/5">
+                  <p className="text-[11px] font-semibold text-warning m-0 mb-2 font-mono">Warnings</p>
+                  {result.validation.warnings.map((w, i) => (
+                    <p key={i} className="text-xs text-forge-300 font-mono m-0.5">⚠ {w}</p>
+                  ))}
+                </div>
+              )}
               {result.validation?.repairs && result.validation.repairs.length > 0 && (
                 <div className="p-4 rounded-xl border border-success/30 bg-success-subtle">
                   <p className="text-[11px] font-semibold text-success m-0 mb-2 font-mono">Repairs Made</p>
