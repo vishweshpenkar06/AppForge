@@ -17,9 +17,7 @@ export async function POST(req: Request) {
   const svix_signature = headerPayload.get('svix-signature')
 
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response('Error occurred -- no svix headers', {
-      status: 400,
-    })
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
   const routeLogger = createLogger({ route: '/api/webhooks/clerk' })
@@ -38,9 +36,7 @@ export async function POST(req: Request) {
     })
   } catch (err) {
     routeLogger.error({ err, route: '/api/webhooks/clerk' }, 'Webhook verification failed')
-    return new Response('Error occurred', {
-      status: 400,
-    })
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
   const eventType = evt.type
@@ -84,5 +80,5 @@ export async function POST(req: Request) {
     }
   }
 
-  return new NextResponse('Webhook received', { status: 200 })
+  return NextResponse.json({ received: true })
 }
