@@ -48,11 +48,12 @@ function parseRepoUrl(url: string): { owner: string; repo: string; branch: strin
     const u = new URL(url.replace(/\.git$/, ''))
     const parts = u.pathname.replace(/^\//, '').replace(/\/$/, '').split('/')
     if (parts.length < 2) return null
-    const [owner, repo] = parts
+    const owner = parts[0]!
+    const repo = parts[1]!
     // Allow optional /tree/branch suffix
     let branch = 'HEAD'
     if (parts.length >= 4 && parts[2] === 'tree') {
-      branch = parts[3]
+      branch = parts[3] ?? 'HEAD'
     }
     return { owner, repo, branch }
   } catch {
