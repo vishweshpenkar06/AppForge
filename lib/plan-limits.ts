@@ -11,7 +11,7 @@ export const PLAN_LIMITS = {
   pro: {
     compilesPerMonth: 100,
     modes: ['fast', 'balanced'],
-    exportFormats: ['json', 'yaml', 'sql', 'express', 'react'],
+    exportFormats: ['json', 'yaml', 'sql', 'express', 'react', 'zip'],
     historyDays: 90,
     seats: 1,
   },

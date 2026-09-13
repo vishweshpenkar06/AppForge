@@ -118,8 +118,8 @@ describe('plan-limits', () => {
       expect(getDetailLevel('pro')).toBe('maximum')
     })
 
-    it('returns standard for team', () => {
-      expect(getDetailLevel('team')).toBe('standard')
+    it('returns maximum for team', () => {
+      expect(getDetailLevel('team')).toBe('maximum')
     })
   })
 
