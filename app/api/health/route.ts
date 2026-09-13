@@ -1,11 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getActiveProviderInfo } from '@/lib/ai'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const deep = request.nextUrl.searchParams.get('deep') === 'true'
   const provider = getActiveProviderInfo()
 
-  const checks: Record<string, any> = {
+  const checks: Record<string, unknown> = {
     status: 'ok',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
@@ -19,19 +20,34 @@ export async function GET() {
         deterministic_mode: provider.deterministic,
       },
     },
-    database: 'unknown',
+    services: {
+      database: 'unknown',
+    },
     uptime_seconds: Math.floor(process.uptime()),
   }
 
+  // Database check (always run)
   try {
     await prisma.$queryRaw`SELECT 1`
-    checks.database = 'connected'
+    checks.services = { ...checks.services as Record<string, string>, database: 'connected' }
   } catch {
-    checks.database = 'error'
+    checks.services = { ...checks.services as Record<string, string>, database: 'error' }
     checks.status = 'degraded'
   }
 
-  return NextResponse.json(checks, {
-    status: checks.status === 'ok' ? 200 : 503,
-  })
+  // Deep checks (optional, runs additional probes)
+  if (deep) {
+    // Redis check
+    try {
+      const { getCacheStats } = await import('@/lib/cache')
+      const stats = await getCacheStats()
+      checks.services = { ...checks.services as Record<string, string>, cache: stats.redis ? 'connected' : 'unavailable' }
+    } catch {
+      checks.services = { ...checks.services as Record<string, string>, cache: 'error' }
+    }
+  }
+
+  const statusCode = checks.status === 'ok' ? 200 : 503
+
+  return NextResponse.json(checks, { status: statusCode })
 }

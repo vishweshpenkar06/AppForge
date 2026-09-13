@@ -1,7 +1,10 @@
 import { createHash } from 'crypto'
 import { prisma } from './db'
+import { createLogger } from './logger'
 
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const logger = createLogger({ module: 'cache' })
+
+const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const CACHE_PREFIX = 'appforge:cache:'
 
 let totalHits = 0
