@@ -14,7 +14,7 @@ function getHardcodedAdminIds(): string[] {
 export async function getAdminUser(): Promise<User | null> {
   let clerkId: string | null = null
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.ENABLE_DEV_AUTH === 'true') {
     clerkId = 'dev-user'
   } else {
     const authResult = await auth()
