@@ -24,7 +24,7 @@ type ListResponse = {
 
 export async function GET(): Promise<NextResponse<ListResponse>> {
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const authResult = await auth()
     userId = authResult.userId
   } else {
@@ -68,7 +68,7 @@ type CreateResponse = {
 
 export async function POST(request: NextRequest): Promise<NextResponse<CreateResponse>> {
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const authResult = await auth()
     userId = authResult.userId
   } else {
@@ -146,7 +146,7 @@ type DeleteResponse = { success?: boolean; error?: string }
 
 export async function DELETE(request: NextRequest): Promise<NextResponse<DeleteResponse>> {
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const authResult = await auth()
     userId = authResult.userId
   } else {
