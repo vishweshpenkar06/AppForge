@@ -95,17 +95,19 @@ export async function pushFilesToRepo(
   const entries = Object.entries(files)
   if (entries.length === 0) return
 
-  // 1. Create blobs
-  const blobShas: string[] = []
-  for (let i = 0; i < entries.length; i++) {
-    onProgress?.({ step: 'pushing_files', current: i + 1, total: entries.length + 2 })
-    const [, content] = entries[i]
-    const blob = (await ghFetch(`/repos/${owner}/${repo}/git/blobs`, token, {
-      method: 'POST',
-      body: JSON.stringify({ content, encoding: 'utf-8' }),
-    })) as { sha: string }
-    blobShas.push(blob.sha)
-  }
+  // 1. Create blobs in parallel
+  onProgress?.({ step: 'pushing_files', current: 0, total: entries.length + 2 })
+  const blobResults = await Promise.all(
+    entries.map(async ([, content]) => {
+      const blob = (await ghFetch(`/repos/${owner}/${repo}/git/blobs`, token, {
+        method: 'POST',
+        body: JSON.stringify({ content, encoding: 'utf-8' }),
+      })) as { sha: string }
+      return blob.sha
+    })
+  )
+  const blobShas = blobResults
+  onProgress?.({ step: 'pushing_files', current: entries.length, total: entries.length + 2 })
 
   // 2. Create tree
   onProgress?.({ step: 'pushing_files', current: entries.length + 1, total: entries.length + 2 })
