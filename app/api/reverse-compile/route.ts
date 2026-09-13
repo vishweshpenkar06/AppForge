@@ -118,11 +118,11 @@ async function fetchFile(owner: string, repo: string, path: string, ref: string)
 export async function POST(request: NextRequest) {
   // ── Auth ───────────────────────────────────────────────────
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH === 'true') {
+    userId = 'dev-user'
+  } else {
     const authResult = await auth()
     userId = authResult.userId
-  } else {
-    userId = 'dev-user'
   }
 
   if (!userId) {
@@ -204,14 +204,14 @@ export async function POST(request: NextRequest) {
 
     // ── 5. Create synthetic Generation + AppConfig ────────
     let user
-    if (process.env.NODE_ENV === 'production') {
-      user = await prisma.user.findUnique({ where: { clerkId: userId } })
-    } else {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       user = await prisma.user.upsert({
         where: { clerkId: 'dev-user' },
         update: {},
         create: { clerkId: 'dev-user', email: 'dev@appforge.local', displayName: 'Dev User' },
       })
+    } else {
+      user = await prisma.user.findUnique({ where: { clerkId: userId } })
     }
 
     if (!user) {
