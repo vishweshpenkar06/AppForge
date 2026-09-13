@@ -4,7 +4,8 @@ const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Excludes ambiguous: 0/O, 1/I
 
 function secureRandomChar(): string {
   const bytes = randomBytes(1)
-  return CHARS[bytes[0] % CHARS.length]
+  const idx = bytes[0] % CHARS.length
+  return CHARS[idx] ?? 'A'
 }
 
 export function createTeamCode(): string {
