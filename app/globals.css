@@ -1,36 +1,40 @@
 @import 'tailwindcss';
 
 /* ============================================================================
-   APPFORGE DESIGN SYSTEM
-   Unified variable system. Dark theme only.
+   APPFORGE DESIGN SYSTEM v2
+   Deep dark developer tool · Emerald accent · Premium feel
    ============================================================================ */
 
 @theme inline {
-  --color-forge-950: #08080c;
-  --color-forge-900: #0e0e14;
-  --color-forge-800: #16161e;
-  --color-forge-700: #1e1e28;
-  --color-forge-600: #2a2a36;
-  --color-forge-500: #3a3a48;
-  --color-forge-400: #6e6e80;
-  --color-forge-300: #9e9eb0;
-  --color-forge-200: #ccccdd;
-  --color-forge-50: #eeeef4;
+  /* ── Forge scale (deep slate) ─────────────────────────────────── */
+  --color-forge-950: #06080a;
+  --color-forge-900: #0b0f14;
+  --color-forge-800: #111827;
+  --color-forge-700: #1e293b;
+  --color-forge-600: #334155;
+  --color-forge-500: #475569;
+  --color-forge-400: #94a3b8;
+  --color-forge-300: #cbd5e1;
+  --color-forge-200: #e2e8f0;
+  --color-forge-50: #f8fafc;
 
-  --color-accent: #6366f1;
-  --color-accent-hover: #818cf8;
-  --color-accent-pressed: #4f46e5;
-  --color-accent-subtle: rgba(99,102,241,0.12);
+  /* ── Accent: Emerald ─────────────────────────────────────────── */
+  --color-accent: #10b981;
+  --color-accent-hover: #34d399;
+  --color-accent-pressed: #059669;
+  --color-accent-subtle: rgba(16,185,129,0.10);
 
-  --color-secondary: #14b8a6;
-  --color-secondary-hover: #2dd4bf;
+  /* ── Secondary: Sky ──────────────────────────────────────────── */
+  --color-secondary: #38bdf8;
+  --color-secondary-hover: #7dd3fc;
 
+  /* ── Semantic ────────────────────────────────────────────────── */
   --color-success: #10b981;
-  --color-success-subtle: rgba(16,185,129,0.12);
-  --color-danger: #f43f5e;
-  --color-danger-subtle: rgba(244,63,94,0.12);
+  --color-success-subtle: rgba(16,185,129,0.10);
+  --color-danger: #ef4444;
+  --color-danger-subtle: rgba(239,68,68,0.10);
   --color-warning: #f59e0b;
-  --color-warning-subtle: rgba(245,158,11,0.12);
+  --color-warning-subtle: rgba(245,158,11,0.10);
 
   --radius: 10px;
   --font-sans: 'Geist', 'Geist Fallback', system-ui, -apple-system, sans-serif;
@@ -38,31 +42,31 @@
 }
 
 /* ============================================================================
-   CSS CUSTOM PROPERTIES (for inline styles / legacy usage)
+   CSS CUSTOM PROPERTIES
    ============================================================================ */
 
 :root {
-  --surface-0: #08080c;
-  --surface-1: #0e0e14;
-  --surface-2: #16161e;
-  --surface-3: #1e1e28;
+  --surface-0: #06080a;
+  --surface-1: #0b0f14;
+  --surface-2: #111827;
+  --surface-3: #1e293b;
   --border: rgba(255,255,255,0.06);
   --border-strong: rgba(255,255,255,0.12);
 
-  --text-primary: #eeeef4;
-  --text-secondary: #9e9eb0;
-  --text-muted: #6e6e80;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
 
-  --fill-accent: #6366f1;
-  --text-accent: #818cf8;
-  --fill-accent-hover: #818cf8;
-  --fill-accent-subtle: rgba(99,102,241,0.12);
+  --fill-accent: #10b981;
+  --text-accent: #34d399;
+  --fill-accent-hover: #34d399;
+  --fill-accent-subtle: rgba(16,185,129,0.10);
 
-  --bg-success: rgba(16,185,129,0.12);
+  --bg-success: rgba(16,185,129,0.10);
   --text-success: #10b981;
-  --bg-danger: rgba(244,63,94,0.12);
-  --text-danger: #f43f5e;
-  --bg-warning: rgba(245,158,11,0.12);
+  --bg-danger: rgba(239,68,68,0.10);
+  --text-danger: #ef4444;
+  --bg-warning: rgba(245,158,11,0.10);
   --text-warning: #f59e0b;
 }
 
@@ -85,7 +89,7 @@ body {
 }
 
 ::selection {
-  background: rgba(99,102,241,0.3);
+  background: rgba(16,185,129,0.3);
   color: white;
 }
 
@@ -154,6 +158,23 @@ body {
 }
 
 /* ============================================================================
+   GLOW EFFECTS
+   ============================================================================ */
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16,185,129,0.15), 0 0 60px rgba(16,185,129,0.05);
+}
+
+.glow-emerald-strong {
+  box-shadow: 0 0 20px rgba(16,185,129,0.25), 0 0 80px rgba(16,185,129,0.1);
+}
+
+/* ============================================================================
    SPINNER
    ============================================================================ */
 
@@ -197,7 +218,7 @@ body {
 }
 
 .alert-error {
-  border-color: rgba(244,63,94,0.3);
+  border-color: rgba(239,68,68,0.3);
   background: var(--bg-danger);
   color: var(--text-danger);
 }
@@ -220,4 +241,27 @@ body {
 
 .focus-ring {
   @apply outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950;
+}
+
+/* Gradient text */
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #10b981, #38bdf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass card */
+.glass-card {
+  background: rgba(17,24,39,0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Subtle grid background */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 64px 64px;
 }

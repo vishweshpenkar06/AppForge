@@ -20,13 +20,13 @@ export default function AuthControls() {
         <>
           <Link
             href="/sign-in"
-            className="text-forge-300 text-sm no-underline hover:text-forge-50 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:rounded-md px-2 py-1"
+            className="text-forge-400 text-sm no-underline hover:text-forge-200 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/[0.03]"
           >
             Sign in
           </Link>
           <Link
             href="/compiler"
-            className="bg-accent text-white rounded-lg px-3 py-1.5 text-sm font-medium no-underline hover:bg-accent-hover transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950"
+            className="bg-accent text-white rounded-lg px-4 py-1.5 text-sm font-medium no-underline hover:bg-accent-hover transition-all hover:shadow-lg hover:shadow-accent/20 active:scale-[0.98]"
           >
             Start compiling
           </Link>
@@ -36,11 +36,11 @@ export default function AuthControls() {
         <>
           <Link
             href="/pricing"
-            className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent-subtle text-accent-hover no-underline uppercase tracking-wider hover:bg-accent/20 transition-colors"
+            className="text-[10px] font-mono font-medium px-2.5 py-1 rounded-full bg-accent-subtle text-accent no-underline uppercase tracking-wider hover:bg-accent/20 transition-colors border border-accent/20"
           >
             {planLabel}
           </Link>
-          <UserButton appearance={{ elements: { userButtonAvatarBox: { width: 28, height: 28 } } }} />
+          <UserButton appearance={{ elements: { userButtonAvatarBox: { width: 30, height: 30 } } }} />
         </>
       )}
     </div>
