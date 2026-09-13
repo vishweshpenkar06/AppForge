@@ -51,7 +51,7 @@ function createStreamError(message: string, status: number): Response {
 
 export async function POST(request: NextRequest): Promise<Response> {
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const authResult = await auth()
     userId = authResult.userId
   } else {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return createStreamError('Unauthorized', 401)
   }
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const rlKey = buildRateLimitKey(userId)
     const rl = checkRateLimit(rlKey)
     if (!rl.allowed) {
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       try {
         let user
-        if (process.env.NODE_ENV === 'production') {
+        if (process.env.ENABLE_DEV_AUTH !== 'true') {
           user = await getOrCreateCurrentUserRecord()
         } else {
           user = await prisma.user.upsert({

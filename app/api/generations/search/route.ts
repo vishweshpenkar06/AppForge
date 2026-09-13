@@ -5,7 +5,7 @@ import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 
 async function resolveUser() {
   let userId: string | null = null
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.ENABLE_DEV_AUTH === 'true') {
     userId = 'dev-user'
   } else {
     const authResult = await auth()
@@ -13,7 +13,7 @@ async function resolveUser() {
   }
   if (!userId) return null
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const user = await getOrCreateCurrentUserRecord()
     if (!user || user.clerkId !== userId) return null
     return user

@@ -13,7 +13,7 @@ export async function GET(
   try {
     let userId: string | null = null
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       userId = 'dev-user'
     } else {
       const authResult = await auth()
@@ -28,7 +28,7 @@ export async function GET(
     const format = request.nextUrl.searchParams.get('format') || 'json'
 
     let user = null
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.ENABLE_DEV_AUTH !== 'true') {
       user = await getOrCreateCurrentUserRecord()
       if (!user || user.clerkId !== userId) {
         return NextResponse.json({ error: 'User not found in database' }, { status: 404 })
@@ -50,7 +50,7 @@ export async function GET(
       return NextResponse.json({ error: 'Generation not found' }, { status: 404 })
     }
 
-    if (process.env.NODE_ENV === 'production' && generation.userId !== user.id) {
+    if (process.env.ENABLE_DEV_AUTH !== 'true' && generation.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

@@ -20,7 +20,7 @@ export async function DELETE(
   const { id } = await params
 
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const authResult = await auth()
     userId = authResult.userId
   } else {

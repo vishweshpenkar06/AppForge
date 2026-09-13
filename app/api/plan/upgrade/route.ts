@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     let user
     const routeLogger = createLogger({ route: '/api/plan/upgrade' })
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       user = await prisma.user.upsert({
         where: { clerkId: 'dev-user' },
         update: {},
