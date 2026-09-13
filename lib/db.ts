@@ -1,5 +1,8 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
+import { createLogger } from './logger'
+
+const logger = createLogger({ module: 'db' })
 
 // Avoid instantiating multiple Prisma Client instances in development
 const globalForPrisma = global as unknown as { prisma: PrismaClient }
@@ -27,7 +30,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 /**
- * Initialize or sync a user from Clerk auth
+ * Initialize or sync a user from Clerk auth.
+ * Uses upsert on clerkId to avoid P2002 conflicts on email.
+ * If a different Clerk account has the same email, rejects the sync
+ * to prevent account takeover.
  */
 export async function syncUserFromClerk(clerkId: string, email: string, displayName?: string) {
   try {
@@ -44,21 +50,21 @@ export async function syncUserFromClerk(clerkId: string, email: string, displayN
       },
     })
   } catch (err: any) {
-    // Handle unique constraint on email: if a user with the same email exists
-    // but with a different clerkId, attach the clerkId to that record and return it.
     if (err?.code === 'P2002' && err?.meta?.target?.includes('email')) {
       const existing = await prisma.user.findUnique({ where: { email } })
       if (existing) {
-        // If there's already a user with this email but no clerkId, set it.
-        // If it has a different clerkId, we prefer keeping the existing mapping
-        // and updating clerkId if empty.
-        if (!existing.clerkId || existing.clerkId !== clerkId) {
-          return await prisma.user.update({
-            where: { id: existing.id },
-            data: { clerkId, displayName: displayName || existing.displayName || '' },
-          })
+        if (existing.clerkId && existing.clerkId !== clerkId) {
+          // Another Clerk account already owns this email — reject to prevent takeover
+          logger.error(
+            { existingClerkId: existing.clerkId, newClerkId: clerkId, email },
+            'Email collision detected — rejecting sync to prevent account takeover',
+          )
+          return existing
         }
-        return existing
+        return await prisma.user.update({
+          where: { id: existing.id },
+          data: { clerkId, displayName: displayName || existing.displayName || '' },
+        })
       }
     }
 
