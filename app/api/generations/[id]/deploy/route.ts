@@ -17,7 +17,7 @@ export async function POST(
   try {
     let userId: string | null = null
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       userId = 'dev-user'
     } else {
       const authResult = await auth()
