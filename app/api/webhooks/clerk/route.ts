@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         prisma.generation.deleteMany({ where: { userId: user.id } }),
         prisma.webhookEndpoint.deleteMany({ where: { userId: user.id } }),
         prisma.apiKey.deleteMany({ where: { userId: user.id } }),
-        prisma.teamCode.deleteMany({ where: { userId: user.id } }),
+        prisma.teamCode.deleteMany({ where: { ownerId: user.id } }),
         prisma.template.deleteMany({ where: { authorId: user.id } }),
         prisma.user.delete({ where: { id: user.id } }),
       ])
