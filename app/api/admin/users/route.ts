@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 import { PLAN_LIMITS, type PlanTier } from '@/lib/plan-limits'
+import { createLogger } from '@/lib/logger'
+
+const routeLogger = createLogger({ route: '/api/admin/users' })
 
 const VALID_PLANS: PlanTier[] = ['free', 'pro', 'team']
 
@@ -12,8 +15,10 @@ export async function GET(request: NextRequest) {
   try {
     const search = request.nextUrl.searchParams.get('search') || ''
     const plan = request.nextUrl.searchParams.get('plan') as PlanTier | null
+    const limit = Math.min(Number(request.nextUrl.searchParams.get('limit') || '50'), 100)
+    const cursor = request.nextUrl.searchParams.get('cursor')
 
-    const where: any = {}
+    const where: Record<string, unknown> = {}
     if (search) {
       where.OR = [
         { email: { contains: search, mode: 'insensitive' } },
@@ -27,7 +32,8 @@ export async function GET(request: NextRequest) {
     const users = await prisma.user.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: {
         id: true,
         clerkId: true,
@@ -42,8 +48,13 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    const hasMore = users.length > limit
+    const items = hasMore ? users.slice(0, limit) : users
+    const nextCursor = hasMore ? items[items.length - 1]?.id ?? null : null
+    const totalCount = await prisma.user.count({ where })
+
     return NextResponse.json({
-      users: users.map((u) => ({
+      users: items.map((u) => ({
         id: u.id,
         clerkId: u.clerkId,
         email: u.email,
@@ -55,9 +66,11 @@ export async function GET(request: NextRequest) {
         generationsCount: u._count.generations,
         createdAt: u.createdAt,
       })),
+      nextCursor,
+      totalCount,
     })
   } catch (error) {
-    console.error('[Admin] Users list error:', error)
+    routeLogger.error({ err: error }, 'Users list error')
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
