@@ -109,7 +109,7 @@ export function EvalDashboard() {
   const fetchHistory = useCallback(async () => {
     try {
       setLoadingHistory(true)
-      const res = await fetch('/api/evaluate?action=history')
+      const res = await fetch('/api/evaluate')
       const data = await res.json()
       if (data.success && Array.isArray(data.runs)) {
         const points: EvalHistoryPoint[] = data.runs.map(
