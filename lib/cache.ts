@@ -46,17 +46,17 @@ async function getRedis() {
   upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN ?? null
   if (!upstashUrl || !upstashToken) {
     redisAvailable = false
-    console.log('[Cache] No UPSTASH_REDIS_REST_URL — using Prisma fallback')
+    logger.info('No UPSTASH_REDIS_REST_URL — using Prisma fallback')
     return false
   }
 
   try {
     await upstashRequest(['PING'])
     redisAvailable = true
-    console.log('[Cache] Using Upstash Redis')
+    logger.info('Using Upstash Redis')
     return true
   } catch (err) {
-    console.warn('[Cache] Upstash init failed, falling back to Prisma', err)
+    logger.warn({ err }, 'Upstash init failed, falling back to Prisma')
     redisAvailable = false
     return false
   }
