@@ -60,7 +60,7 @@ export function checkRateLimit(key: string): RateLimitResult {
   entry.timestamps = entry.timestamps.filter((t) => t > windowStart)
 
   if (entry.timestamps.length >= MAX_REQUESTS) {
-    const oldest = entry.timestamps[0]
+    const oldest = entry.timestamps[0]!
     const resetAt = new Date(oldest + WINDOW_MS)
     return { allowed: false, remaining: 0, resetAt }
   }
