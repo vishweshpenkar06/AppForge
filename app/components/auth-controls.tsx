@@ -3,8 +3,16 @@
 import Link from 'next/link'
 import { useUser, UserButton } from '@clerk/nextjs'
 
+const PLAN_LABELS: Record<string, string> = {
+  free: 'Free',
+  pro: 'Pro',
+  team: 'Team',
+}
+
 export default function AuthControls() {
-  const { isSignedIn } = useUser()
+  const { isSignedIn, user } = useUser()
+  const plan = (user?.publicMetadata?.plan as string) || 'free'
+  const planLabel = PLAN_LABELS[plan] || 'Free'
 
   return (
     <div className="flex items-center gap-2">
@@ -30,7 +38,7 @@ export default function AuthControls() {
             href="/pricing"
             className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent-subtle text-accent-hover no-underline uppercase tracking-wider hover:bg-accent/20 transition-colors"
           >
-            Free
+            {planLabel}
           </Link>
           <UserButton appearance={{ elements: { userButtonAvatarBox: { width: 28, height: 28 } } }} />
         </>

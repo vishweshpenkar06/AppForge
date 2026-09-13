@@ -63,8 +63,8 @@ export function calculateQualityScore(config: any): QualityScore {
   // Check 3: Relationship Validity
   tables.forEach((table: any) => {
     table.columns?.forEach((col: any) => {
-      if (col.type?.includes('FK') || col.type?.includes('foreign')) {
-        const refTable = col.references
+      if (col.foreignKey || col.references || col.type?.includes('FK') || col.type?.includes('foreign')) {
+        const refTable = col.foreignKey?.table || col.references
         if (refTable && !tables.some((t: any) => t.name === refTable)) {
           relationshipValidity -= 10
         }
@@ -92,7 +92,8 @@ export function calculateQualityScore(config: any): QualityScore {
       if (
         colType &&
         !validTypes.some((vt) => colType.includes(vt)) &&
-        !colType.includes('FK')
+        !col.foreignKey &&
+        !col.references
       ) {
         typeCorrectness -= 5
       }
