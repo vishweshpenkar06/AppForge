@@ -33,10 +33,6 @@ export function canUseMode(plan: PlanTier, mode: string): boolean {
 }
 
 export function canExportFormat(plan: PlanTier, format: string): boolean {
-  // yaml is just a format conversion — available for all plans
-  if (format === 'yaml') return true
-  // zip export requires pro or team
-  if (format === 'zip') return plan === 'team' || plan === 'pro'
   return (PLAN_LIMITS[plan].exportFormats as readonly string[]).includes(format)
 }
 
