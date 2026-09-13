@@ -20,7 +20,11 @@ interface WebhookPayload {
 /**
  * Generate a new webhook signing secret.
  * Returns the raw secret (to show once to the user) and the stored version (for DB).
- * The stored value IS the raw secret — we need it to sign outgoing payloads.
+ *
+ * SECURITY NOTE: The stored value IS the raw secret — we need it to sign outgoing payloads.
+ * This is a deliberate tradeoff: storing the raw secret enables HMAC signing but means
+ * a database breach exposes webhook signatures. For higher security, store only the hash
+ * and use a key derivation function for signing.
  */
 export function generateWebhookSecret(): { raw: string; stored: string } {
   const raw = randomBytes(32).toString('base64url')
