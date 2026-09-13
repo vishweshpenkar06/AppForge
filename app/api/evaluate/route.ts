@@ -1,6 +1,6 @@
 /**
- * GET /api/evaluate?action=history — return persisted eval run history
- * GET /api/evaluate (no params) — run evaluation, persist, and return results
+ * GET /api/evaluate — return persisted eval run history
+ * POST /api/evaluate — run evaluation, persist, and return results
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,13 +9,11 @@ import { runEvaluation, formatReport } from '@/lib/compiler/evaluation'
 import { createLogger } from '@/lib/logger'
 import { prisma } from '@/lib/db'
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  const action = request.nextUrl.searchParams.get('action')
+export async function GET(_request: NextRequest): Promise<NextResponse> {
+  return handleHistory()
+}
 
-  if (action === 'history') {
-    return handleHistory()
-  }
-
+export async function POST(_request: NextRequest): Promise<NextResponse> {
   return handleRunEvaluation()
 }
 
