@@ -50,7 +50,7 @@ export function remainingCompiles(plan: PlanTier, compilesThisMonth: number): nu
 export const DETAIL_LEVEL = {
   free: 'minimal',
   pro: 'maximum',
-  team: 'standard',
+  team: 'maximum',
 } as const;
 
 export type DetailLevel = 'minimal' | 'standard' | 'maximum';
