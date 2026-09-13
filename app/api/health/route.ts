@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     try {
       const { getCacheStats } = await import('@/lib/cache')
       const stats = await getCacheStats()
-      checks.services = { ...checks.services as Record<string, string>, cache: stats.redis ? 'connected' : 'unavailable' }
+      checks.services = { ...checks.services as Record<string, string>, cache: stats.redisAvailable ? 'connected' : 'unavailable' }
     } catch {
       checks.services = { ...checks.services as Record<string, string>, cache: 'error' }
     }
