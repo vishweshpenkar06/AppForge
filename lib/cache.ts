@@ -111,7 +111,7 @@ export async function setCache(prompt: string, mode: string, data: unknown, ttlM
   const key = computeCacheKey(prompt, mode)
   const effectiveTtl = ttlMs || DEFAULT_CACHE_TTL_MS
   const expiresAt = new Date(Date.now() + effectiveTtl)
-  const payload = { ...data, _cachedAt: new Date().toISOString() }
+  const payload = { ...(data as Record<string, unknown>), _cachedAt: new Date().toISOString() }
 
   // Try Redis first
   const hasRedis = await getRedis()
