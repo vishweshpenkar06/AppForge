@@ -17,7 +17,7 @@ type KeysResponse = {
 
 export async function GET(request: NextRequest): Promise<NextResponse<KeysResponse>> {
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const authResult = await auth()
     userId = authResult.userId
   } else {
@@ -59,7 +59,7 @@ type CreateKeyResponse = {
 
 export async function POST(request: NextRequest): Promise<NextResponse<CreateKeyResponse>> {
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const authResult = await auth()
     userId = authResult.userId
   } else {

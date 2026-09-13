@@ -13,7 +13,7 @@ export async function GET(
     const routeLogger = createLogger({ route: '/api/generations/[id]', generationId: id })
 
     // Dev mode: skip auth checks
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       const generation = await prisma.generation.findUnique({
         where: { id },
         include: {

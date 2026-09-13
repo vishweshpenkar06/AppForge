@@ -144,7 +144,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
   let userId: string | null = null
   let apiKeyId: string | null = null
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.ENABLE_DEV_AUTH === 'true') {
     // Dev mode: skip auth entirely
     userId = 'dev-user'
   } else {
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
   }
 
   // Rate-limit: 5 generations/day per user (skipped in dev mode)
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
     const rlKey = apiKeyId
       ? buildApiKeyRateLimitKey(apiKeyId)
       : buildRateLimitKey(userId)
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
 
     // Ensure we have a DB user record to attach this generation to
     let user
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.ENABLE_DEV_AUTH !== 'true') {
       if (apiKeyId) {
         // API-key auth: look up user by clerkId (no Clerk session available)
         user = await prisma.user.findUnique({ where: { clerkId: userId! } })
