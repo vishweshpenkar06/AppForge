@@ -49,17 +49,17 @@ export async function POST(
 
     // Dev mode user setup
     let user = null
-    if (process.env.NODE_ENV === 'production') {
-      user = await getOrCreateCurrentUserRecord()
-      if (!user || user.clerkId !== userId) {
-        return NextResponse.json({ error: 'User not found in database' }, { status: 404 })
-      }
-    } else {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       user = await prisma.user.upsert({
         where: { clerkId: 'dev-user' },
         update: {},
         create: { clerkId: 'dev-user', email: 'dev@appforge.local', displayName: 'Dev User' },
       })
+    } else {
+      user = await getOrCreateCurrentUserRecord()
+      if (!user || user.clerkId !== userId) {
+        return NextResponse.json({ error: 'User not found in database' }, { status: 404 })
+      }
     }
 
     const generation = await prisma.generation.findUnique({
