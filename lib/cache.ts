@@ -80,7 +80,8 @@ export async function getCache(prompt: string, mode: string): Promise<CacheResul
       const raw = await upstashRequest(['GET', `${CACHE_PREFIX}${key}`])
       if (raw.result) {
         totalHits++
-        const data = typeof raw.result === 'string' ? JSON.parse(raw.result) : raw.result
+        const parsed = typeof raw.result === 'string' ? JSON.parse(raw.result) as Record<string, unknown> : raw.result as Record<string, unknown>
+        const data = parsed as { _cachedAt?: string }
         return { hit: true, data, cachedAt: data._cachedAt }
       }
     } catch (err) {
