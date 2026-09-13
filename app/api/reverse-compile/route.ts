@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { reverseCompile } from '@/lib/compiler/reverse'
+import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
 
 const GITHUB_RAW = 'https://api.github.com'
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN // optional, raises rate limit from 60 → 5000/hr
@@ -126,6 +127,15 @@ export async function POST(request: NextRequest) {
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const rlKey = buildRateLimitKey(userId)
+  const rl = checkRateLimit(rlKey)
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Try again later.', resetAt: rl.resetAt.toISOString() },
+      { status: 429 }
+    )
   }
 
   const body = await request.json().catch(() => null)
