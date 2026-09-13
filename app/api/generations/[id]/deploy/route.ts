@@ -71,7 +71,7 @@ export async function POST(
       return NextResponse.json({ error: 'Generation not found' }, { status: 404 })
     }
 
-    if (process.env.NODE_ENV === 'production' && generation.userId !== user.id) {
+    if (process.env.ENABLE_DEV_AUTH !== 'true' && generation.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
