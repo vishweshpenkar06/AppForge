@@ -84,7 +84,7 @@ export async function getCache(prompt: string, mode: string): Promise<CacheResul
         return { hit: true, data, cachedAt: data._cachedAt }
       }
     } catch (err) {
-      console.warn('[Cache] Redis get error:', err)
+      logger.warn({ err }, 'Redis get error')
     }
   }
 
@@ -99,7 +99,7 @@ export async function getCache(prompt: string, mode: string): Promise<CacheResul
       await prisma.cacheEntry.delete({ where: { cacheKey: key } }).catch(() => {})
     }
   } catch (err) {
-    console.warn('[Cache] Prisma get error:', err)
+    logger.warn({ err }, 'Prisma get error')
   }
 
   totalMisses++
