@@ -11,14 +11,14 @@ export const PLAN_LIMITS = {
   pro: {
     compilesPerMonth: 100,
     modes: ['fast', 'balanced'],
-    exportFormats: ['json', 'sql', 'express', 'react'],
+    exportFormats: ['json', 'yaml', 'sql', 'express', 'react'],
     historyDays: 90,
     seats: 1,
   },
   team: {
     compilesPerMonth: Infinity,
     modes: ['fast', 'balanced', 'precise'],
-    exportFormats: ['json', 'sql', 'express', 'react', 'zip'],
+    exportFormats: ['json', 'yaml', 'sql', 'express', 'react', 'zip'],
     historyDays: Infinity,
     seats: 5,
   },
