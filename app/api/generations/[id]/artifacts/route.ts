@@ -21,7 +21,7 @@ export async function PATCH(
   try {
     let userId: string | null = null
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       userId = 'dev-user'
     } else {
       const authResult = await auth()
@@ -51,17 +51,17 @@ export async function PATCH(
     }
 
     let user = null
-    if (process.env.NODE_ENV === 'production') {
-      user = await getOrCreateCurrentUserRecord()
-      if (!user || user.clerkId !== userId) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 })
-      }
-    } else {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       user = await prisma.user.upsert({
         where: { clerkId: 'dev-user' },
         update: {},
         create: { clerkId: 'dev-user', email: 'dev@appforge.local', displayName: 'Dev User' },
       })
+    } else {
+      user = await getOrCreateCurrentUserRecord()
+      if (!user || user.clerkId !== userId) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
     }
 
     const generation = await prisma.generation.findUnique({
@@ -73,7 +73,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Generation not found' }, { status: 404 })
     }
 
-    if (process.env.NODE_ENV === 'production' && generation.userId !== user.id) {
+    if (process.env.ENABLE_DEV_AUTH !== 'true' && generation.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -143,7 +143,7 @@ export async function GET(
   try {
     let userId: string | null = null
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       userId = 'dev-user'
     } else {
       const authResult = await auth()
@@ -165,7 +165,7 @@ export async function GET(
       return NextResponse.json({ error: 'Generation not found' }, { status: 404 })
     }
 
-    if (process.env.NODE_ENV === 'production' && generation.userId !== (await getOrCreateCurrentUserRecord())?.id) {
+    if (process.env.ENABLE_DEV_AUTH !== 'true' && generation.userId !== (await getOrCreateCurrentUserRecord())?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
