@@ -8,6 +8,7 @@ import {
   buildVercelDeployUrl,
   assembleDeployFiles,
 } from '@/lib/github-export'
+import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
 
 export async function POST(
   request: NextRequest,
