@@ -10,18 +10,30 @@ export async function GET(
 ) {
   const { gid } = await params
 
-  if (process.env.NODE_ENV === 'production') {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let userId: string | null = null
+  if (process.env.ENABLE_DEV_AUTH === 'true') {
+    userId = 'dev-user'
+  } else {
+    const authResult = await auth()
+    userId = authResult.userId
+  }
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const generation = await prisma.generation.findUnique({
     where: { id: gid },
-    include: { appConfig: true },
+    include: { appConfig: true, user: true },
   })
 
   if (!generation?.appConfig?.artifacts) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  // Verify ownership in production
+  if (process.env.ENABLE_DEV_AUTH !== 'true' && generation.user.clerkId !== userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const rawArtifacts = generation.appConfig.artifacts as Record<string, string>
