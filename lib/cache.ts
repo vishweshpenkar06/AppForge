@@ -106,20 +106,21 @@ export async function getCache(prompt: string, mode: string): Promise<CacheResul
   return { hit: false }
 }
 
-export async function setCache(prompt: string, mode: string, data: any): Promise<void> {
+export async function setCache(prompt: string, mode: string, data: unknown, ttlMs?: number): Promise<void> {
   const key = computeCacheKey(prompt, mode)
-  const expiresAt = new Date(Date.now() + CACHE_TTL_MS)
+  const effectiveTtl = ttlMs || DEFAULT_CACHE_TTL_MS
+  const expiresAt = new Date(Date.now() + effectiveTtl)
   const payload = { ...data, _cachedAt: new Date().toISOString() }
 
   // Try Redis first
   const hasRedis = await getRedis()
   if (hasRedis) {
     try {
-      const ttlSeconds = Math.floor(CACHE_TTL_MS / 1000)
+      const ttlSeconds = Math.floor(effectiveTtl / 1000)
       await upstashRequest(['SET', `${CACHE_PREFIX}${key}`, JSON.stringify(payload), 'EX', String(ttlSeconds)])
       return
     } catch (err) {
-      console.warn('[Cache] Redis set error:', err)
+      logger.warn({ err }, 'Redis set error')
     }
   }
 
@@ -127,11 +128,11 @@ export async function setCache(prompt: string, mode: string, data: any): Promise
   try {
     await prisma.cacheEntry.upsert({
       where: { cacheKey: key },
-      create: { cacheKey: key, result: payload, expiresAt },
-      update: { result: payload, expiresAt },
+      create: { cacheKey: key, result: payload as any, expiresAt },
+      update: { result: payload as any, expiresAt },
     })
   } catch (err) {
-    console.warn('[Cache] Prisma set error:', err)
+    logger.warn({ err }, 'Prisma set error')
   }
 }
 
