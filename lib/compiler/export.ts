@@ -69,6 +69,48 @@ function mapTypeToPrisma(type: string) {
   return 'String'
 }
 
+function pluralizePrismaModel(name: string): string {
+  const lower = name.toLowerCase()
+  // Irregular plurals
+  const irregulars: Record<string, string> = {
+    person: 'people',
+    child: 'children',
+    mouse: 'mice',
+    goose: 'geese',
+    ox: 'oxen',
+    man: 'men',
+    woman: 'women',
+    tooth: 'teeth',
+    foot: 'feet',
+    die: 'dice',
+    analysis: 'analyses',
+    basis: 'bases',
+    crisis: 'crises',
+    diagnosis: 'diagnoses',
+    hypothesis: 'hypotheses',
+    thesis: 'theses',
+    criterion: 'criteria',
+    phenomenon: 'phenomena',
+  }
+  if (irregulars[lower]) {
+    return name[0].toUpperCase() + irregulars[lower].slice(1)
+  }
+  // Standard English pluralization rules
+  if (lower.endsWith('s') || lower.endsWith('ss') || lower.endsWith('sh') || lower.endsWith('ch') || lower.endsWith('x') || lower.endsWith('z')) {
+    return `${name}es`
+  }
+  if (lower.endsWith('y') && !/[aeiou]$/.test(lower.slice(0, -1))) {
+    return `${name.slice(0, -1)}ies`
+  }
+  if (lower.endsWith('f')) {
+    return `${name.slice(0, -1)}ves`
+  }
+  if (lower.endsWith('fe')) {
+    return `${name.slice(0, -2)}ves`
+  }
+  return `${name}s`
+}
+
 function generatePrismaModel(table: any, allTables: any[]) {
   const modelName = table.name[0].toUpperCase() + table.name.slice(1)
   const lines: string[] = [`model ${modelName} {`]
@@ -104,9 +146,7 @@ function generatePrismaModel(table: any, allTables: any[]) {
 
       if (hasBackRef) {
         // This is the "one" side - add a reverse relation field
-        const pluralName = relatedModelName.endsWith('s')
-          ? `${relatedModelName}es`
-          : `${relatedModelName}s`
+        const pluralName = pluralizePrismaModel(relatedModelName)
         lines.push(`  ${pluralName.padEnd(12)} ${relatedModelName}[]`)
       } else {
         // This is the "many" side - add FK + relation
@@ -135,7 +175,7 @@ function generateApiHandler(group: { route: string; endpoints: EndpointLike[] })
   const methods = [...new Set(group.endpoints.map((endpoint) => (endpoint.method || 'GET').toUpperCase()))]
   const entityName = group.route.replace(/-/g, '_').split('/').filter(Boolean).pop() || 'item'
   const modelName = entityName.charAt(0).toUpperCase() + entityName.slice(1)
-  const pluralModelName = modelName.endsWith('s') ? `${modelName}es` : `${modelName}s`
+  const pluralModelName = pluralizePrismaModel(modelName)
 
   const methodBlocks = methods.map((method) => {
     switch (method) {

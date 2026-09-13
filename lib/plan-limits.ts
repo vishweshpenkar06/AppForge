@@ -11,14 +11,14 @@ export const PLAN_LIMITS = {
   pro: {
     compilesPerMonth: 100,
     modes: ['fast', 'balanced'],
-    exportFormats: ['json', 'sql', 'express', 'react'],
+    exportFormats: ['json', 'yaml', 'sql', 'express', 'react', 'zip'],
     historyDays: 90,
     seats: 1,
   },
   team: {
     compilesPerMonth: Infinity,
     modes: ['fast', 'balanced', 'precise'],
-    exportFormats: ['json', 'sql', 'express', 'react', 'zip'],
+    exportFormats: ['json', 'yaml', 'sql', 'express', 'react', 'zip'],
     historyDays: Infinity,
     seats: 5,
   },
@@ -33,10 +33,6 @@ export function canUseMode(plan: PlanTier, mode: string): boolean {
 }
 
 export function canExportFormat(plan: PlanTier, format: string): boolean {
-  // yaml is just a format conversion — available for all plans
-  if (format === 'yaml') return true
-  // zip export requires pro or team
-  if (format === 'zip') return plan === 'team' || plan === 'pro'
   return (PLAN_LIMITS[plan].exportFormats as readonly string[]).includes(format)
 }
 
@@ -50,7 +46,7 @@ export function remainingCompiles(plan: PlanTier, compilesThisMonth: number): nu
 export const DETAIL_LEVEL = {
   free: 'minimal',
   pro: 'maximum',
-  team: 'standard',
+  team: 'maximum',
 } as const;
 
 export type DetailLevel = 'minimal' | 'standard' | 'maximum';

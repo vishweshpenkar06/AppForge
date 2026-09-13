@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getUserMetrics, getSystemMetrics } from '@/lib/metrics'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import { getAdminUser } from '@/lib/admin-auth'
+import { createLogger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   try {
     let userId: string | null = null
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       userId = 'dev-user'
     } else {
       const authResult = await auth()
@@ -18,6 +20,13 @@ export async function GET(request: NextRequest) {
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (scope === 'system') {
+      const admin = await getAdminUser()
+      if (!admin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     let metrics
@@ -44,7 +53,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(metrics)
   } catch (error) {
-    console.error('[API Error] /api/metrics:', error)
+    const routeLogger = createLogger({ route: '/api/metrics' })
+    routeLogger.error({ err: error, route: '/api/metrics' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

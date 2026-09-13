@@ -1,0 +1,166 @@
+import { createHash } from 'crypto'
+import { prisma } from './db'
+import { createLogger } from './logger'
+
+const logger = createLogger({ module: 'cache' })
+
+const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const CACHE_PREFIX = 'appforge:cache:'
+
+let totalHits = 0
+let totalMisses = 0
+
+function normalizePrompt(prompt: string): string {
+  return prompt.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function computeCacheKey(prompt: string, mode: string): string {
+  const payload = `${normalizePrompt(prompt)}:${mode}`
+  return createHash('sha256').update(payload).digest('hex')
+}
+
+// ── Upstash Redis via REST API (no SDK dependency) ──────────────
+let upstashUrl: string | null = null
+let upstashToken: string | null = null
+let redisAvailable: boolean | null = null
+
+async function upstashRequest(command: string[], expirySeconds?: number): Promise<any> {
+  const url = upstashUrl!
+  const body = JSON.stringify(command)
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${upstashToken}`,
+    'Content-Type': 'application/json',
+  }
+  if (expirySeconds !== undefined) {
+    headers['Upstash-Session-Metadata-TTL'] = String(expirySeconds)
+  }
+  const res = await fetch(url, { method: 'POST', headers, body })
+  if (!res.ok) throw new Error(`Upstash ${res.status}`)
+  return res.json()
+}
+
+async function getRedis() {
+  if (redisAvailable !== null) return redisAvailable
+
+  upstashUrl = process.env.UPSTASH_REDIS_REST_URL ?? null
+  upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN ?? null
+  if (!upstashUrl || !upstashToken) {
+    redisAvailable = false
+    logger.info('No UPSTASH_REDIS_REST_URL — using Prisma fallback')
+    return false
+  }
+
+  try {
+    await upstashRequest(['PING'])
+    redisAvailable = true
+    logger.info('Using Upstash Redis')
+    return true
+  } catch (err) {
+    logger.warn({ err }, 'Upstash init failed, falling back to Prisma')
+    redisAvailable = false
+    return false
+  }
+}
+
+// ── Public API ──────────────────────────────────────────────────
+
+export interface CacheResult {
+  hit: boolean
+  data?: unknown
+  cachedAt?: string
+}
+
+export async function getCache(prompt: string, mode: string): Promise<CacheResult> {
+  const key = computeCacheKey(prompt, mode)
+
+  // Try Redis first
+  const hasRedis = await getRedis()
+  if (hasRedis) {
+    try {
+      const raw = await upstashRequest(['GET', `${CACHE_PREFIX}${key}`])
+      if (raw.result) {
+        totalHits++
+        const parsed = typeof raw.result === 'string' ? JSON.parse(raw.result) as Record<string, unknown> : raw.result as Record<string, unknown>
+        const data = parsed as { _cachedAt?: string }
+        return { hit: true, data, cachedAt: data._cachedAt }
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Redis get error')
+    }
+  }
+
+  // Fallback: Prisma
+  try {
+    const entry = await prisma.cacheEntry.findUnique({ where: { cacheKey: key } })
+    if (entry && entry.expiresAt > new Date()) {
+      totalHits++
+      return { hit: true, data: entry.result, cachedAt: entry.createdAt.toISOString() }
+    }
+    if (entry) {
+      await prisma.cacheEntry.delete({ where: { cacheKey: key } }).catch(() => {})
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Prisma get error')
+  }
+
+  totalMisses++
+  return { hit: false }
+}
+
+export async function setCache(prompt: string, mode: string, data: unknown, ttlMs?: number): Promise<void> {
+  const key = computeCacheKey(prompt, mode)
+  const effectiveTtl = ttlMs || DEFAULT_CACHE_TTL_MS
+  const expiresAt = new Date(Date.now() + effectiveTtl)
+  const payload = { ...(data as Record<string, unknown>), _cachedAt: new Date().toISOString() }
+
+  // Try Redis first
+  const hasRedis = await getRedis()
+  if (hasRedis) {
+    try {
+      const ttlSeconds = Math.floor(effectiveTtl / 1000)
+      await upstashRequest(['SET', `${CACHE_PREFIX}${key}`, JSON.stringify(payload), 'EX', String(ttlSeconds)])
+      return
+    } catch (err) {
+      logger.warn({ err }, 'Redis set error')
+    }
+  }
+
+  // Fallback: Prisma
+  try {
+    await prisma.cacheEntry.upsert({
+      where: { cacheKey: key },
+      create: { cacheKey: key, result: payload as any, expiresAt },
+      update: { result: payload as any, expiresAt },
+    })
+  } catch (err) {
+    logger.warn({ err }, 'Prisma set error')
+  }
+}
+
+export interface CacheStats {
+  totalHits: number
+  totalMisses: number
+  hitRate: number
+  totalEntries: number
+  redisAvailable: boolean
+}
+
+export async function getCacheStats(): Promise<CacheStats> {
+  let totalEntries = 0
+  try {
+    totalEntries = await prisma.cacheEntry.count({
+      where: { expiresAt: { gt: new Date() } },
+    })
+  } catch (err) {
+    logger.warn({ err }, 'Stats query error')
+  }
+
+  const total = totalHits + totalMisses
+  return {
+    totalHits,
+    totalMisses,
+    hitRate: total > 0 ? totalHits / total : 0,
+    totalEntries,
+    redisAvailable: redisAvailable === true,
+  }
+}

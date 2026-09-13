@@ -1,43 +1,73 @@
 @import 'tailwindcss';
 
 /* ============================================================================
-   APPFORGE DESIGN SYSTEM
-   Variables handle dark/light mode automatically.
+   APPFORGE DESIGN SYSTEM v2
+   Deep dark developer tool · Emerald accent · Premium feel
+   ============================================================================ */
+
+@theme inline {
+  /* ── Forge scale (deep slate) ─────────────────────────────────── */
+  --color-forge-950: #06080a;
+  --color-forge-900: #0b0f14;
+  --color-forge-800: #111827;
+  --color-forge-700: #1e293b;
+  --color-forge-600: #334155;
+  --color-forge-500: #475569;
+  --color-forge-400: #94a3b8;
+  --color-forge-300: #cbd5e1;
+  --color-forge-200: #e2e8f0;
+  --color-forge-50: #f8fafc;
+
+  /* ── Accent: Emerald ─────────────────────────────────────────── */
+  --color-accent: #10b981;
+  --color-accent-hover: #34d399;
+  --color-accent-pressed: #059669;
+  --color-accent-subtle: rgba(16,185,129,0.10);
+
+  /* ── Secondary: Sky ──────────────────────────────────────────── */
+  --color-secondary: #38bdf8;
+  --color-secondary-hover: #7dd3fc;
+
+  /* ── Semantic ────────────────────────────────────────────────── */
+  --color-success: #10b981;
+  --color-success-subtle: rgba(16,185,129,0.10);
+  --color-danger: #ef4444;
+  --color-danger-subtle: rgba(239,68,68,0.10);
+  --color-warning: #f59e0b;
+  --color-warning-subtle: rgba(245,158,11,0.10);
+
+  --radius: 10px;
+  --font-sans: 'Geist', 'Geist Fallback', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', 'SF Mono', 'Cascadia Code', monospace;
+}
+
+/* ============================================================================
+   CSS CUSTOM PROPERTIES
    ============================================================================ */
 
 :root {
-  /* Surfaces */
-  --surface-0: #09090b;
-  --surface-1: #111113;
-  --surface-2: #1a1a1f;
-  --border: rgba(255,255,255,0.08);
-  --border-strong: rgba(255,255,255,0.14);
+  --surface-0: #06080a;
+  --surface-1: #0b0f14;
+  --surface-2: #111827;
+  --surface-3: #1e293b;
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.12);
 
-  /* Text */
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-muted: #52525b;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
 
-  /* Accent */
-  --fill-accent: #6366f1;
-  --text-accent: #818cf8;
-  --fill-accent-hover: #7c7ffa;
-  --fill-accent-subtle: rgba(99,102,241,0.12);
+  --fill-accent: #10b981;
+  --text-accent: #34d399;
+  --fill-accent-hover: #34d399;
+  --fill-accent-subtle: rgba(16,185,129,0.10);
 
-  /* Status */
-  --bg-success: rgba(34,197,94,0.12);
-  --text-success: #4ade80;
-  --bg-danger: rgba(239,68,68,0.12);
-  --text-danger: #f87171;
-  --bg-warning: rgba(245,158,11,0.12);
-  --text-warning: #fbbf24;
-
-  /* Radius */
-  --radius: 10px;
-
-  /* Fonts */
-  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --bg-success: rgba(16,185,129,0.10);
+  --text-success: #10b981;
+  --bg-danger: rgba(239,68,68,0.10);
+  --text-danger: #ef4444;
+  --bg-warning: rgba(245,158,11,0.10);
+  --text-warning: #f59e0b;
 }
 
 /* ============================================================================
@@ -45,7 +75,6 @@
    ============================================================================ */
 
 *, *::before, *::after { box-sizing: border-box; }
-
 html { scroll-behavior: smooth; }
 
 body {
@@ -60,8 +89,18 @@ body {
 }
 
 ::selection {
-  background: rgba(99,102,241,0.3);
+  background: rgba(16,185,129,0.3);
   color: white;
+}
+
+/* ============================================================================
+   FOCUS STATES
+   ============================================================================ */
+
+:focus-visible {
+  outline: 2px solid var(--fill-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* ============================================================================
@@ -70,8 +109,23 @@ body {
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================================
+   SKELETON LOADING
+   ============================================================================ */
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.skeleton {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
 
 /* ============================================================================
    PIPELINE ANIMATION
@@ -83,11 +137,131 @@ body {
   95%  { opacity: 1; }
   100% { left: calc(100% - 80px); opacity: 0; }
 }
+
 .pipeline-beam {
   animation: pipeline-travel 2.5s ease-in-out infinite;
 }
 
 @keyframes pulse-dot {
   0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.2); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.pulse-dot-slow {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.pulse-dot-fast {
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+/* ============================================================================
+   GLOW EFFECTS
+   ============================================================================ */
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16,185,129,0.15), 0 0 60px rgba(16,185,129,0.05);
+}
+
+.glow-emerald-strong {
+  box-shadow: 0 0 20px rgba(16,185,129,0.25), 0 0 80px rgba(16,185,129,0.1);
+}
+
+/* ============================================================================
+   SPINNER
+   ============================================================================ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--fill-accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+.spinner-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 1.5px;
+}
+.spinner-lg {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-width: 2.5px;
+}
+
+/* ============================================================================
+   ALERT BARS
+   ============================================================================ */
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.alert-error {
+  border-color: rgba(239,68,68,0.3);
+  background: var(--bg-danger);
+  color: var(--text-danger);
+}
+
+.alert-warning {
+  border-color: rgba(245,158,11,0.3);
+  background: var(--bg-warning);
+  color: var(--text-warning);
+}
+
+.alert-success {
+  border-color: rgba(16,185,129,0.3);
+  background: var(--bg-success);
+  color: var(--text-success);
+}
+
+/* ============================================================================
+   UTILITIES
+   ============================================================================ */
+
+.focus-ring {
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950;
+}
+
+/* Gradient text */
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #10b981, #38bdf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass card */
+.glass-card {
+  background: rgba(17,24,39,0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Subtle grid background */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 64px 64px;
 }

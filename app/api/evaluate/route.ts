@@ -1,27 +1,73 @@
 /**
- * GET /api/evaluate
- * Run the evaluation framework and return metrics
+ * GET /api/evaluate — return persisted eval run history
+ * POST /api/evaluate — run evaluation, persist, and return results
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { runEvaluation, formatReport } from '@/lib/compiler/evaluation'
+import { createLogger } from '@/lib/logger'
+import { prisma } from '@/lib/db'
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(_request: NextRequest): Promise<NextResponse> {
+  return handleHistory()
+}
+
+export async function POST(_request: NextRequest): Promise<NextResponse> {
+  return handleRunEvaluation()
+}
+
+async function handleHistory(): Promise<NextResponse> {
+  const routeLogger = createLogger({ route: '/api/evaluate/history' })
+  try {
+    const runs = await prisma.evalRun.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        results: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    })
+
+    return NextResponse.json({ success: true, runs })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch history'
+    routeLogger.error({ err: error, route: '/api/evaluate/history' }, errorMessage)
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
+  }
+}
+
+async function handleRunEvaluation(): Promise<NextResponse> {
   const { userId } = await auth()
-
-  // For now, allow unauthenticated access to evaluation
-  // In production, restrict to admins or specific users
+  const routeLogger = createLogger({ route: '/api/evaluate', userId })
 
   try {
-    console.log('[EVAL] Starting evaluation framework...')
+    const routeLogger = createLogger({ route: '/api/evaluate', userId })
     const report = await runEvaluation()
 
-    console.log('[EVAL] Evaluation complete')
-    console.log(formatReport(report))
+    const evalRun = await prisma.evalRun.create({
+      data: {
+        userId: userId || null,
+        name: `Eval #${Date.now()}`,
+        description: `Success rate: ${report.successRate.toFixed(1)}%`,
+        results: {
+          create: report.results.map((r) => ({
+            promptCategory: r.category || null,
+            success: r.success,
+            retryCount: r.retries,
+            latencyMs: r.latency,
+            failureReason: r.errors.length > 0 ? r.errors.join('; ') : null,
+            notes: r.warnings.length > 0 ? r.warnings.join('; ') : null,
+          })),
+        },
+      },
+      include: { results: true },
+    })
 
     return NextResponse.json({
       success: true,
+      runId: evalRun.id,
       report,
       summary: {
         successRate: `${report.successRate.toFixed(1)}%`,
@@ -34,7 +80,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Evaluation failed'
-    console.error('[EVAL] Error:', errorMessage)
+    routeLogger.error({ err: error, route: '/api/evaluate' }, errorMessage)
 
     return NextResponse.json(
       {
