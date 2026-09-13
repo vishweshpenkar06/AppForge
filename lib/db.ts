@@ -1,17 +1,17 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 import { createLogger } from './logger'
+import { getEnv } from './env'
 
 const logger = createLogger({ module: 'db' })
+
+// Validate env vars at module load time
+getEnv()
 
 // Avoid instantiating multiple Prisma Client instances in development
 const globalForPrisma = global as unknown as { prisma: PrismaClient }
 
-const databaseUrl = process.env.DATABASE_URL
-
-if (!databaseUrl) {
-  throw new Error('DATABASE_URL is not set')
-}
+const databaseUrl = process.env.DATABASE_URL!
 
 const adapter = new PrismaPg({ connectionString: databaseUrl })
 
