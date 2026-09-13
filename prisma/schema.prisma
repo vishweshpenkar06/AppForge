@@ -38,7 +38,6 @@ model User {
   notifications     Notification[]
   webhookEndpoints  WebhookEndpoint[]
   apiKeys           ApiKey[]
-  webhookEndpoints  WebhookEndpoint[]
 
   @@map("users")
 }
