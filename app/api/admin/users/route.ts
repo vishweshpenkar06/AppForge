@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 })
     }
 
-    const updateData: any = {}
+    const updateData: Record<string, unknown> = {}
     if (plan !== undefined) {
       if (!VALID_PLANS.includes(plan)) {
         return NextResponse.json({ error: `Invalid plan. Must be one of: ${VALID_PLANS.join(', ')}` }, { status: 400 })
@@ -126,7 +126,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ user: updated })
   } catch (error) {
-    console.error('[Admin] User update error:', error)
+    routeLogger.error({ err: error }, 'User update error')
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
