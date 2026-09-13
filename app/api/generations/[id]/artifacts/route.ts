@@ -42,6 +42,14 @@ export async function PATCH(
       )
     }
 
+    const MAX_ARTIFACT_SIZE = 1_048_576 // 1MB
+    if (body.content.length > MAX_ARTIFACT_SIZE) {
+      return NextResponse.json(
+        { error: 'Artifact content exceeds maximum size of 1MB' },
+        { status: 413 }
+      )
+    }
+
     let user = null
     if (process.env.NODE_ENV === 'production') {
       user = await getOrCreateCurrentUserRecord()
