@@ -153,7 +153,7 @@ export function EvalDashboard() {
     setRunning(true)
     setError(null)
     try {
-      const res = await fetch('/api/evaluate')
+      const res = await fetch('/api/evaluate', { method: 'POST' })
       const data = await res.json()
       if (!data.success) {
         setError(data.error || 'Evaluation failed')
