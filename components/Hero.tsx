@@ -46,7 +46,25 @@ export default function Hero() {
             playsInline
             src="/demo/appforge-demo.mp4"
             className="block w-full h-auto"
+            onError={(e) => {
+              const target = e.target as HTMLVideoElement
+              target.style.display = 'none'
+              const fallback = target.nextElementSibling as HTMLElement
+              if (fallback) fallback.style.display = 'flex'
+            }}
           />
+          <div
+            className="hidden items-center justify-center h-[320px] text-forge-400 text-sm flex-col gap-2"
+            style={{ display: 'none' }}
+          >
+            <div className="w-16 h-16 rounded-2xl bg-forge-700 flex items-center justify-center">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="text-forge-500">Demo video</span>
+          </div>
         </div>
 
         {/* CTAs */}

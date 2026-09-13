@@ -87,7 +87,10 @@ const jwt = require('jsonwebtoken');
 const app = express();
 app.use(express.json());
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Do not use hardcoded secrets in production.');
+}
 
 // ── Auth Middleware ──────────────────────────────────────────────
 function requireAuth(req, res, next) {
