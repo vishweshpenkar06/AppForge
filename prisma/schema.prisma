@@ -217,3 +217,20 @@ model WebhookEndpoint {
   @@index([userId])
   @@map("webhook_endpoints")
 }
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // e.g. "generation.completed", "generation.failed", "team.invite", "plan.upgrade"
+  title     String
+  message   String?
+  read      Boolean  @default(false)
+  link      String?  // Optional link to navigate to
+  metadata  Json?    // Additional data (e.g. generationId)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, read])
+  @@map("notifications")
+}
