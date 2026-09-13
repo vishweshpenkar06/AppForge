@@ -28,6 +28,15 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const rlKey = buildRateLimitKey(userId)
+    const rl = checkRateLimit(rlKey)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Try again later.', resetAt: rl.resetAt.toISOString() },
+        { status: 429 }
+      )
+    }
+
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN
     if (!GITHUB_TOKEN) {
       return NextResponse.json(
