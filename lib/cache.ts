@@ -66,7 +66,7 @@ async function getRedis() {
 
 export interface CacheResult {
   hit: boolean
-  data?: any
+  data?: unknown
   cachedAt?: string
 }
 
