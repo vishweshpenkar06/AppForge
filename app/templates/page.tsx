@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, LayoutGrid, Filter } from 'lucide-react'
 import { TemplateCard } from '@/components/TemplateCard'
 import { Input } from '@/components/ui/input'
 
 const APP_TYPES = ['all', 'crm', 'marketplace', 'saas', 'content', 'ecommerce', 'analytics', 'social', 'crud', 'other']
+const DEBOUNCE_MS = 300
 
 interface Template {
   id: string
@@ -22,11 +23,23 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedType, setSelectedType] = useState('all')
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, DEBOUNCE_MS)
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    }
+  }, [search])
 
   useEffect(() => {
     const params = new URLSearchParams()
-    if (search) params.set('q', search)
+    if (debouncedSearch) params.set('q', debouncedSearch)
     if (selectedType !== 'all') params.set('appType', selectedType)
 
     setLoading(true)
@@ -35,7 +48,7 @@ export default function TemplatesPage() {
       .then((d) => { if (Array.isArray(d)) setTemplates(d) })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [search, selectedType])
+  }, [debouncedSearch, selectedType])
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 md:px-6 py-8 md:py-12">
