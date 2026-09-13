@@ -35,6 +35,8 @@ model User {
   generations       Generation[]
   templates         Template[]
   evalRuns          EvalRun[]
+  notifications     Notification[]
+  webhookEndpoints  WebhookEndpoint[]
   apiKeys           ApiKey[]
   webhookEndpoints  WebhookEndpoint[]
 
