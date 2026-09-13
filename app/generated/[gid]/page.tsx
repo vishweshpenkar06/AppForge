@@ -7,6 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ArtifactEditor from '@/components/ArtifactEditor'
 import { PublishTemplateButton } from '@/components/publish-template-button'
 
+const VALID_GID_PATTERN = /^gen-[a-zA-Z0-9_-]+$/
+const GENERATED_DIR = path.join(process.cwd(), 'public', 'generated')
+
 type GeneratedPageProps = {
   params: Promise<{ gid: string }>
 }
@@ -85,7 +88,15 @@ function renderMarkdownPreview(markdown: string | null) {
 
 export default async function GeneratedPage({ params }: GeneratedPageProps) {
   const { gid } = await params
-  const baseDir = path.join(process.cwd(), 'public', 'generated', gid)
+
+  if (!VALID_GID_PATTERN.test(gid)) {
+    notFound()
+  }
+
+  const baseDir = path.resolve(GENERATED_DIR, gid)
+  if (!baseDir.startsWith(GENERATED_DIR)) {
+    notFound()
+  }
 
   if (!fs.existsSync(baseDir) || !fs.statSync(baseDir).isDirectory()) {
     notFound()
