@@ -43,11 +43,8 @@ async function handleRunEvaluation(): Promise<NextResponse> {
   const routeLogger = createLogger({ route: '/api/evaluate', userId })
 
   try {
-    console.log('[EVAL] Starting evaluation framework...')
+    const routeLogger = createLogger({ route: '/api/evaluate', userId })
     const report = await runEvaluation()
-
-    console.log('[EVAL] Evaluation complete')
-    console.log(formatReport(report))
 
     const evalRun = await prisma.evalRun.create({
       data: {
