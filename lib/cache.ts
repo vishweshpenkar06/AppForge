@@ -151,7 +151,7 @@ export async function getCacheStats(): Promise<CacheStats> {
       where: { expiresAt: { gt: new Date() } },
     })
   } catch (err) {
-    console.warn('[Cache] Stats query error:', err)
+    logger.warn({ err }, 'Stats query error')
   }
 
   const total = totalHits + totalMisses
