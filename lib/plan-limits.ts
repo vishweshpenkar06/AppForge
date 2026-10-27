@@ -44,7 +44,9 @@ export function remainingCompiles(plan: PlanTier, compilesThisMonth: number): nu
 // ── Detail Levels ─────────────────────────────────────────────
 
 export const DETAIL_LEVEL = {
-  free: 'minimal',
+  // Every tier gets the exhaustive prompt set: depth was the product's main
+  // complaint, and lean schemas are what made compiled output look empty.
+  free: 'maximum',
   pro: 'maximum',
   team: 'maximum',
 } as const;

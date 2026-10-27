@@ -55,11 +55,11 @@ Do not write anything before or after the JSON.
 Output schema:
 {
   "appType": "one of: crud, marketplace, crm, saas, content, ecommerce, analytics, social, other",
-  "primaryFeatures": ["list of 3-5 core features"],
+  "primaryFeatures": ["list of 5-10 concrete core features"],
   "userRoles": ["list of distinct user roles"],
   "authRequired": boolean,
   "paymentRequired": boolean,
-  "dataModels": ["core entities/models"],
+  "dataModels": ["every core entity/model, 4-12 for a typical app"],
   "complexities": ["list of complex aspects identified"],
   "assumptions": ["list of assumptions made about vague requirements"],
   "premiumFeatures": ["list of features gated behind payment/subscription"],
@@ -71,10 +71,15 @@ Detection rules:
 - If the prompt mentions roles (admin, user, guest, manager, etc.) → populate userRoles[] with all detected roles
 - Always generate at least one user_flow per detected role. Example for "admin": ["Login → Dashboard → View Analytics → Export Report"]
 
-Be concise. Document assumptions about ambiguous requirements.`
+Depth rules — a coding agent implements from this JSON alone, so it must be exhaustive:
+- Even a one-sentence request must expand to every feature the finished product needs, not only what was named.
+- No empty arrays. If the prompt is silent on roles, infer the minimum sensible set; if silent on entities, derive them from the features.
+- Never return a feature, role, entity, or flow step that is a placeholder ("core functionality", "TBD", "etc."). Name the actual thing.
+- userFlows: one per role, 4-8 ordered steps, each step an action the user takes.
+- Record every gap you filled as an entry in assumptions so nothing is silently invented.`
 
   try {
-    const llmResult = await callLLMText({ system: systemPrompt, prompt, model: STAGE_CONFIGS.intent.model })
+    const llmResult = await callLLMText({ system: systemPrompt, prompt, model: STAGE_CONFIGS.intent.model, maxTokens: STAGE_CONFIGS.intent.max_tokens })
 
     // Aggressive JSON extraction: try direct parse, then regex, then fallback
     let parsed: any = null
@@ -225,6 +230,61 @@ const SystemDesignSchema = z.object({
 
 export type SystemDesign = z.infer<typeof SystemDesignSchema>
 
+/** Models do not always emit a bare string where the schema asks for one. */
+function refName(value: unknown): string {
+  if (typeof value === 'string') return value
+  const record = value as Record<string, unknown> | null
+  const candidate = record?.name ?? record?.target ?? record?.entity ?? record?.table ?? record?.description
+  return typeof candidate === 'string' ? candidate : ''
+}
+
+function refList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(refName).filter(Boolean) : []
+}
+
+/**
+ * Coerces the shapes models actually return into the design schema:
+ * PATCH methods, object-valued relationship references, string permissions.
+ */
+export function normalizeDesign(raw: any): unknown {
+  const architecture = String(raw?.architecture || 'monolith').toLowerCase()
+  return {
+    ...raw,
+    architecture: architecture.includes('micro')
+      ? 'microservices'
+      : architecture.includes('server')
+        ? 'serverless'
+        : 'monolith',
+    pageStructure: (raw?.pageStructure || []).map((page: any) => ({
+      ...page,
+      name: refName(page?.name),
+      purpose: refName(page?.purpose),
+      requiredData: refList(page?.requiredData),
+    })),
+    apiEndpoints: (raw?.apiEndpoints || []).map((endpoint: any) => ({
+      ...endpoint,
+      path: refName(endpoint?.path),
+      // PATCH is a partial update; the design layer only distinguishes full methods.
+      method: String(endpoint?.method || 'GET').toUpperCase().replace('PATCH', 'PUT'),
+      purpose: refName(endpoint?.purpose),
+    })),
+    dataEntities: (raw?.dataEntities || []).map((entity: any) => ({
+      ...entity,
+      name: refName(entity?.name),
+      relationships: refList(entity?.relationships),
+    })),
+    accessControl: {
+      roles: refList(raw?.accessControl?.roles),
+      rolePermissions: Object.fromEntries(
+        Object.entries(raw?.accessControl?.rolePermissions || {}).map(([role, actions]) => [
+          role,
+          typeof actions === 'string' ? [actions] : refList(actions),
+        ])
+      ),
+    },
+  }
+}
+
 /**
  * Stage 2: Convert intent into system architecture
  */
@@ -257,20 +317,33 @@ Features: ${intent.primaryFeatures.join(', ')}
 Roles: ${intent.userRoles.join(', ')}
 Key Entities: ${intent.dataModels.join(', ')}`
 
+  let raw = ''
   try {
-    const llmResult = await callLLMText({ system: systemPrompt, prompt: designPrompt, model: STAGE_CONFIGS.design.model })
-    const parsed = extractJSON(llmResult.text)
+    const llmResult = await callLLMText({ system: systemPrompt, prompt: designPrompt, model: STAGE_CONFIGS.design.model, maxTokens: STAGE_CONFIGS.design.max_tokens })
+    raw = llmResult.text
+    const parsed = extractJSON(raw)
 
     if (parsed) {
-      return SystemDesignSchema.parse(parsed)
+      return SystemDesignSchema.parse(normalizeDesign(parsed))
     }
 
     console.warn('[Compiler] System design output was not valid JSON, using fallback design parser')
     return SystemDesignSchema.parse(buildFallbackDesign(intent))
   } catch (error) {
-    console.warn('[Compiler] System design failed, using fallback design parser:', error)
+    console.warn(`[Compiler] System design failed (${describeFailure(error)}), using fallback design parser. Response: ${raw.slice(0, 800)}`)
     return SystemDesignSchema.parse(buildFallbackDesign(intent))
   }
+}
+
+/** Turns a validation/parse error into one short line so a rejection is diagnosable from logs. */
+function describeFailure(error: unknown): string {
+  if (error instanceof z.ZodError) {
+    return error.issues
+      .slice(0, 6)
+      .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
+      .join('; ')
+  }
+  return error instanceof Error ? error.message : String(error)
 }
 
 function buildFallbackDesign(intent: Intent): SystemDesign {
@@ -325,6 +398,61 @@ const SchemaOutputSchema = z.object({
   }),
 })
 
+/** Fills the fields a model drops, so one missing key does not discard the whole schema. */
+export function coerceSchemas(raw: any, design: SystemDesign): unknown {
+  const pages = Array.isArray(raw?.ui?.pages) ? raw.ui.pages : []
+
+  // The design defines the API surface; the schema stage fills in bodies. Merge
+  // rather than replace, or a terse schema response silently drops most routes.
+  const endpoints = new Map<string, any>()
+  const designEndpoints = design.apiEndpoints.map((endpoint) => ({ ...endpoint, requestSchema: {}, responseSchema: {} }))
+  for (const endpoint of [...designEndpoints, ...(Array.isArray(raw?.api?.endpoints) ? raw.api.endpoints : [])]) {
+    const method = String(endpoint?.method || 'GET').toUpperCase().replace('PATCH', 'PUT')
+    const path = refName(endpoint?.path)
+    if (!path) continue
+    endpoints.set(`${method} ${path}`, { ...endpoints.get(`${method} ${path}`), ...endpoint, method, path })
+  }
+
+  return {
+    ...raw,
+    database: {
+      tables: (raw?.database?.tables || []).map((table: any) => ({
+        ...table,
+        name: refName(table?.name),
+        columns: (table?.columns || []).map((column: any) => ({
+          ...column,
+          name: refName(column?.name),
+          type: refName(column?.type) || 'string',
+          // Missing means "not specified"; nullable is the safer default than a wrong NOT NULL.
+          required: column?.required === true || column?.required === 'true',
+        })),
+        relationships: refList(table?.relationships),
+      })),
+    },
+    api: {
+      endpoints: [...endpoints.values()].map((endpoint: any) => ({
+        ...endpoint,
+        requestSchema: endpoint?.requestSchema || {},
+        responseSchema: endpoint?.responseSchema || {},
+      })),
+    },
+    ui: {
+      pages: pages.length
+        ? pages.map((page: any) => ({
+            ...page,
+            route: refName(page?.route),
+            components: refList(page?.components),
+            dataSource: typeof page?.dataSource === 'string' ? page.dataSource : '',
+          }))
+        : design.pageStructure.map((page) => ({
+            route: `/${page.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
+            components: [page.name],
+            dataSource: '',
+          })),
+    },
+  }
+}
+
 export type SchemaOutput = z.infer<typeof SchemaOutputSchema>
 
 /**
@@ -339,11 +467,11 @@ You MUST respond with ONLY a valid JSON object. No markdown. No backticks. No ex
 Start your response with { and end with }.
 
 CRITICAL RULES FOR DATABASE TABLES:
-- For each data entity, generate ALL relevant columns based on its purpose.
-- A contacts table MUST have: id, firstName, lastName, email, phone, company, status, assignedTo, notes, createdAt, updatedAt
-- A deals table MUST have: id, title, value, stage, contactId, assignedTo, closedAt, createdAt, updatedAt
+- For each data entity, generate ALL relevant columns based on its purpose in this app.
+- Derive columns from what the entity actually stores — never from a template or another product's schema.
 - Never generate a table with only id and timestamp columns — always include domain-specific fields.
 - Every table must have an "id" column (type: uuid) and "createdAt"/"updatedAt" columns.
+- Respond with minified JSON: no indentation, no newlines inside the object.
 
 Output JSON structure:
 {
@@ -382,14 +510,21 @@ Requirements:
 - Foreign keys must be explicit in relationships
 - Each table must have 5+ domain-specific columns minimum`
 
-  const schemaPrompt = `${JSON.stringify(design)}\n\nIntent context: ${JSON.stringify(intent)}`
+  // Only the parts of the intent that affect columns and routes: the full intent
+  // doubles the prompt cost and pushes the stage into the provider's token cap.
+  const schemaPrompt = `${JSON.stringify(design)}\n\nIntent: ${JSON.stringify({
+    primaryFeatures: intent.primaryFeatures,
+    userRoles: intent.userRoles,
+    authRequired: intent.authRequired,
+    paymentRequired: intent.paymentRequired,
+  })}`
 
   try {
-    const llmResult = await callLLMText({ system: systemPrompt, prompt: schemaPrompt, model: STAGE_CONFIGS.schema.model })
+    const llmResult = await callLLMText({ system: systemPrompt, prompt: schemaPrompt, model: STAGE_CONFIGS.schema.model, maxTokens: STAGE_CONFIGS.schema.max_tokens })
     const parsed = extractJSON(llmResult.text)
 
     if (parsed) {
-      return SchemaOutputSchema.parse(parsed)
+      return SchemaOutputSchema.parse(coerceSchemas(parsed, design))
     }
 
     console.warn('[Compiler] Schema output was not valid JSON, using fallback schema parser')
@@ -462,11 +597,11 @@ Output the corrected, complete schema as valid JSON.`
   const schemasJson = JSON.stringify(schemas)
 
   try {
-    const llmResult = await callLLMText({ system: systemPrompt, prompt: schemasJson, model: STAGE_CONFIGS.refinement.model })
+    const llmResult = await callLLMText({ system: systemPrompt, prompt: schemasJson, model: STAGE_CONFIGS.refinement.model, maxTokens: STAGE_CONFIGS.refinement.max_tokens })
     const parsed = extractJSON(llmResult.text)
 
     if (parsed) {
-      return SchemaOutputSchema.parse(parsed)
+      return SchemaOutputSchema.parse(coerceSchemas(parsed, design))
     }
 
     console.warn('[Compiler] Refinement output was not valid JSON, using normalized schema')
@@ -675,6 +810,7 @@ Output ONLY valid JSON, nothing else.`
         system: 'You are a schema repair expert. Fix validation errors surgically. Output ONLY valid JSON.',
         prompt: repairPrompt,
         model: STAGE_CONFIGS.repair.model,
+        maxTokens: STAGE_CONFIGS.repair.max_tokens,
       })
 
       const repaired = extractJSON(llmResult.text)

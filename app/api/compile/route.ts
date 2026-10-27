@@ -319,64 +319,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       })
     }
 
-    // QUICK RULE-BASED FALLBACK: If the user asked for a Snake game (common test case),
-    // produce a concrete implementation plan without calling LLMs so the project
-    // behaves deterministically in dev. This helps when LLM creds are missing or
-    // when the middleware blocks unauthenticated requests.
-    const lc = prompt.toLowerCase()
-    const isSnakePrompt = /\bsnake\b/.test(lc) && /\bapple\b|\bgame\b|\bspike\b|\bobstacle\b/.test(lc)
-    if (isSnakePrompt) {
-      console.log(`[dev-fallback] Detected snake prompt, returning built-in implementation`)
-
-      const prismaSchema = `generator client {\n  provider = "prisma-client-js"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n\nmodel SnakeGame {\n  id        String   @id @default(cuid())\n  state     Json?\n  createdAt DateTime @default(now())\n}\n\nmodel SnakeScore {\n  id        String   @id @default(cuid())\n  player    String\n  score     Int\n  createdAt DateTime @default(now())\n}`
-
-      const apiHandlers = [
-        { path: 'app/api/snake/score/route.ts', content: `import { NextResponse } from 'next/server'\nexport async function GET() {\n  return NextResponse.json({ highScore: 0 })\n}\nexport async function POST(req: Request) {\n  try {\n    const body = await req.json()\n    return NextResponse.json({ ok: true, received: body })\n  } catch (e) {\n    return NextResponse.json({ ok: false, error: String(e) }, { status: 400 })\n  }\n}` },
-      ]
-      const uiPages = [
-        { path: 'app/snake/page.tsx', content: `import React from 'react'\nexport default function SnakePage(){\n  return (<div style={{padding:24}}><h1>Snake Game (Demo)</h1><p>Generated stub. Replace with your game canvas.</p></div>)\n}` },
-      ]
-
-      const docs = {
-        prd: `# PRD - Snake Game\n\n## Product Name\nSnake Game\n\n## Requirement Summary\nSnake game with red snake, green apple, and black spike obstacles.\n\n## Core Value\n- Responsive gameplay\n- Clear visual contrast\n- Simple scoring and restart loop\n\n## Assumptions\n- Single-player browser game\n- Grid-based movement\n- Snake grows when it eats an apple`,
-        trd: `# TRD - Snake Game\n\n## Architecture\n- Frontend: Next.js page with game canvas\n- Backend: Route handler for score persistence\n- Database: Prisma models for game state and scores\n\n## Technical Decisions\n1. Grid-based deterministic game loop\n2. Separate gameplay UI from score persistence\n3. Single route file for all score operations`,
-        appFlow: `# App Flow - Snake Game\n\n1. Open the snake game page\n2. Start a new round\n3. Move snake toward green apple\n4. Avoid black spikes\n5. Score is displayed and persisted`,
-        uiUxBrief: `# UI/UX Brief - Snake Game\n\n## Visual Direction\nHigh-contrast arcade styling with distinct colors for each element.\n\n## Layout\n- Dedicated game canvas\n- Score and instructions panel\n- Clear restart control`,
-        backendSchema: `# Backend Schema - Snake Game\n\n## Tables\n- SnakeGame: gameplay state\n- SnakeScore: score records\n\n## API\n- GET /api/snake/score\n- POST /api/snake/score`,
-        implementationPlan: `# Implementation Plan - Snake Game\n\n1. Build gameplay surface\n2. Wire keyboard controls and collision\n3. Persist scores via API\n4. Polish visuals and restart flow`,
-      }
-
-      const normalizedConfig = {
-        metadata: { name: 'Snake Game', description: 'Generated snake-game starter with docs and route stubs.' },
-        intent: { appType: 'crud', userRoles: ['player'], primaryFeatures: ['gameplay', 'score tracking', 'restart flow'], dataModels: ['snakeGame', 'snakeScore'], assumptions: ['Single-player browser game', 'Grid-based movement'] },
-        design: { pageStructure: [{ name: 'Snake', purpose: 'Playable snake game surface' }], apiEndpoints: [{ path: '/api/snake/score', method: 'GET', purpose: 'Fetch score data' }] },
-        database: { tables: [{ name: 'SnakeGame', columns: [{ name: 'id', type: 'uuid', required: true }, { name: 'state', type: 'json', required: false }, { name: 'createdAt', type: 'datetime', required: true }], relationships: [] }, { name: 'SnakeScore', columns: [{ name: 'id', type: 'uuid', required: true }, { name: 'player', type: 'string', required: true }, { name: 'score', type: 'integer', required: true }, { name: 'createdAt', type: 'datetime', required: true }], relationships: [] }] },
-        api: { endpoints: [{ path: '/api/snake/score', method: 'GET', requestSchema: {}, responseSchema: { type: 'object' } }] },
-        ui: { pages: [{ route: '/snake', components: ['GameBoard', 'ScorePanel'], dataSource: 'GET /api/snake/score' }] },
-        auth: { provider: 'none', roles: [{ name: 'player', permissions: ['read', 'create'] }], session_strategy: 'none' },
-      }
-
-      try {
-        const artifacts: Record<string, string> = { 'PRD.md': docs.prd, 'TRD.md': docs.trd, 'AppFlow.md': docs.appFlow, 'UI-UX-BRIEF.md': docs.uiUxBrief, 'BACKEND-SCHEMA.md': docs.backendSchema, 'IMPLEMENTATION-PLAN.md': docs.implementationPlan, 'prisma.schema': prismaSchema }
-        for (const h of apiHandlers) artifacts[h.path] = h.content
-        for (const p of uiPages) artifacts[p.path] = p.content
-
-        await prisma.appConfig.create({ data: { generationId: generation.id, config: normalizedConfig as any, artifacts, validationPassed: true } })
-        await prisma.generation.update({ where: { id: generation.id }, data: { status: 'success', completedAt: new Date(), totalLatencyMs: Date.now() - startTime } })
-      } catch (err) { console.warn('Failed to persist snake fallback', err) }
-
-      const snakeResponse = {
-        success: true, jobId: generation.id, config: normalizedConfig, docs,
-        implementationPlan: { summary: 'Snake game (fallback)', prismaSchema, apiHandlers, uiPages, rbac: {}, checklist: ['Wire UI canvas', 'Hook up score API', 'Persist scores'] },
-        downloadUrl: `/api/generations/${generation.id}/export?format=zip`,
-        validation: { valid: true, errors: [], warnings: [], score: 100 },
-        execution: { executable: true, issues: [], readyForDeployment: false },
-        metrics: { latency: Date.now() - startTime, inputTokens: 0, outputTokens: 0, stageTimes: {} },
-      }
-      await setCache(prompt, `${mode}:compile`, snakeResponse).catch(() => {})
-      return NextResponse.json(snakeResponse)
-    }
-
     // ========================================================================
     // STAGE 1: INTENT EXTRACTION
     // ========================================================================

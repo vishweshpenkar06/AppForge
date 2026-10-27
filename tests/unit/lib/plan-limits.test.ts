@@ -110,8 +110,8 @@ describe('plan-limits', () => {
   })
 
   describe('getDetailLevel', () => {
-    it('returns minimal for free', () => {
-      expect(getDetailLevel('free')).toBe('minimal')
+    it('returns maximum for free — detail is not a paid feature', () => {
+      expect(getDetailLevel('free')).toBe('maximum')
     })
 
     it('returns maximum for pro', () => {
