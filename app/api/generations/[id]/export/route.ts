@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { canExportFormat, type PlanTier } from '@/lib/plan-limits'
 import JSZip from 'jszip'
+import { createLogger } from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,
@@ -12,7 +13,7 @@ export async function GET(
   try {
     let userId: string | null = null
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       userId = 'dev-user'
     } else {
       const authResult = await auth()
@@ -27,7 +28,7 @@ export async function GET(
     const format = request.nextUrl.searchParams.get('format') || 'json'
 
     let user = null
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.ENABLE_DEV_AUTH !== 'true') {
       user = await getOrCreateCurrentUserRecord()
       if (!user || user.clerkId !== userId) {
         return NextResponse.json({ error: 'User not found in database' }, { status: 404 })
@@ -49,7 +50,7 @@ export async function GET(
       return NextResponse.json({ error: 'Generation not found' }, { status: 404 })
     }
 
-    if (process.env.NODE_ENV === 'production' && generation.userId !== user.id) {
+    if (process.env.ENABLE_DEV_AUTH !== 'true' && generation.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -58,7 +59,17 @@ export async function GET(
     }
 
     const config = (generation as any).appConfig?.config ?? generation.config ?? null
-    const artifacts = (generation as any).appConfig?.artifacts ?? null
+    const rawArtifacts = (generation as any).appConfig?.artifacts ?? null
+    const overrides = (generation as any).appConfig?.artifactsOverride ?? null
+
+    // Merge: overrides take precedence over original artifacts
+    const artifacts: Record<string, string> | null = rawArtifacts
+      ? { ...(rawArtifacts as Record<string, string>), ...Object.fromEntries(
+          Object.entries(overrides as Record<string, { content: string }> || {})
+            .filter(([key]) => key in (rawArtifacts as Record<string, string>))
+            .map(([key, val]) => [key, val.content])
+        ) }
+      : null
 
     if (!config) {
       return NextResponse.json({ error: 'No config found for this generation' }, { status: 404 })
@@ -95,17 +106,16 @@ export async function GET(
       // Folder 1: config
       zip.file('config/appforge-config.json', JSON.stringify(config, null, 2))
 
-      // Folder 2: database — from artifacts or config
-      const sqlContent = artifacts?.['prisma.schema']
+      // Folder 2: database — real SQL and/or Prisma schema
+      const prismaContent = artifacts?.['prisma.schema']
         || config?.implementationPlan?.prismaSchema
-        || config?.runtime?.sql
         || ''
+      const sqlContent = config?.runtime?.sql || ''
       if (sqlContent) {
         zip.file('database/schema.sql', sqlContent)
-        // Also include prisma schema if it looks like prisma format
-        if (sqlContent.includes('model ') || sqlContent.includes('generator ')) {
-          zip.file('database/schema.prisma', sqlContent)
-        }
+      }
+      if (prismaContent) {
+        zip.file('database/schema.prisma', prismaContent)
       }
 
       // Folder 3: backend — Express server from artifacts or runtime
@@ -160,22 +170,17 @@ export async function GET(
       }
 
       // Check all possible doc locations
-      const docSources = [
-        artifacts,
-        config?.planningDocs,
-        config?.docs,
-      ].find(Boolean) as Record<string, string> | undefined
+      const docSources: Record<string, string> = {
+        ...(config?.docs || {}),
+        ...(config?.planningDocs || {}),
+        ...(artifacts || {}),
+      }
 
-      console.log('[Export] Doc keys found:', docSources ? Object.keys(docSources) : 'none')
-      console.log('[Export] Runtime keys:', config?.runtime ? Object.keys(config.runtime) : 'none')
-      console.log('[Export] Artifacts keys:', artifacts ? Object.keys(artifacts) : 'none')
-
-      if (docSources && typeof docSources === 'object') {
-        for (const [key, content] of Object.entries(docSources)) {
-          if (typeof content === 'string' && content.length > 0) {
-            const fileName = DOC_FILE_NAMES[key] || DOC_FILE_NAMES[key.toLowerCase()] || `${key}.md`
-            zip.file(`docs/${fileName}`, content)
-          }
+      for (const [key, content] of Object.entries(docSources)) {
+        if (typeof content === 'string' && content.length > 0) {
+          const fileName = DOC_FILE_NAMES[key] || DOC_FILE_NAMES[key.toLowerCase()]
+          // Only known planning docs — artifacts also contain code files.
+          if (fileName) zip.file(`docs/${fileName}`, content)
         }
       }
 
@@ -243,7 +248,8 @@ docs/
       },
     })
   } catch (error) {
-    console.error('[API Error] /api/generations/[id]/export:', error)
+    const routeLogger = createLogger({ route: '/api/generations/[id]/export' })
+    routeLogger.error({ err: error, route: '/api/generations/[id]/export' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

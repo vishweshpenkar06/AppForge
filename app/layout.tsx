@@ -2,17 +2,40 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ClerkProvider } from '@clerk/nextjs'
-import Link from 'next/link'
-import AuthControls from './components/auth-controls'
 import { shadcn } from '@clerk/ui/themes'
+import { Toaster } from '@/components/ui/sonner'
+import Navbar from './components/navbar'
 import './globals.css'
 
-const geist = Geist({ subsets: ['latin'] })
-const geistMono = Geist_Mono({ subsets: ['latin'] })
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
+
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://appforge.dev'
 
 export const metadata: Metadata = {
   title: 'AppForge — Natural Language Application Compiler',
-  description: 'Turn product ideas into validated database schemas, API layers, and component trees. 6-stage compiler with cross-layer validation.',
+  description:
+    'Turn product ideas into validated database schemas, API layers, and component trees. 6-stage compiler with cross-layer validation.',
+  metadataBase: new URL(SITE_URL),
+  icons: {
+    icon: '/icon.svg',
+    apple: '/apple-icon.png',
+  },
+  openGraph: {
+    title: 'AppForge — Natural Language Application Compiler',
+    description:
+      'Turn product ideas into validated database schemas, API layers, and component trees.',
+    url: SITE_URL,
+    siteName: 'AppForge',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AppForge — Natural Language Application Compiler',
+    description:
+      'Turn product ideas into validated database schemas, API layers, and component trees.',
+  },
 }
 
 export default function RootLayout({
@@ -22,39 +45,30 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider appearance={{ theme: shadcn }}>
-      <html lang="en" suppressHydrationWarning>
-        <body className={`${geist.className} ${geistMono.className}`} style={{ margin:0 }}>
+      <html
+        lang="en"
+        suppressHydrationWarning
+        data-scroll-behavior="smooth"
+        className={`${geist.variable} ${geistMono.variable}`}
+      >
+        <body className="antialiased">
 
-          {/* ── Nav ─────────────────────────────────────────────── */}
-          <nav style={{
-            position:'fixed', top:0, width:'100%', height:48, zIndex:50,
-            display:'flex', alignItems:'center', justifyContent:'space-between',
-            padding:'0 24px',
-            background:'rgba(9,9,11,0.85)', backdropFilter:'blur(12px)',
-            borderBottom:'1px solid var(--border)',
-          }}>
-            <Link href="/" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none' }}>
-              <div style={{ width:28, height:28, borderRadius:6, background:'var(--fill-accent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <span style={{ color:'#fff', fontFamily:'var(--font-mono)', fontSize:11, fontWeight:700 }}>AF</span>
-              </div>
-              <span style={{ color:'var(--text-primary)', fontWeight:600, fontSize:14 }}>AppForge</span>
-            </Link>
+          {/* Skip to content */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg focus:text-sm"
+          >
+            Skip to content
+          </a>
 
-            <div style={{ display:'flex', gap:24, alignItems:'center' }}>
-              <Link href="/compiler" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Compiler</Link>
-              <Link href="/demo" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Examples</Link>
-              <Link href="/dashboard" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Dashboard</Link>
-              <Link href="/pricing" style={{ color:'var(--text-secondary)', fontSize:13, textDecoration:'none' }}>Pricing</Link>
-            </div>
+          <Navbar />
 
-            <AuthControls />
-          </nav>
-
-          {/* ── Main ────────────────────────────────────────────── */}
-          <main style={{ paddingTop:48 }}>
+          <main id="main-content" className="pt-12 md:pt-14">
             {children}
           </main>
 
+          <Analytics />
+          <Toaster theme="dark" position="bottom-right" richColors closeButton />
         </body>
       </html>
     </ClerkProvider>

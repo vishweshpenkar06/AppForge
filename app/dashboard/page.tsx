@@ -1,9 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { formatDistanceToNow } from 'date-fns'
+import { toast } from 'sonner'
+import {
+  ArrowUpRight,
+  Check,
+  Clock,
+  Copy,
+  Gauge,
+  History,
+  Layers,
+  Sparkles,
+  TrendingUp,
+  Zap,
+} from 'lucide-react'
+import { Counter } from '@/components/ui/motion'
+import { OnboardingTourLazy } from '@/components/onboarding-tour-lazy'
 
 interface Metrics {
   totalGenerations: number
@@ -11,6 +27,7 @@ interface Metrics {
   failedGenerations: number
   successRate: number
   averageDuration?: number
+  averageTokensPerGeneration?: number
 }
 
 interface Generation {
@@ -19,6 +36,32 @@ interface Generation {
   status: string
   createdAt: string
 }
+
+interface GenerationDetail {
+  config?: {
+    metadata?: { name?: string; description?: string }
+    [key: string]: unknown
+  }
+}
+
+const MODES = [
+  { id: 'fast', label: 'Fast' },
+  { id: 'balanced', label: 'Balanced' },
+  { id: 'precise', label: 'Precise' },
+]
+
+const SUGGESTIONS = [
+  'CRM with contacts and deals',
+  'SaaS invoicing with Stripe',
+  'LMS with courses and lessons',
+]
+
+const statusStyle = (status: string) =>
+  ['completed', 'success'].includes(status)
+    ? 'bg-success-subtle text-success border-success/25'
+    : status === 'pending' || status === 'running'
+      ? 'bg-warning-subtle text-warning border-warning/25'
+      : 'bg-danger-subtle text-danger border-danger/25'
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser()
@@ -29,131 +72,395 @@ export default function DashboardPage() {
   const [mode, setMode] = useState('balanced')
   const [submitting, setSubmitting] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [detail, setDetail] = useState<any>(null)
+  const [detail, setDetail] = useState<GenerationDetail | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [query, setQuery] = useState('')
 
-  useEffect(() => { if (isLoaded && !user) router.push('/sign-in') }, [isLoaded, user, router])
+  const loadMetrics = useCallback(() => {
+    fetch('/api/metrics')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setMetrics(d)
+      })
+      .catch(() => {})
+  }, [])
 
-  useEffect(() => {
-    fetch('/api/metrics').then(r => r.json()).then(d => { if (!d.error) setMetrics(d) }).catch(() => {})
-    fetch('/api/generations').then(r => r.json()).then(d => { if (Array.isArray(d)) setGenerations(d) }).catch(() => {})
+  const loadGenerations = useCallback(() => {
+    fetch('/api/generations')
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.items)) setGenerations(d.items)
+      })
+      .catch(() => toast.error('Could not load your history'))
   }, [])
 
   useEffect(() => {
-    if (!selectedId) { setDetail(null); return }
-    fetch(`/api/generations/${selectedId}`).then(r => r.json()).then(setDetail).catch(() => {})
+    if (isLoaded && !user) router.push('/sign-in')
+  }, [isLoaded, user, router])
+
+  useEffect(() => {
+    loadMetrics()
+    loadGenerations()
+  }, [loadMetrics, loadGenerations])
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null)
+      return
+    }
+    let cancelled = false
+    fetch(`/api/generations/${selectedId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setDetail(d)
+      })
+      .catch(() => toast.error('Could not load that compilation'))
+    return () => {
+      cancelled = true
+    }
   }, [selectedId])
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || submitting) return
     setSubmitting(true)
+    setError(null)
     try {
-      const r = await fetch('/api/compile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, mode }) })
+      const r = await fetch('/api/compile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, mode }),
+      })
       const d = await r.json()
-      if (d.jobId) { setSelectedId(d.jobId); setPrompt(''); fetch('/api/generations').then(r => r.json()).then(d => { if (Array.isArray(d)) setGenerations(d) }) }
-    } catch {} finally { setSubmitting(false) }
+      if (!r.ok || d.success === false) {
+        const issues: string[] = d.detectedIssues || []
+        const message =
+          d.error || (issues.length ? `Prompt needs more detail: ${issues.join('; ')}` : 'Compilation failed')
+        setError(message)
+        toast.error(message)
+        return
+      }
+      if (d.jobId) {
+        setSelectedId(d.jobId)
+        setPrompt('')
+        loadGenerations()
+        loadMetrics()
+        toast.success('Compilation finished')
+      } else {
+        setError('Compilation completed but no job id was returned')
+      }
+    } catch {
+      const message = 'Compilation failed — check your connection and try again'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }, [prompt, submitting, mode, loadGenerations, loadMetrics])
+
+  const copyConfig = async () => {
+    if (!detail) return
+    await navigator.clipboard.writeText(JSON.stringify(detail, null, 2))
+    setCopied(true)
+    toast.success('Config copied')
+    setTimeout(() => setCopied(false), 2000)
   }
 
-  if (!isLoaded) return <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}><p style={{ color:'var(--text-muted)' }}>Loading...</p></div>
-
-  const cards = [
-    { label:'Total Compilations', value: metrics ? String(metrics.totalGenerations) : '—', sub:`${metrics?.completedGenerations ?? 0} completed` },
-    { label:'Success Rate', value: metrics ? `${metrics.successRate.toFixed(0)}%` : '—', sub:`${metrics?.failedGenerations ?? 0} failed`, accent: true },
-    { label:'Avg Latency', value: metrics ? `${((metrics.averageDuration ?? 0) / 1000).toFixed(1)}s` : '—', sub:'per generation' },
-    { label:'Repairs Made', value: metrics ? '0' : '—', sub:'auto-fixed' },
-  ]
-
-  return (
-    <div>
-      {/* Nav */}
-      <div style={{ maxWidth:1100, margin:'0 auto', padding:'32px 24px 48px' }}>
-        {/* Header */}
-        <div style={{ marginBottom:32 }}>
-          <h1 style={{ fontSize:24, fontWeight:700, color:'var(--text-primary)', margin:0 }}>Dashboard</h1>
-          <p style={{ fontSize:13, color:'var(--text-muted)', margin:'4px 0 0' }}>Your compilation stats and history</p>
-        </div>
-
-        {/* Stat cards */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:16, marginBottom:40 }}>
-          {cards.map((c) => (
-            <div key={c.label} style={{ padding:20, borderRadius:'var(--radius)', border:'1px solid var(--border)', background:'var(--surface-1)' }}>
-              <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:0 }}>{c.label}</p>
-              <p style={{ fontSize:28, fontWeight:700, color: c.accent ? 'var(--text-success)' : 'var(--text-primary)', margin:'8px 0 4px', letterSpacing:'-0.02em' }}>{c.value}</p>
-              <p style={{ fontSize:11, color:'var(--text-muted)', margin:0 }}>{c.sub}</p>
-            </div>
+  if (!isLoaded) {
+    return (
+      <div className="max-w-[1100px] mx-auto px-4 md:px-6 py-8 md:py-12">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-[104px] skeleton" />
           ))}
         </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+          <div className="h-[260px] skeleton" />
+          <div className="h-[320px] skeleton" />
+        </div>
+      </div>
+    )
+  }
 
-        {/* Two columns */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:24, alignItems:'start' }}>
-          {/* Left: form + detail */}
-          <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-            <div style={{ background:'var(--surface-1)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:24 }}>
-              <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 12px' }}>New Compilation</p>
-              <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your application..."
-                style={{ width:'100%', minHeight:100, background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:12, fontSize:13, color:'var(--text-primary)', fontFamily:'var(--font-mono)', resize:'none', outline:'none', lineHeight:'1.6', marginBottom:12 }}
-              />
-              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                <select value={mode} onChange={(e) => setMode(e.target.value)}
-                  style={{ height:36, background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'0 10px', fontSize:12, color:'var(--text-primary)', fontFamily:'var(--font-mono)', cursor:'pointer' }}>
-                  <option value="balanced">Balanced</option>
-                  <option value="fast">Fast</option>
-                  <option value="precise">Precise</option>
-                </select>
-                <button onClick={handleGenerate} disabled={submitting || !prompt.trim()}
-                  style={{ flex:1, height:36, background:'var(--fill-accent)', color:'#fff', border:'none', borderRadius:'var(--radius)', fontSize:13, fontWeight:600, cursor:'pointer', opacity: submitting || !prompt.trim() ? 0.4 : 1 }}>
-                  {submitting ? 'Compiling...' : 'Generate'}
-                </button>
-              </div>
+  const cards = [
+    {
+      label: 'Compilations',
+      value: metrics?.totalGenerations ?? 0,
+      sub: `${metrics?.completedGenerations ?? 0} completed`,
+      icon: Layers,
+      tone: 'text-forge-200',
+    },
+    {
+      label: 'Success rate',
+      value: metrics?.successRate ?? 0,
+      suffix: '%',
+      sub: `${metrics?.failedGenerations ?? 0} failed`,
+      icon: TrendingUp,
+      tone: 'text-success',
+    },
+    {
+      label: 'Avg latency',
+      value: (metrics?.averageDuration ?? 0) / 1000,
+      decimals: 1,
+      suffix: 's',
+      sub: 'per generation',
+      icon: Clock,
+      tone: 'text-secondary',
+    },
+    {
+      label: 'Avg tokens',
+      value: metrics?.averageTokensPerGeneration ?? 0,
+      sub: 'per generation',
+      icon: Gauge,
+      tone: 'text-warning',
+    },
+  ]
+
+  const visible = query
+    ? generations.filter((g) => g.prompt.toLowerCase().includes(query.toLowerCase()))
+    : generations
+
+  const selected = generations.find((g) => g.id === selectedId)
+
+  return (
+    <div className="relative max-w-[1100px] mx-auto px-4 md:px-6 py-8 md:py-12">
+      <div
+        className="absolute inset-x-0 top-0 h-64 pointer-events-none bg-[radial-gradient(70%_100%_at_50%_0%,rgba(16,185,129,0.10),transparent_70%)]"
+        aria-hidden
+      />
+
+      {/* Header */}
+      <div className="relative mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <p className="font-mono text-[10px] text-accent/80 uppercase tracking-[0.2em] m-0 mb-2">Workspace</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-forge-50 m-0 tracking-tight">
+            {user?.firstName ? `Welcome back, ${user.firstName}` : 'Dashboard'}
+          </h1>
+          <p className="text-sm text-forge-400 m-0 mt-1">Your compilation stats and history</p>
+        </div>
+        <Link
+          href="/compiler"
+          className="group inline-flex items-center gap-2 bg-accent text-forge-950 rounded-xl px-4 py-2.5 text-sm font-semibold no-underline hover:bg-accent-hover transition-all hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.6)] active:scale-[0.98] shrink-0"
+        >
+          <Zap className="w-4 h-4" />
+          New compile
+          <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </Link>
+      </div>
+
+      {/* Stat cards */}
+      <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8" data-tour="stats">
+        {cards.map(({ label, value, suffix, decimals, sub, icon: Icon, tone }) => (
+          <div
+            key={label}
+            className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-forge-900/60 p-4 md:p-5 transition-all hover:border-white/[0.12] hover:bg-forge-900"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.1em] m-0">{label}</p>
+              <Icon className="w-3.5 h-3.5 text-forge-600 transition-colors group-hover:text-forge-400" />
+            </div>
+            <p className={`text-2xl md:text-[26px] font-bold m-0 tracking-tight tabular-nums ${tone}`}>
+              {metrics ? (
+                <Counter value={Number(value)} decimals={decimals} suffix={suffix} />
+              ) : (
+                <span className="inline-block h-7 w-14 rounded bg-white/[0.06] animate-pulse" />
+              )}
+            </p>
+            <p className="text-[11px] text-forge-500 m-0 mt-1">{sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_330px] gap-5 items-start">
+        {/* Left: compose + detail */}
+        <div className="flex flex-col gap-5 min-w-0">
+          <div className="rounded-2xl border border-white/[0.07] bg-forge-900/50 p-5 md:p-6" data-tour="new-compile">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.12em] m-0">New compilation</p>
+              <span className="text-[10px] font-mono text-forge-600">{prompt.length} chars</span>
             </div>
 
-            {detail && (
-              <div style={{ background:'var(--surface-1)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:24 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'start', marginBottom:16 }}>
-                  <div>
-                    <h3 style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)', margin:0 }}>{detail.config?.metadata?.name || 'Generation'}</h3>
-                    <p style={{ fontSize:11, color:'var(--text-muted)', margin:'4px 0 0' }}>{detail.config?.metadata?.description}</p>
-                  </div>
-                  <span style={{ fontSize:10, padding:'2px 8px', borderRadius:999, fontFamily:'var(--font-mono)', background:'var(--bg-success)', color:'var(--text-success)' }}>compiled</span>
-                </div>
-                <pre style={{ background:'var(--surface-2)', padding:16, borderRadius:'var(--radius)', fontSize:11, overflow:'auto', maxHeight:300, color:'var(--text-secondary)', border:'1px solid var(--border)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0 }}>
-                  {JSON.stringify(detail.config, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
+            <label htmlFor="prompt" className="sr-only">
+              Describe your application
+            </label>
+            <textarea
+              id="prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                  e.preventDefault()
+                  void handleGenerate()
+                }
+              }}
+              placeholder="Describe your application in plain English — entities, roles, and the flows that matter..."
+              className="w-full min-h-[132px] bg-forge-950/60 border border-white/[0.07] rounded-xl p-4 text-[13.5px] text-forge-100 font-mono resize-none outline-none leading-relaxed placeholder:text-forge-600 focus:border-accent/60 focus:ring-2 focus:ring-accent/10 transition-all"
+            />
 
-          {/* Right: history */}
-          <div style={{ background:'var(--surface-1)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:20, position:'sticky', top:80 }}>
-            <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 16px' }}>History</p>
-            {generations.length === 0 ? (
-              <p style={{ fontSize:12, color:'var(--text-muted)', textAlign:'center', padding:'24px 0' }}>No generations yet</p>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:500, overflow:'auto' }}>
-                {generations.map((g) => (
-                  <button key={g.id} onClick={() => setSelectedId(g.id)} style={{
-                    width:'100%', textAlign:'left', padding:12, borderRadius:'var(--radius)', border:'1px solid',
-                    borderColor: selectedId === g.id ? 'var(--fill-accent)' : 'var(--border)',
-                    background: selectedId === g.id ? 'var(--fill-accent-subtle)' : 'var(--surface-2)',
-                    cursor:'pointer',
-                  }}>
-                    <p style={{ fontSize:12, fontFamily:'var(--font-mono)', color:'var(--text-primary)', margin:0, lineHeight:'1.5', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {g.prompt.length > 50 ? g.prompt.slice(0, 50) + '...' : g.prompt}
-                    </p>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6 }}>
-                      <span style={{ fontSize:10, color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>{new Date(g.createdAt).toLocaleDateString()}</span>
-                      <span style={{ fontSize:10, padding:'1px 6px', borderRadius:999, fontFamily:'var(--font-mono)',
-                        background: ['completed','success'].includes(g.status) ? 'var(--bg-success)' : g.status === 'pending' ? 'var(--bg-warning)' : 'var(--bg-danger)',
-                        color: ['completed','success'].includes(g.status) ? 'var(--text-success)' : g.status === 'pending' ? 'var(--text-warning)' : 'var(--text-danger)',
-                      }}>{g.status}</span>
-                    </div>
+            <div className="flex flex-wrap gap-1.5 mt-2.5 mb-4">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setPrompt(s)}
+                  className="text-[11px] px-2.5 py-1 rounded-lg border border-white/[0.06] bg-white/[0.02] text-forge-400 hover:text-forge-200 hover:border-white/[0.12] transition-colors cursor-pointer font-mono"
+                >
+                  + {s}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex rounded-xl border border-white/[0.07] bg-forge-950/60 p-0.5" role="group" aria-label="Compile mode">
+                {MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    aria-pressed={mode === m.id}
+                    onClick={() => setMode(m.id)}
+                    className={`flex-1 px-3 py-1.5 rounded-[10px] text-[11.5px] font-mono transition-all cursor-pointer border-none ${
+                      mode === m.id
+                        ? 'bg-forge-700 text-forge-50 shadow-sm'
+                        : 'bg-transparent text-forge-500 hover:text-forge-300'
+                    }`}
+                  >
+                    {m.label}
                   </button>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => void handleGenerate()}
+                disabled={submitting || !prompt.trim()}
+                className="flex-1 h-10 bg-accent text-forge-950 border-none rounded-xl text-sm font-semibold cursor-pointer hover:bg-accent-hover transition-all hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.6)] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none active:scale-[0.99] flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-forge-950/40 border-t-forge-950 rounded-full animate-spin" />
+                    Compiling…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Generate app
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="text-[10.5px] text-forge-600 font-mono m-0 mt-2.5">⌘/Ctrl + Enter to compile</p>
+
+            {error && (
+              <p role="alert" className="mt-3 mb-0 text-xs text-danger bg-danger-subtle border border-danger/20 rounded-lg px-3 py-2.5">
+                {error}
+              </p>
             )}
           </div>
+
+          {/* Detail */}
+          {detail && (
+            <div className="rounded-2xl border border-white/[0.07] bg-forge-900/50 overflow-hidden" style={{ animation: 'reveal-up .4s cubic-bezier(.16,1,.3,1)' }}>
+              <div className="flex items-start justify-between gap-3 p-5 border-b border-white/[0.06]">
+                <div className="min-w-0">
+                  <h3 className="text-[14px] font-semibold text-forge-50 m-0 truncate">
+                    {selected?.prompt || 'Generation'}
+                  </h3>
+                  <p className="text-[11.5px] text-forge-500 m-0 mt-0.5 truncate">
+                    {detail.config?.metadata?.description || selected?.status || 'Compiled bundle'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={copyConfig}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded-lg border border-white/[0.07] bg-white/[0.02] text-forge-300 hover:text-forge-100 hover:border-white/[0.14] transition-colors cursor-pointer"
+                  >
+                    {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
+                  {selectedId && (
+                    <Link
+                      href={`/generated/${selectedId}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-1.5 rounded-lg border border-accent/25 bg-accent-subtle text-accent-hover hover:bg-accent/15 transition-colors no-underline"
+                    >
+                      Open <ArrowUpRight className="w-3 h-3" />
+                    </Link>
+                  )}
+                </div>
+              </div>
+              <pre className="bg-forge-950/70 p-5 text-[11px] overflow-auto max-h-[340px] text-forge-300 font-mono leading-6 m-0">
+                {JSON.stringify(detail.config ?? detail, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
+
+        {/* Right: history */}
+        <aside className="rounded-2xl border border-white/[0.07] bg-forge-900/50 p-4 lg:sticky lg:top-20" data-tour="history">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.12em] m-0 flex items-center gap-1.5">
+              <History className="w-3 h-3" /> History
+            </p>
+            <span className="text-[10px] font-mono text-forge-600">{generations.length}</span>
+          </div>
+
+          {generations.length > 3 && (
+            <>
+              <label htmlFor="history-search" className="sr-only">
+                Filter history
+              </label>
+              <input
+                id="history-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter prompts…"
+                className="w-full h-8 mb-2.5 px-2.5 bg-forge-950/60 border border-white/[0.06] rounded-lg text-[11.5px] text-forge-200 font-mono outline-none placeholder:text-forge-600 focus:border-accent/50 transition-colors"
+              />
+            </>
+          )}
+
+          {generations.length === 0 ? (
+            <div className="text-center py-10">
+              <div className="w-11 h-11 rounded-xl bg-forge-800 border border-white/[0.06] flex items-center justify-center mx-auto mb-3">
+                <Layers className="w-4 h-4 text-forge-500" />
+              </div>
+              <p className="text-xs text-forge-300 m-0">No compilations yet</p>
+              <p className="text-[11px] text-forge-600 m-0 mt-1">Describe your app to get started</p>
+            </div>
+          ) : visible.length === 0 ? (
+            <p className="text-[11.5px] text-forge-500 text-center py-8 m-0">No prompts match “{query}”.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5 max-h-[520px] overflow-auto scrollbar-none pr-0.5">
+              {visible.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => setSelectedId(g.id)}
+                  aria-pressed={selectedId === g.id}
+                  className={`group w-full text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                    selectedId === g.id
+                      ? 'border-accent/30 bg-accent-subtle'
+                      : 'border-white/[0.05] bg-white/[0.015] hover:border-white/[0.12] hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <p className="text-[11.5px] font-mono text-forge-200 m-0 leading-relaxed line-clamp-2">
+                    {g.prompt}
+                  </p>
+                  <div className="flex justify-between items-center mt-2 gap-2">
+                    <span className="text-[10px] text-forge-500 font-mono">
+                      {formatDistanceToNow(new Date(g.createdAt), { addSuffix: true })}
+                    </span>
+                    <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full font-mono border ${statusStyle(g.status)}`}>
+                      {g.status}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </aside>
       </div>
+
+      <OnboardingTourLazy />
     </div>
   )
 }

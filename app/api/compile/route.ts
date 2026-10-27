@@ -19,6 +19,10 @@ import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
 import { analyzePromptClarity } from '@/lib/validation'
 import { canCompile, canUseMode, PLAN_LIMITS, getDetailLevel, TOKEN_MULTIPLIER, type PlanTier } from '@/lib/plan-limits'
+import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
+import { getCache, setCache } from '@/lib/cache'
+import { authenticateViaApiKey, buildApiKeyRateLimitKey } from '@/middleware/verify-api-key'
+import { createLogger } from '@/lib/logger'
 
 type NormalizedComponent = {
   name: string
@@ -136,26 +140,53 @@ interface CompileResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<CompileResponse>> {
-  // In development, allow unauthenticated access for testing
+  // ── Auth: API key first, then Clerk session fallback ──────────
   let userId: string | null = null
-  if (process.env.NODE_ENV === 'production') {
-    const authResult = await auth()
-    userId = authResult.userId
-  } else {
-    // Dev mode: use a default user ID
+  let apiKeyId: string | null = null
+
+  if (process.env.ENABLE_DEV_AUTH === 'true') {
+    // Dev mode: skip auth entirely
     userId = 'dev-user'
+  } else {
+    // 1) Try API key from Authorization header
+    const apiKeyAuth = await authenticateViaApiKey(request)
+    if (apiKeyAuth) {
+      userId = apiKeyAuth.userId
+      apiKeyId = apiKeyAuth.keyId
+    }
+
+    // 2) Fall back to Clerk session
+    if (!userId) {
+      const authResult = await auth()
+      userId = authResult.userId
+    }
   }
 
   if (!userId) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Rate-limit: 5 generations/day per user (skipped in dev mode)
+  if (process.env.ENABLE_DEV_AUTH !== 'true') {
+    const rlKey = apiKeyId
+      ? buildApiKeyRateLimitKey(apiKeyId)
+      : buildRateLimitKey(userId)
+    const rl = checkRateLimit(rlKey)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'rate_limited', resetAt: rl.resetAt.toISOString() },
+        { status: 429 }
+      )
+    }
+  }
+
   let generation: { id: string } | null = null
+  const routeLogger = createLogger({ route: '/api/compile', userId })
 
   try {
     const { prompt, mode = 'balanced' } = (await request.json()) as CompileRequest
 
-    if (!prompt || prompt.trim().length === 0) {
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
       return NextResponse.json(
         { success: false, error: 'Prompt cannot be empty' },
         { status: 400 }
@@ -169,13 +200,32 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       )
     }
 
+    if (!['fast', 'balanced', 'precise'].includes(mode)) {
+      return NextResponse.json(
+        { success: false, error: 'Mode must be one of: fast, balanced, precise' },
+        { status: 400 }
+      )
+    }
+
+    // ── Cache check ──────────────────────────────────────────────
+    const { hit: cacheHit, data: cachedResult } = await getCache(prompt, `${mode}:compile`)
+    if (cacheHit) {
+      console.log(`[${userId}] Cache hit for prompt: ${prompt.substring(0, 50)}...`)
+      return NextResponse.json({ success: true, ...cachedResult, cached: true })
+    }
+
     const startTime = Date.now()
     const stageTimes: Record<string, number> = {}
 
     // Ensure we have a DB user record to attach this generation to
     let user
-    if (process.env.NODE_ENV === 'production') {
-      user = await getOrCreateCurrentUserRecord()
+    if (process.env.ENABLE_DEV_AUTH !== 'true') {
+      if (apiKeyId) {
+        // API-key auth: look up user by clerkId (no Clerk session available)
+        user = await prisma.user.findUnique({ where: { clerkId: userId! } })
+      } else {
+        user = await getOrCreateCurrentUserRecord()
+      }
     } else {
       // Dev mode: find or create a dev user
       user = await prisma.user.upsert({
@@ -265,62 +315,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         confidence: promptAnalysis.confidence,
         detectedIssues: promptAnalysis.detectedIssues,
         clarificationQuestions: promptAnalysis.clarificationQuestions,
-        metrics: { latency: Date.now() - startTime, inputTokens: 0, outputTokens: 0, stageTimes: {} },
-      })
-    }
-
-    // QUICK RULE-BASED FALLBACK: If the user asked for a Snake game (common test case),
-    // produce a concrete implementation plan without calling LLMs so the project
-    // behaves deterministically in dev. This helps when LLM creds are missing or
-    // when the middleware blocks unauthenticated requests.
-    const lc = prompt.toLowerCase()
-    const isSnakePrompt = /\bsnake\b/.test(lc) && /\bapple\b|\bgame\b|\bspike\b|\bobstacle\b/.test(lc)
-    if (isSnakePrompt) {
-      console.log(`[dev-fallback] Detected snake prompt, returning built-in implementation`)
-
-      const prismaSchema = `generator client {\n  provider = "prisma-client-js"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n\nmodel SnakeGame {\n  id        String   @id @default(cuid())\n  state     Json?\n  createdAt DateTime @default(now())\n}\n\nmodel SnakeScore {\n  id        String   @id @default(cuid())\n  player    String\n  score     Int\n  createdAt DateTime @default(now())\n}`
-
-      const apiHandlers = [
-        { path: 'app/api/snake/score/route.ts', content: `import { NextResponse } from 'next/server'\nexport async function GET() {\n  return NextResponse.json({ highScore: 0 })\n}\nexport async function POST(req: Request) {\n  try {\n    const body = await req.json()\n    return NextResponse.json({ ok: true, received: body })\n  } catch (e) {\n    return NextResponse.json({ ok: false, error: String(e) }, { status: 400 })\n  }\n}` },
-      ]
-      const uiPages = [
-        { path: 'app/snake/page.tsx', content: `import React from 'react'\nexport default function SnakePage(){\n  return (<div style={{padding:24}}><h1>Snake Game (Demo)</h1><p>Generated stub. Replace with your game canvas.</p></div>)\n}` },
-      ]
-
-      const docs = {
-        prd: `# PRD - Snake Game\n\n## Product Name\nSnake Game\n\n## Requirement Summary\nSnake game with red snake, green apple, and black spike obstacles.\n\n## Core Value\n- Responsive gameplay\n- Clear visual contrast\n- Simple scoring and restart loop\n\n## Assumptions\n- Single-player browser game\n- Grid-based movement\n- Snake grows when it eats an apple`,
-        trd: `# TRD - Snake Game\n\n## Architecture\n- Frontend: Next.js page with game canvas\n- Backend: Route handler for score persistence\n- Database: Prisma models for game state and scores\n\n## Technical Decisions\n1. Grid-based deterministic game loop\n2. Separate gameplay UI from score persistence\n3. Single route file for all score operations`,
-        appFlow: `# App Flow - Snake Game\n\n1. Open the snake game page\n2. Start a new round\n3. Move snake toward green apple\n4. Avoid black spikes\n5. Score is displayed and persisted`,
-        uiUxBrief: `# UI/UX Brief - Snake Game\n\n## Visual Direction\nHigh-contrast arcade styling with distinct colors for each element.\n\n## Layout\n- Dedicated game canvas\n- Score and instructions panel\n- Clear restart control`,
-        backendSchema: `# Backend Schema - Snake Game\n\n## Tables\n- SnakeGame: gameplay state\n- SnakeScore: score records\n\n## API\n- GET /api/snake/score\n- POST /api/snake/score`,
-        implementationPlan: `# Implementation Plan - Snake Game\n\n1. Build gameplay surface\n2. Wire keyboard controls and collision\n3. Persist scores via API\n4. Polish visuals and restart flow`,
-      }
-
-      const normalizedConfig = {
-        metadata: { name: 'Snake Game', description: 'Generated snake-game starter with docs and route stubs.' },
-        intent: { appType: 'crud', userRoles: ['player'], primaryFeatures: ['gameplay', 'score tracking', 'restart flow'], dataModels: ['snakeGame', 'snakeScore'], assumptions: ['Single-player browser game', 'Grid-based movement'] },
-        design: { pageStructure: [{ name: 'Snake', purpose: 'Playable snake game surface' }], apiEndpoints: [{ path: '/api/snake/score', method: 'GET', purpose: 'Fetch score data' }] },
-        database: { tables: [{ name: 'SnakeGame', columns: [{ name: 'id', type: 'uuid', required: true }, { name: 'state', type: 'json', required: false }, { name: 'createdAt', type: 'datetime', required: true }], relationships: [] }, { name: 'SnakeScore', columns: [{ name: 'id', type: 'uuid', required: true }, { name: 'player', type: 'string', required: true }, { name: 'score', type: 'integer', required: true }, { name: 'createdAt', type: 'datetime', required: true }], relationships: [] }] },
-        api: { endpoints: [{ path: '/api/snake/score', method: 'GET', requestSchema: {}, responseSchema: { type: 'object' } }] },
-        ui: { pages: [{ route: '/snake', components: ['GameBoard', 'ScorePanel'], dataSource: 'GET /api/snake/score' }] },
-        auth: { provider: 'none', roles: [{ name: 'player', permissions: ['read', 'create'] }], session_strategy: 'none' },
-      }
-
-      try {
-        const artifacts: Record<string, string> = { 'PRD.md': docs.prd, 'TRD.md': docs.trd, 'AppFlow.md': docs.appFlow, 'UI-UX-BRIEF.md': docs.uiUxBrief, 'BACKEND-SCHEMA.md': docs.backendSchema, 'IMPLEMENTATION-PLAN.md': docs.implementationPlan, 'prisma.schema': prismaSchema }
-        for (const h of apiHandlers) artifacts[h.path] = h.content
-        for (const p of uiPages) artifacts[p.path] = p.content
-
-        await prisma.appConfig.create({ data: { generationId: generation.id, config: normalizedConfig as any, artifacts, validationPassed: true } })
-        await prisma.generation.update({ where: { id: generation.id }, data: { status: 'success', completedAt: new Date(), totalLatencyMs: Date.now() - startTime } })
-      } catch (err) { console.warn('Failed to persist snake fallback', err) }
-
-      return NextResponse.json({
-        success: true, jobId: generation.id, config: normalizedConfig, docs,
-        implementationPlan: { summary: 'Snake game (fallback)', prismaSchema, apiHandlers, uiPages, rbac: {}, checklist: ['Wire UI canvas', 'Hook up score API', 'Persist scores'] },
-        downloadUrl: `/api/generations/${generation.id}/export?format=zip`,
-        validation: { valid: true, errors: [], warnings: [], score: 100 },
-        execution: { executable: true, issues: [], readyForDeployment: false },
         metrics: { latency: Date.now() - startTime, inputTokens: 0, outputTokens: 0, stageTimes: {} },
       })
     }
@@ -552,7 +546,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       console.warn('Failed to persist generation/appConfig', err)
     }
 
-    return NextResponse.json({
+    const compileResponse = {
       success: true,
       jobId: generation.id,
       config: normalizedConfig,
@@ -583,11 +577,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         express: runtimeExpress,
         react: runtimeReact,
       },
-    })
+    }
+    await setCache(prompt, `${mode}:compile`, compileResponse).catch(() => {})
+    return NextResponse.json(compileResponse)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error during compilation'
 
-    console.error(`[${userId}] Compilation error:`, errorMessage)
+    routeLogger.error({ err: error, generationId: generation?.id }, errorMessage)
 
     try {
       if (generation?.id) {

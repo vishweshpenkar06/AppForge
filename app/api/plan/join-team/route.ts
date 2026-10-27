@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import { createLogger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
     let user
-    if (process.env.NODE_ENV !== 'production') {
+    const routeLogger = createLogger({ route: '/api/plan/join-team' })
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       user = await prisma.user.upsert({
         where: { clerkId: 'dev-user' },
         update: {},
@@ -49,7 +51,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, plan: 'team' })
   } catch (error) {
-    console.error('[API Error] /api/plan/join-team:', error)
+    const routeLogger = createLogger({ route: '/api/plan/join-team' })
+    routeLogger.error({ err: error, route: '/api/plan/join-team' }, 'Request failed')
     return NextResponse.json({ error: 'Failed to join team' }, { status: 500 })
   }
 }

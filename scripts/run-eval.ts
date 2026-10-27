@@ -5,7 +5,6 @@
   try {
     // Import evaluation module (ts-node will transpile on the fly)
     // Use require to avoid ESM import extension issues in ts-node.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { runEvaluation, formatReport } = require('../lib/compiler/evaluation')
 
     console.log('Running deterministic evaluation (DETERMINISTIC_LLM=1)')

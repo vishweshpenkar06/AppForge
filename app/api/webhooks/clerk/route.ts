@@ -2,12 +2,13 @@ import { Webhook } from 'svix'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
 
   if (!WEBHOOK_SECRET) {
-    throw new Error('CLERK_WEBHOOK_SECRET is not set')
+    return NextResponse.json({ error: 'CLERK_WEBHOOK_SECRET is not set' }, { status: 500 })
   }
 
   const headerPayload = await headers()
@@ -16,10 +17,10 @@ export async function POST(req: Request) {
   const svix_signature = headerPayload.get('svix-signature')
 
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response('Error occurred -- no svix headers', {
-      status: 400,
-    })
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
+
+  const routeLogger = createLogger({ route: '/api/webhooks/clerk' })
 
   const body = await req.text()
 
@@ -34,10 +35,8 @@ export async function POST(req: Request) {
       'svix-signature': svix_signature,
     })
   } catch (err) {
-    console.error('Error verifying webhook:', err)
-    return new Response('Error occurred', {
-      status: 400,
-    })
+    routeLogger.error({ err, route: '/api/webhooks/clerk' }, 'Webhook verification failed')
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
   const eventType = evt.type
@@ -55,9 +54,9 @@ export async function POST(req: Request) {
           displayName: `${first_name || ''} ${last_name || ''}`.trim() || email,
         },
       })
-      console.log(`[Webhook] User created: ${id}`)
+      routeLogger.info({ clerkId: id }, 'User created via webhook')
     } catch (error) {
-      console.error('[Webhook] Error creating user:', error)
+      routeLogger.error({ err: error, route: '/api/webhooks/clerk', clerkEvent: 'user.created' }, 'Error creating user')
       // If user already exists, that's fine
     }
   }
@@ -66,20 +65,31 @@ export async function POST(req: Request) {
     const { id } = evt.data
 
     try {
-      // Delete generations first due to foreign key
-      await prisma.generation.deleteMany({
-        where: { user: { clerkId: id } },
-      })
+      const user = await prisma.user.findUnique({ where: { clerkId: id } })
+      if (!user) {
+        routeLogger.warn({ clerkId: id }, 'User not found for deletion')
+        return NextResponse.json({ received: true })
+      }
 
-      await prisma.user.delete({
-        where: { clerkId: id },
-      })
+      // Delete all child records in dependency order
+      await prisma.$transaction([
+        prisma.evalResult.deleteMany({ where: { evalRun: { userId: user.id } } }),
+        prisma.evalRun.deleteMany({ where: { userId: user.id } }),
+        prisma.pipelineStage.deleteMany({ where: { generation: { userId: user.id } } }),
+        prisma.appConfig.deleteMany({ where: { generation: { userId: user.id } } }),
+        prisma.generation.deleteMany({ where: { userId: user.id } }),
+        prisma.webhookEndpoint.deleteMany({ where: { userId: user.id } }),
+        prisma.apiKey.deleteMany({ where: { userId: user.id } }),
+        prisma.teamCode.deleteMany({ where: { ownerId: user.id } }),
+        prisma.template.deleteMany({ where: { authorId: user.id } }),
+        prisma.user.delete({ where: { id: user.id } }),
+      ])
 
-      console.log(`[Webhook] User deleted: ${id}`)
+      routeLogger.info({ clerkId: id }, 'User and all related records deleted')
     } catch (error) {
-      console.error('[Webhook] Error deleting user:', error)
+      routeLogger.error({ err: error, clerkId: id }, 'Error deleting user')
     }
   }
 
-  return new NextResponse('Webhook received', { status: 200 })
+  return NextResponse.json({ received: true })
 }

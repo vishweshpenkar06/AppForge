@@ -13,7 +13,7 @@ User Input (Natural Language)
     POST /api/compile
          ↓
     ┌────────────────────────────────────────────────────────┐
-    │              5-Stage Pipeline                          │
+    │              6-Stage Pipeline                          │
     ├────────────────────────────────────────────────────────┤
     │ 1. Intent Extraction                                   │
     │    ├─ Parse natural language                           │
@@ -40,6 +40,11 @@ User Input (Natural Language)
     │    ├─ Check cross-layer consistency                   │
     │    ├─ Auto-repair common issues                       │
     │    └─ Assign quality score (0-100)                    │
+    │                                                        │
+    │ 6. Export                                              │
+    │    ├─ Generate implementation plan                    │
+    │    ├─ Build Prisma schema, API handlers, UI stubs    │
+    │    └─ Create planning docs (PRD, TRD, etc.)          │
     └────────────────────────────────────────────────────────┘
          ↓
     [Execution Check]

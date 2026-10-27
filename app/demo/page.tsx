@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { ArrowUpRight, Check, Copy } from 'lucide-react'
+import { toast } from 'sonner'
+import { Reveal } from '@/components/ui/motion'
 
 const DEMOS = [
   {
@@ -65,58 +68,90 @@ export default function DemoPage() {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(JSON.stringify(demo.output, null, 2))
-    setCopied(true); setTimeout(() => setCopied(false), 2000)
+    setCopied(true)
+    toast.success('Output copied')
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <div>
-      <div style={{ maxWidth:1100, margin:'0 auto', padding:'32px 24px 48px' }}>
+    <div className="relative">
+      <div className="absolute inset-x-0 top-0 h-64 aurora opacity-40 pointer-events-none" aria-hidden />
+      <div className="relative max-w-[1100px] mx-auto px-4 md:px-6 py-8 md:py-12">
         {/* Header */}
-        <p style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 8px' }}>Examples</p>
-        <h1 style={{ fontSize:28, fontWeight:700, color:'var(--text-primary)', margin:'0 0 8px' }}>Pre-compiled outputs</h1>
-        <p style={{ fontSize:13, color:'var(--text-secondary)', margin:'0 0 32px' }}>Real outputs from the compiler. No cherry-picking.</p>
+        <Reveal>
+          <p className="font-mono text-[10px] text-accent/80 uppercase tracking-[0.2em] m-0 mb-2">Examples</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-forge-50 m-0 mb-2 tracking-tight">Pre-compiled outputs</h1>
+          <p className="text-sm text-forge-400 m-0 mb-8">Real outputs from the compiler. No cherry-picking.</p>
+        </Reveal>
 
         {/* Tabs */}
-        <div style={{ display:'flex', gap:8, marginBottom:24, flexWrap:'wrap' }}>
-          {DEMOS.map((d, i) => (
-            <button key={i} onClick={() => setSelected(i)} style={{
-              padding:'8px 16px', borderRadius:'var(--radius)', fontSize:13, fontFamily:'var(--font-mono)', cursor:'pointer', border:'none',
-              background: selected === i ? 'var(--fill-accent)' : 'var(--surface-1)',
-              color: selected === i ? '#fff' : 'var(--text-secondary)',
-            }}>{d.label}</button>
-          ))}
-        </div>
+        <Reveal delay={60} className="flex gap-1.5 mb-6 flex-wrap" >
+          <div className="flex gap-1.5 flex-wrap" role="tablist" aria-label="Example outputs">
+            {DEMOS.map((d, i) => (
+              <button
+                key={d.label}
+                type="button"
+                onClick={() => setSelected(i)}
+                role="tab"
+                aria-selected={selected === i}
+                aria-controls="demo-output"
+                className={`px-4 py-2 rounded-xl text-[12.5px] font-mono cursor-pointer border transition-all ${
+                  selected === i
+                    ? 'bg-accent text-forge-950 border-accent'
+                    : 'bg-forge-900/60 text-forge-300 border-white/[0.07] hover:bg-forge-800 hover:text-forge-100'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </Reveal>
 
         {/* Split view */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, borderRadius:'var(--radius)', overflow:'hidden', border:'1px solid var(--border)' }}>
-          {/* Input */}
-          <div style={{ background:'var(--surface-1)', padding:24 }}>
-            <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 16px' }}>Prompt</p>
-            <p style={{ fontSize:13, color:'var(--text-secondary)', fontFamily:'var(--font-mono)', lineHeight:'1.7', margin:0 }}>&quot;{demo.prompt}&quot;</p>
+        <Reveal delay={100}>
+          <div className="grid grid-cols-1 md:grid-cols-2 rounded-2xl overflow-hidden border border-white/[0.07] bg-forge-950/40">
+            {/* Input */}
+            <div className="p-6 border-b md:border-b-0 md:border-r border-white/[0.06]">
+              <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.12em] m-0 mb-4">Prompt</p>
+              <p className="text-[13px] text-forge-200 font-mono leading-relaxed m-0">&quot;{demo.prompt}&quot;</p>
 
-            <div style={{ marginTop:24, paddingTop:20, borderTop:'1px solid var(--border)' }}>
-              <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 12px' }}>Result</p>
-              <div style={{ display:'flex', gap:16, fontSize:12, fontFamily:'var(--font-mono)' }}>
-                <span style={{ color:'var(--text-success)' }}>✓ {demo.output.validation?.score}/100</span>
-                <span style={{ color:'var(--text-muted)' }}>{demo.output.database?.tables?.length || 0} tables</span>
-                <span style={{ color:'var(--text-muted)' }}>{demo.output.api?.endpoints?.length || 0} endpoints</span>
+              <Link
+                href={`/compiler?prompt=${encodeURIComponent(demo.prompt)}`}
+                className="group inline-flex items-center gap-1.5 mt-5 px-3 py-1.5 rounded-lg bg-accent-subtle border border-accent/20 text-accent-hover text-[11.5px] font-medium no-underline hover:bg-accent/15 transition-colors"
+              >
+                Try this prompt
+                <ArrowUpRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </Link>
+
+              <div className="mt-6 pt-5 border-t border-white/[0.06]">
+                <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.12em] m-0 mb-3">Result</p>
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11.5px] font-mono">
+                  <span className="text-success">✓ {demo.output.validation?.score}/100</span>
+                  <span className="text-forge-400">{demo.output.database?.tables?.length || 0} tables</span>
+                  <span className="text-forge-400">{demo.output.api?.endpoints?.length || 0} endpoints</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Output */}
-          <div style={{ background:'var(--surface-0)', padding:24, overflow:'auto', maxHeight:600 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-              <p style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.1em', margin:0 }}>Output</p>
-              <button onClick={handleCopy} style={{ fontSize:10, fontFamily:'var(--font-mono)', color:'var(--text-muted)', background:'none', border:'none', cursor:'pointer' }}>
-                {copied ? '✓ Copied' : 'Copy'}
-              </button>
+            {/* Output */}
+            <div id="demo-output" role="tabpanel" className="bg-forge-900/50 p-6 overflow-auto max-h-[600px]">
+              <div className="flex justify-between items-center mb-4">
+                <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.12em] m-0">Output</p>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1.5 text-[10.5px] font-mono text-forge-400 bg-transparent border-none cursor-pointer hover:text-forge-200 transition-colors"
+                >
+                  {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="text-[11.5px] font-mono text-forge-300 leading-6 m-0 whitespace-pre-wrap">
+                {JSON.stringify(demo.output, null, 2)}
+              </pre>
             </div>
-            <pre style={{ fontSize:12, fontFamily:'var(--font-mono)', color:'var(--text-secondary)', lineHeight:'1.7', margin:0, whiteSpace:'pre-wrap' }}>
-              {JSON.stringify(demo.output, null, 2)}
-            </pre>
           </div>
-        </div>
+        </Reveal>
       </div>
     </div>
   )

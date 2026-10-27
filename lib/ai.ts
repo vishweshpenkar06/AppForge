@@ -24,8 +24,10 @@ const PROVIDERS: Record<Provider, ProviderConfig> = {
   groq: {
     baseUrl: 'https://api.groq.com/openai/v1',
     apiKey: process.env.GROQ_API_KEY || '',
-    defaultModel: 'llama-3.3-70b-versatile',
-    fallbackModel: 'llama-3.1-8b-instruct',
+    // llama-3.3-70b-versatile was retired by Groq; gpt-oss-120b is the current
+    // long-context model and emits the large structured JSON these stages need.
+    defaultModel: 'openai/gpt-oss-120b',
+    fallbackModel: 'openai/gpt-oss-20b',
   },
   featherless: {
     baseUrl: 'https://api.featherless.ai/v1',
@@ -56,11 +58,13 @@ function getProviderConfig(provider: Provider): ProviderConfig {
   return PROVIDERS[provider]
 }
 
-// Allow running in deterministic test mode without an external API key
+// Allow running in deterministic test mode without an external API key.
+// Missing keys are reported by /api/health and fail the individual LLM call,
+// rather than crashing every route that imports this module.
 const hasAnyKey = Object.values(PROVIDERS).some((p) => p.apiKey)
 if (!hasAnyKey && process.env.DETERMINISTIC_LLM !== '1') {
-  throw new Error(
-    'LLM API key is required. Set at least one of: NVIDIA_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY — or use DETERMINISTIC_LLM=1.'
+  console.warn(
+    '[ai] No LLM provider key set. Set at least one of: NVIDIA_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY — or use DETERMINISTIC_LLM=1.'
   )
 }
 
@@ -69,14 +73,17 @@ if (!hasAnyKey && process.env.DETERMINISTIC_LLM !== '1') {
 // ============================================================================
 
 export const STAGE_CONFIGS = {
+  // Budgets are sized to what each stage actually emits, not padded: Groq counts
+  // prompt + max_tokens against the per-minute quota, so an oversized reservation
+  // rate-limits the next stage and sends it into the keyword fallback.
   intent: {
     model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
-    max_tokens: 1500,
+    max_tokens: 2500,
     temperature: 0.2,
   },
   design: {
     model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
-    max_tokens: 2500,
+    max_tokens: 3000,
     temperature: 0.1,
   },
   schema: {
@@ -91,7 +98,7 @@ export const STAGE_CONFIGS = {
   },
   repair: {
     model: process.env.LLM_MODEL || getProviderConfig(ACTIVE_PROVIDER).defaultModel,
-    max_tokens: 2500,
+    max_tokens: 3000,
     temperature: 0,
   },
 }
@@ -101,44 +108,103 @@ export const STAGE_CONFIGS = {
 // ============================================================================
 
 /**
- * Extract valid JSON from LLM output, handling markdown fences and text wrapping
+ * Recover JSON that was cut off mid-value by a token budget.
+ * Drops the trailing incomplete pair and closes the containers left open, so a
+ * truncated response still yields the fields the model did finish instead of
+ * forcing the caller into its keyword fallback.
+ */
+function salvageJSON(text: string): unknown | null {
+  const root = text.search(/[{\[]/)
+  if (root === -1) return null
+
+  const stack: Array<{ open: string; start: number; lastComma: number }> = []
+  let inString = false
+  let escaped = false
+
+  for (let i = root; i < text.length; i++) {
+    const ch = text[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') inString = true
+    else if (ch === '{' || ch === '[') stack.push({ open: ch, start: i, lastComma: -1 })
+    else if (ch === '}' || ch === ']') {
+      stack.pop()
+      // Balanced back to the top level: the JSON was complete, prose simply followed it.
+      if (!stack.length) {
+        try {
+          return JSON.parse(text.slice(root, i + 1))
+        } catch {
+          return null
+        }
+      }
+    } else if (ch === ',' && stack.length) stack[stack.length - 1].lastComma = i
+  }
+
+  if (!stack.length) return null
+
+  const closersAt = (depth: number) =>
+    stack
+      .slice(0, depth + 1)
+      .reverse()
+      .map((frame) => (frame.open === '{' ? '}' : ']'))
+      .join('')
+
+  // Truncation landed on a value boundary: only trailing punctuation is missing.
+  const rough = text.slice(root).replace(/[\s,]+$/, '')
+  try {
+    return JSON.parse(rough + closersAt(stack.length - 1))
+  } catch {
+    // fall through to dropping the incomplete value
+  }
+
+  // Cut at the last comma of the deepest container that has one.
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const frame = stack[i]
+    if (frame.lastComma > frame.start) {
+      try {
+        return JSON.parse(text.slice(root, frame.lastComma) + closersAt(i))
+      } catch {
+        break
+      }
+    }
+  }
+
+  return null
+}
+
+function parseLenient<T>(candidate: string): T | null {
+  for (const attempt of [candidate, candidate.replace(/,\s*([\]}])/g, '$1')]) {
+    try {
+      return JSON.parse(attempt) as T
+    } catch {
+      // fall through to salvage
+    }
+    const salvaged = salvageJSON(attempt)
+    if (salvaged !== null) return salvaged as T
+  }
+  return null
+}
+
+/**
+ * Extract valid JSON from LLM output, handling markdown fences, surrounding
+ * prose, trailing commas and truncation.
  */
 export function extractJSON<T = any>(text: string): T | null {
-  try {
-    // First try direct parsing
-    return JSON.parse(text)
-  } catch {
-    // Try extracting from markdown code fences
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-    if (jsonMatch && jsonMatch[1]) {
-      try {
-        return JSON.parse(jsonMatch[1])
-      } catch {
-        // continue to next attempt
-      }
-    }
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  const fromBracket = text.slice(Math.max(text.search(/[{\[]/), 0))
+  const candidates = [text.trim(), fenced?.[1]?.trim(), fromBracket]
 
-    // Try finding raw JSON object/array in text
-    const objectMatch = text.match(/\{[\s\S]*\}(?=\s*$)/)
-    if (objectMatch) {
-      try {
-        return JSON.parse(objectMatch[0])
-      } catch {
-        // continue
-      }
-    }
-
-    const arrayMatch = text.match(/\[[\s\S]*\](?=\s*$)/)
-    if (arrayMatch) {
-      try {
-        return JSON.parse(arrayMatch[0])
-      } catch {
-        // continue
-      }
-    }
-
-    return null
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const parsed = parseLenient<T>(candidate)
+    if (parsed !== null) return parsed
   }
+
+  return null
 }
 
 // ============================================================================
@@ -259,8 +325,22 @@ function isRetryableError(error: unknown): boolean {
 }
 
 /**
- * Core LLM call with provider-aware routing and fallback.
- * Tries the primary provider first; on 429/timeout, falls back to the secondary provider.
+ * Rate limit errors carry the wait the server asked for, so retries land after
+ * the quota window instead of burning attempts with a fixed backoff.
+ */
+class RateLimitError extends Error {
+  constructor(
+    message: string,
+    readonly retryAfterMs: number
+  ) {
+    super(message)
+  }
+}
+
+/**
+ * Core LLM call with provider-aware routing, retry with backoff, and fallback.
+ * Retries the primary provider up to 2 times with exponential backoff before
+ * falling back to the secondary provider.
  */
 export async function callLLM(options: LLMCallOptions) {
   const startTime = Date.now()
@@ -278,35 +358,50 @@ export async function callLLM(options: LLMCallOptions) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 60000)
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: options.max_tokens,
-        temperature: options.temperature,
-        top_p: options.top_p ?? 0.7,
-      }),
-      signal: controller.signal,
-    })
-
-    clearTimeout(timeoutId)
+    let response: Response
+    try {
+      response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: options.max_tokens,
+          temperature: options.temperature,
+          top_p: options.top_p ?? 0.7,
+        }),
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`LLM API error [${provider}] (${response.status}): ${errorText}`)
+      const message = `LLM API error [${provider}] (${response.status}): ${errorText}`
+      if (response.status === 429) {
+        const headerSeconds = Number(response.headers.get('retry-after'))
+        const body = /try again in ([\d.]+)\s*(ms|s)/i.exec(errorText)
+        const bodyMs = body ? Number(body[1]) * (body[2].toLowerCase() === 'ms' ? 1 : 1000) : 0
+        throw new RateLimitError(message, headerSeconds > 0 ? headerSeconds * 1000 : bodyMs || 3000)
+      }
+      throw new Error(message)
     }
 
     const data = await response.json()
     const latencyMs = Date.now() - startTime
 
+    const content = data.choices?.[0]?.message?.content
+    if (content == null) {
+      throw new Error(`LLM API returned empty choices [${provider}]`)
+    }
+
     return {
       success: true,
-      output: data.choices[0].message.content,
+      output: content,
       latencyMs,
       inputTokens: data.usage?.prompt_tokens || 0,
       outputTokens: data.usage?.completion_tokens || 0,
@@ -315,30 +410,60 @@ export async function callLLM(options: LLMCallOptions) {
     }
   }
 
-  try {
-    // Try primary provider
-    return await callProvider(ACTIVE_PROVIDER)
-  } catch (primaryError) {
-    // If retryable and fallback exists, try fallback provider
-    if (FALLBACK_PROVIDER && isRetryableError(primaryError)) {
-      try {
-        console.warn(`[LLM] Primary provider '${ACTIVE_PROVIDER}' failed, trying fallback '${FALLBACK_PROVIDER}'`)
-        return await callProvider(FALLBACK_PROVIDER)
-      } catch (fallbackError) {
-        // Both failed — throw the primary error with fallback context
-        const latencyMs = Date.now() - startTime
-        const err = primaryError instanceof Error ? primaryError : new Error('Unknown error')
-        err.message = `LLM call failed (primary: ${ACTIVE_PROVIDER}, fallback: ${FALLBACK_PROVIDER} also failed): ${err.message} (${latencyMs}ms)`
-        throw err
+  const MAX_PRIMARY_RETRIES = 2
+
+  // Try primary provider with retry + backoff
+  let lastPrimaryError: unknown
+  for (let attempt = 0; attempt <= MAX_PRIMARY_RETRIES; attempt++) {
+    try {
+      return await callProvider(ACTIVE_PROVIDER)
+    } catch (err) {
+      lastPrimaryError = err
+      if (attempt < MAX_PRIMARY_RETRIES && isRetryableError(err)) {
+        // Wait what the server asked for; a shorter guess just wastes an attempt.
+        const delay =
+          err instanceof RateLimitError
+            ? Math.min(err.retryAfterMs + 250, 8000)
+            : Math.min(1000 * 2 ** attempt, 8000)
+        console.warn(`[LLM] Primary '${ACTIVE_PROVIDER}' attempt ${attempt + 1} failed, retrying in ${delay}ms...`)
+        await new Promise((r) => setTimeout(r, delay))
+      } else {
+        break
       }
     }
-
-    // Non-retryable or no fallback — throw original error
-    const latencyMs = Date.now() - startTime
-    const err = primaryError instanceof Error ? primaryError : new Error('Unknown error')
-    err.message = `LLM call failed [${ACTIVE_PROVIDER}]: ${err.message} (${latencyMs}ms)`
-    throw err
   }
+
+  // Rate limits are often per model, so the lighter model has its own quota window.
+  const primaryConfig = getProviderConfig(ACTIVE_PROVIDER)
+  if (lastPrimaryError instanceof RateLimitError && primaryConfig.fallbackModel !== options.model) {
+    try {
+      console.warn(`[LLM] Rate limited on '${options.model}', trying '${primaryConfig.fallbackModel}'`)
+      return await callProvider(ACTIVE_PROVIDER, primaryConfig.fallbackModel)
+    } catch (err) {
+      lastPrimaryError = err
+    }
+  }
+
+  // Primary exhausted — try fallback if available
+  if (FALLBACK_PROVIDER) {
+    try {
+      console.warn(`[LLM] Primary '${ACTIVE_PROVIDER}' exhausted, trying fallback '${FALLBACK_PROVIDER}'`)
+      // Fallback providers use their own model names; the primary's model id is usually invalid there.
+      return await callProvider(FALLBACK_PROVIDER, getProviderConfig(FALLBACK_PROVIDER).defaultModel)
+    } catch (fallbackError) {
+      const latencyMs = Date.now() - startTime
+      const err = lastPrimaryError instanceof Error ? lastPrimaryError : new Error('Unknown error')
+      const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+      err.message = `LLM call failed (primary: ${ACTIVE_PROVIDER}, fallback: ${FALLBACK_PROVIDER} also failed): ${fallbackMessage}; primary error: ${err.message} (${latencyMs}ms)`
+      throw err
+    }
+  }
+
+  // No fallback — throw primary error
+  const latencyMs = Date.now() - startTime
+  const err = lastPrimaryError instanceof Error ? lastPrimaryError : new Error('Unknown error')
+  err.message = `LLM call failed [${ACTIVE_PROVIDER}]: ${err.message} (${latencyMs}ms)`
+  throw err
 }
 
 /**
@@ -498,7 +623,7 @@ export async function callLLMText({ system, prompt, model, maxTokens }: { system
   }
 
   // Otherwise call real LLM
-  const result = await callLLM({ model: model || getProviderConfig(ACTIVE_PROVIDER).defaultModel, max_tokens: maxTokens || 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
+  const result = await callLLM({ model: model || getProviderConfig(ACTIVE_PROVIDER).defaultModel, max_tokens: maxTokens || 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'user', content: prompt }], system })
   return { text: result.output, inputTokens: result.inputTokens, outputTokens: result.outputTokens }
 }
 

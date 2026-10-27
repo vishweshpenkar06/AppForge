@@ -1,6 +1,6 @@
 # ClaudeInfo.md — AppForge Project Context
 
-This document is a complete reference for Claude (or any AI assistant) working on the AppForge codebase. It covers what the project is, how every piece fits together, the data flow, conventions, and gotchas.
+This is the complete reference for any AI assistant working on AppForge. It covers what the project is, how every piece fits together, the data flow, conventions, the design system, and gotchas.
 
 ---
 
@@ -12,10 +12,11 @@ AppForge is a **Natural Language to Application Compiler**. A user writes a plai
 - A runnable Prisma schema with proper relations
 - Express server stubs with JWT auth middleware
 - React component stubs with data fetching
-- 6 planning documents (PRD, TRD, App Flow, UI/UX Brief, Backend Schema, Implementation Plan)
 - Portable SQL, Express, and React runtime files
+- 6 planning documents (PRD, TRD, App Flow, UI/UX Brief, Backend Schema, Implementation Plan)
+- ZIP bundle with organized folders
 
-The key differentiator: it's not a single LLM call. It's a **5-stage pipeline** with Zod validation at every stage, cross-layer consistency checks, and LLM-assisted auto-repair.
+The key differentiator: it's not a single LLM call. It's a **6-stage pipeline** with Zod validation at every stage, cross-layer consistency checks, and LLM-assisted auto-repair.
 
 ---
 
@@ -28,45 +29,102 @@ The key differentiator: it's not a single LLM call. It's a **5-stage pipeline** 
 | Database | PostgreSQL via Prisma | 7.8.0 |
 | Auth | Clerk | 7.4.2 |
 | LLM | Groq (primary) / NVIDIA NIM (fallback) | `llama-3.3-70b-versatile` |
-| UI | React 19 + CSS variables | Dark mode native |
+| UI | React 19 + Tailwind CSS v4 + shadcn/ui | Dark mode native |
 | Validation | Zod | 3.24.1 |
 | ZIP Export | JSZip | — |
+| Fonts | Geist (sans) + Geist Mono (code) | — |
+| Icons | Lucide React | 0.564.0 |
 
 ---
 
-## 2b. Design System (CSS Variables)
+## 3. Design System
 
-All UI uses these variables — no hardcoded hex colors:
+### 3.1 Color Palette
 
-```css
---surface-0: #09090b;        /* Page background */
---surface-1: #111113;        /* Card/panel background */
---surface-2: #1a1a1f;        /* Hover states, inputs */
---border: rgba(255,255,255,0.08);
---text-primary: #f4f4f5;     /* Headings */
---text-secondary: #a1a1aa;   /* Body text */
---text-muted: #52525b;       /* Labels, captions */
---fill-accent: #6366f1;      /* Primary CTA, active states */
---text-accent: #818cf8;      /* Links, code */
---bg-success: rgba(34,197,94,0.12);
---text-success: #4ade80;
---bg-danger: rgba(239,68,68,0.12);
---text-danger: #f87171;
---bg-warning: rgba(245,158,11,0.12);
---text-warning: #fbbf24;
---radius: 10px;
---font-sans: system-ui;
---font-mono: 'SF Mono', monospace;
-```
+AppForge uses a custom dark-mode palette defined in `app/globals.css`. No hardcoded hex colors in components — everything references CSS variables or Tailwind theme tokens.
+
+| Tailwind Token | CSS Variable | Hex | Usage |
+|:---------------|:-------------|:----|:------|
+| `forge-950` | `--surface-0` | `#08080c` | Page background |
+| `forge-900` | `--surface-1` | `#0e0e14` | Primary surface |
+| `forge-800` | `--surface-2` | `#16161e` | Elevated surface, cards, inputs |
+| `forge-700` | `--surface-3` | `#1e1e28` | Panels, secondary surfaces |
+| `forge-600` | `--border` | `rgba(255,255,255,0.06)` | Borders |
+| `forge-500` | `--border-strong` | `rgba(255,255,255,0.12)` | Strong borders |
+| `forge-400` | `--text-muted` | `#6e6e80` | Muted text, labels |
+| `forge-300` | `--text-secondary` | `#9e9eb0` | Secondary text |
+| `forge-200` | `--text-primary` | `#ccccdd` | Primary text |
+| `forge-50` | — | `#eeeef4` | Bright text, headings |
+| `accent` | `--fill-accent` | `#6366f1` | Primary CTA, active states |
+| `accent-hover` | `--text-accent` | `#818cf8` | Links, code, hover states |
+| `accent-pressed` | — | `#4f46e5` | Pressed states |
+| `accent-subtle` | `--fill-accent-subtle` | `rgba(99,102,241,0.12)` | Subtle accent backgrounds |
+| `secondary` | — | `#14b8a6` | Pipeline stages, secondary accent |
+| `secondary-hover` | — | `#2dd4bf` | Secondary hover |
+| `success` | `--text-success` | `#10b981` | Valid states, completions |
+| `success-subtle` | `--bg-success` | `rgba(16,185,129,0.12)` | Success backgrounds |
+| `danger` | `--text-danger` | `#f43f5e` | Errors, destructive actions |
+| `danger-subtle` | `--bg-danger` | `rgba(244,63,94,0.12)` | Error backgrounds |
+| `warning` | `--text-warning` | `#f59e0b` | Assumptions, rate limits |
+| `warning-subtle` | `--bg-warning` | `rgba(245,158,11,0.12)` | Warning backgrounds |
+
+### 3.2 Typography Scale
+
+| Tailwind Class | Size | Weight | Usage |
+|:---------------|:-----|:-------|:------|
+| `text-xs` | 12px | 400 | Labels, meta, status badges |
+| `text-sm` | 14px | 400 | Body, descriptions |
+| `text-base` | 16px | 400 | Body emphasis |
+| `text-lg` | 18px | 500 | Subheadings |
+| `text-xl` | 20px | 600 | Section titles |
+| `text-2xl` | 24px | 700 | Page titles |
+| `text-3xl` | 30px | 700 | Hero subheading |
+| `text-4xl` | 36px | 700 | Hero headline |
+
+**Font usage**:
+- `font-sans` (Geist) — All UI text
+- `font-mono` (Geist Mono) — Code blocks, pipeline stage numbers, technical labels, status badges, section labels
+
+### 3.3 Spacing Scale
+
+All spacing values are multiples of 4px:
+`1=4px, 2=8px, 3=12px, 4=16px, 5=20px, 6=24px, 8=32px, 10=40px, 12=48px, 16=64px, 20=80px`
+
+### 3.4 Button Hierarchy
+
+- **Primary**: `bg-accent text-white` — indigo background, white text, shadow. One per screen.
+- **Secondary**: `border border-forge-600 text-forge-200` — transparent with border.
+- **Ghost**: `text-forge-400 hover:bg-forge-800` — no border, subtle hover.
+- **Danger**: `bg-danger text-white` — rose background for destructive actions.
+
+### 3.5 Focus States
+
+All interactive elements: `focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-forge-950`
+
+### 3.6 Loading / Empty / Error States
+
+- **Loading**: Skeleton shimmer (`.skeleton` class with `skeleton-pulse` animation)
+- **Empty**: Directional text ("Describe your app above to get started"), not "No data"
+- **Error**: `bg-danger-subtle border-danger/30` card with error message + retry action
+
+### 3.7 Signature Element: Pipeline Visualization
+
+The 6-stage pipeline is the visual centerpiece:
+- **Desktop**: Horizontal strip with 56px numbered circles (teal accent), connecting line, animated beam
+- **Mobile**: Vertical layout with left-aligned connecting line
+- **Compiler**: Live stage indicators with pulse animation during compilation, current stage name shown
 
 ---
 
-## 3. Project Structure
+## 4. Project Structure
 
 ```
 AppForge/
-├── proxy.ts                        # Clerk auth proxy (was middleware.ts — Next.js 16)
-├── app/                            # Next.js App Router pages + API routes
+├── proxy.ts                        # Clerk auth proxy (Next.js 16)
+├── app/
+│   ├── globals.css                 # Design system variables + Tailwind @theme
+│   ├── layout.tsx                  # Root layout (ClerkProvider + nav)
+│   ├── page.tsx                    # Landing page
 │   ├── api/
 │   │   ├── compile/route.ts        # MAIN ENDPOINT — synchronous 6-stage compile
 │   │   ├── generate/route.ts       # Async endpoint — fires pipeline in background
@@ -77,51 +135,65 @@ AppForge/
 │   │   ├── plan/join-team/route.ts # Team join API (atomic seat transaction)
 │   │   ├── generations/            # CRUD + ZIP/JSON/YAML export
 │   │   └── webhooks/clerk/         # Clerk webhook handler
-│   ├── compiler/page.tsx           # Compiler UI — two-panel, 7 tabs, export buttons
-│   ├── dashboard/page.tsx          # Dashboard — stats, form, history sidebar
-│   ├── demo/page.tsx               # Pre-compiled examples — split view
-│   ├── pricing/page.tsx            # 3-tier pricing with toggle, comparison, team codes
-│   ├── page.tsx                    # Landing — hero, pipeline strip, metrics, features
+│   ├── compiler/page.tsx           # Two-panel compiler UI
+│   ├── dashboard/page.tsx          # Stats + form + history
+│   ├── demo/page.tsx               # Pre-compiled examples
+│   ├── pricing/page.tsx            # 3-tier pricing
+│   ├── generated/[gid]/page.tsx    # Artifact viewer
+│   ├── builder/page.tsx            # Prompt editor
 │   ├── sign-in/                    # Clerk sign-in
-│   └── sign-up/                    # Clerk sign-up
+│   ├── sign-up/                    # Clerk sign-up
+│   └── components/
+│       └── auth-controls.tsx       # Sign in/up + UserButton
 │
-├── lib/                          # Core business logic
+├── lib/                            # Core business logic
 │   ├── compiler/
-│   │   ├── core.ts               # Pipeline stages 1–5 + validation (810 lines)
-│   │   ├── export.ts             # Stage 6 — Prisma/API/UI generation + 6 docs (656 lines)
-│   │   └── evaluation.ts         # 20-case test suite + report generation (383 lines)
+│   │   ├── core.ts                 # Pipeline stages 1–5 + validation (810 lines)
+│   │   ├── export.ts               # Stage 6 — Prisma/API/UI generation + 6 docs
+│   │   └── evaluation.ts           # 20-case test suite + report generation
 │   ├── runtime/
-│   │   └── generators.ts         # Portable SQL, Express server, React app generation
-│   ├── ai.ts                     # LLM provider registry — Groq/NVIDIA/Featherless + fallback + 60s timeout
-│   ├── plan-limits.ts            # Plan gating + detail levels + output quality tiers
-│   ├── schemas.ts                # Zod schemas for AppConfig, Intent, Auth, DB, API, UI
-│   ├── validation.ts             # Cross-layer consistency checks + prompt clarity analysis
-│   ├── pipeline.ts               # Pipeline orchestrator — delegates to core.ts, persists to DB
-│   ├── metrics.ts                # Quality scoring + user/system metrics
-│   ├── db.ts                     # Prisma client singleton + Clerk user sync
-│   └── clerk-user.ts             # Clerk auth helper
+│   │   └── generators.ts           # Portable SQL, Express server, React app generation
+│   ├── ai.ts                       # LLM provider registry — Groq/NVIDIA/Featherless + fallback + 60s timeout
+│   ├── plan-limits.ts              # Plan gating + detail levels + output quality tiers
+│   ├── schemas.ts                  # Zod schemas for AppConfig, Intent, Auth, DB, API, UI
+│   ├── validation.ts               # Cross-layer consistency checks + prompt clarity analysis
+│   ├── pipeline.ts                 # Pipeline orchestrator — delegates to core.ts, persists to DB
+│   ├── metrics.ts                  # Quality scoring + user/system metrics
+│   ├── db.ts                       # Prisma client singleton + Clerk user sync
+│   └── clerk-user.ts               # Clerk auth helper
 │
 ├── prisma/
-│   └── schema.prisma             # 6 models: User, Generation, PipelineStage, AppConfig, EvalRun/Result, TeamCode
+│   └── schema.prisma               # 6 models: User, Generation, PipelineStage, AppConfig, EvalRun/Result, TeamCode
 │
-├── components/                   # React UI components
-│   ├── ui/                       # shadcn-style primitives (button, card, tabs, etc.)
-│   ├── generation-form.tsx       # Generation input form
-│   ├── generation-history.tsx    # Sidebar history list
-│   ├── generation-detail.tsx     # Result viewer
-│   ├── metrics-dashboard.tsx     # Metrics display
-│   └── loading-spinner.tsx       # Loading indicator
+├── components/                     # React UI components
+│   ├── ui/                         # 57 shadcn/ui components (button, card, tabs, etc.)
+│   ├── Hero.tsx                    # Landing hero with glow, badge, headline, video, CTAs
+│   ├── ExamplePrompts.tsx          # Quick-start prompt chips
+│   ├── GenerationStatus.tsx        # Error classification UI (rate-limit, provider-fallback, etc.)
+│   ├── generation-form.tsx         # Generation input form with ExamplePrompts
+│   ├── generation-detail.tsx       # Tabbed result viewer (Overview/Database/API/Components/Raw)
+│   ├── generation-history.tsx      # Sidebar history list with skeleton loading
+│   ├── loading-spinner.tsx         # Loading indicator
+│   ├── metrics-dashboard.tsx       # Metrics display (4-card grid)
+│   ├── upgrade-banner.tsx          # Upgrade CTA banner
+│   ├── theme-provider.tsx          # next-themes wrapper
+│   └── builder/
+│       └── editor.tsx              # Prompt editor with autosave + history
 │
-├── hooks/                        # Custom React hooks (use-toast, use-mobile)
-├── scripts/                      # Build/test scripts
-├── eval/                         # Evaluation data (evaluation.json)
-├── docs/                         # Documentation (tradeoffs.md)
-└── Changes IN this Project/      # Change log (Fixing Issues and Concerns.md)
+├── styles/
+│   └── globals.css                 # shadcn/ui oklch theme (aligned to forge palette)
+│
+├── hooks/                          # Custom React hooks (use-toast, use-mobile)
+├── scripts/                        # Build/test scripts
+├── eval/                           # Evaluation data (evaluation.json)
+├── docs/                           # Documentation (tradeoffs.md)
+├── UI_AUDIT.md                     # Design system documentation + audit
+└── Changes IN this Project/        # Change log
 ```
 
 ---
 
-## 4. The Compilation Pipeline
+## 5. The Compilation Pipeline
 
 This is the core of AppForge. A single `POST /api/compile` request triggers 6 stages:
 
@@ -173,7 +245,7 @@ This is the core of AppForge. A single `POST /api/compile` request triggers 6 st
 - **UI generation:** `generateUiPage()` creates React pages with fetch + table rendering
 - **Runtime generation:** `generateSQL()`, `generateExpressServer()`, `generateReactApp()` in `lib/runtime/generators.ts`
 
-### Post-Stage 6: Prompt Analysis Gate (pre-pipeline)
+### Pre-Pipeline: Prompt Analysis Gate
 Before Stage 1 runs, `analyzePromptClarity()` in `lib/validation.ts` checks:
 - Prompt length (< 20 chars = low confidence)
 - Vague keywords ("something", "anything", "cool")
@@ -186,13 +258,12 @@ If confidence < 0.6, returns `needs_clarification` with questions instead of com
 
 ---
 
-## 5. LLM Provider System (`lib/ai.ts`)
+## 6. LLM Provider System (`lib/ai.ts`)
 
 ### Provider Registry
 ```typescript
 type Provider = 'nvidia' | 'groq' | 'featherless'
 
-// Each provider has: baseUrl, apiKey, defaultModel, fallbackModel
 const PROVIDERS = {
   nvidia: {
     baseUrl: 'https://integrate.api.nvidia.com/v1',
@@ -229,7 +300,7 @@ const PROVIDERS = {
 
 ---
 
-## 6. Database Schema (Prisma)
+## 7. Database Schema (Prisma)
 
 ### User
 - `id` (cuid), `clerkId` (unique), `email` (unique), `displayName`, `plan` (PlanTier enum: free/pro/team)
@@ -263,14 +334,13 @@ const PROVIDERS = {
 
 ---
 
-## 7. API Endpoints
+## 8. API Endpoints
 
 ### `POST /api/compile` (Main)
 - **Request:** `{ prompt: string, mode?: 'fast'|'balanced'|'precise' }`
 - **Response:** Full compilation result with config, docs, implementationPlan, runtime (SQL/Express/React), validation, execution, metrics
 - **Auth:** Dev mode bypasses Clerk; production requires auth
 - **Prompt limit:** 5000 chars max
-- **Special:** Snake game detection — hardcoded fallback for common test case
 
 ### `POST /api/generate` (Async)
 - **Request:** `{ prompt: string, mode?: string }`
@@ -280,7 +350,6 @@ const PROVIDERS = {
 
 ### `GET /api/evaluate`
 - Runs 20-case evaluation suite, returns aggregated metrics
-- **Response:** `{ success, report, summary }` with successRate, avgLatency, avgValidationScore, etc.
 
 ### `GET /api/health`
 - **Response:** `{ status, pipeline: { llm: { active_provider, fallback_provider, model } }, database, uptime_seconds }`
@@ -289,33 +358,100 @@ const PROVIDERS = {
 - CRUD for generation records
 
 ### `GET /api/generations/[id]/export`
-- Download generated artifacts as zip
+- Export as JSON, YAML, or ZIP
 
 ---
 
-## 8. Frontend Pages
+## 9. Frontend Pages
 
 ### `/` (Landing)
-- Marketing page with feature pills, CTA buttons
+- Hero with pipeline strip (6 stages, animated beam)
+- Metrics section (6 stages, 7 invariants, 20 eval cases)
+- Feature cards (multi-stage pipeline, auto-repair, execution-ready output)
 - Redirects to `/dashboard` if signed in
 
 ### `/compiler` (Compiler UI)
-- Left panel: textarea + example prompts + compile button + stage progress
+- Left panel: textarea + example prompts + mode selector + compile button + pipeline progress
 - Right panel: tabbed results (Config, SQL, Express, React, Validation, Docs, Metrics)
+- Export buttons: JSON, YAML, ZIP
 - Assumptions banner shows what the system assumed
 
 ### `/dashboard` (Dashboard)
-- Metrics dashboard at top
-- Generation form (main content)
-- Generation history sidebar
-- Selected generation detail view
+- 4 stat cards (Total Compilations, Success Rate, Avg Latency, Repairs Made)
+- New Compilation form (textarea + mode selector)
+- Generation detail view (when selected)
+- History sidebar with status badges
 
-### `/sign-in`, `/sign-up`
-- Clerk authentication pages
+### `/demo` (Demo)
+- 3 pre-compiled examples (CRM, LMS, Edge: Vague)
+- Tab switching between examples
+- Split view: prompt input | JSON output
+
+### `/pricing` (Pricing)
+- 3-tier cards (Free, Pro, Team)
+- Monthly/yearly toggle with savings badge
+- Feature comparison table
+- Team code input
+
+### `/generated/[gid]` (Generated Artifacts)
+- Server-rendered artifact viewer
+- 6 markdown docs with preview
+- Download ZIP button
+- Available files grid
+
+### `/builder` (Builder)
+- Prompt editor with autosave
+- History panel with restore/delete
+- Compile result viewer
 
 ---
 
-## 9. Validation System (`lib/validation.ts`)
+## 10. Components
+
+### `components/Hero.tsx`
+- Landing page hero with indigo glow, badge, headline, video embed, CTAs
+- Uses CSS custom properties for glow gradient
+
+### `components/ExamplePrompts.tsx`
+- 3 quick-start prompt chips as buttons
+- Props: `onSelect(prompt)`, `disabled`
+
+### `components/GenerationStatus.tsx`
+- Error classification: rate-limit, provider-fallback, all-providers-failed, generic
+- Each error kind has distinct UI (icon, message, retry button)
+- Props: `status`, `errorMessage`, `onRetry`
+
+### `components/generation-form.tsx`
+- Full generation form with ExamplePrompts, textarea, mode selector
+- Calls `/api/compile` and opens artifact window
+- Props: `onGenerationCreated(jobId)`
+
+### `components/generation-detail.tsx`
+- Tabbed detail viewer (Overview, Database, API, Components, Raw)
+- Auto-polls while generation is pending
+- Props: `generationId`
+
+### `components/generation-history.tsx`
+- Scrollable list of past generations
+- Skeleton loading, empty state, error state with retry
+- Props: `onSelect(id)`, `selectedId`
+
+### `components/metrics-dashboard.tsx`
+- 4-card grid: Total Compilations, Success Rate, Avg Latency, Avg Tokens
+- Fetches from `/api/metrics`
+
+### `components/upgrade-banner.tsx`
+- Inline upgrade CTA with plan info
+- Props: `message`, `currentPlan`
+
+### `components/builder/editor.tsx`
+- Prompt editor with localStorage autosave
+- History panel with save/restore/delete
+- Compile button with result viewer
+
+---
+
+## 11. Validation System (`lib/validation.ts`)
 
 ### `analyzePromptClarity(prompt)` → `PromptAnalysis`
 - Returns: confidence (0-1), needsClarification, detectedIssues[], clarificationQuestions[]
@@ -332,7 +468,7 @@ const PROVIDERS = {
 
 ---
 
-## 10. Evaluation Framework (`lib/compiler/evaluation.ts`)
+## 12. Evaluation Framework (`lib/compiler/evaluation.ts`)
 
 ### Test Cases (20 total)
 **10 Real Products:** CRM, Marketplace, Blog, Project Tracker, Social Feed, E-Commerce, Analytics Dashboard, SaaS App, Health Tracker, Booking System
@@ -348,7 +484,7 @@ const PROVIDERS = {
 
 ---
 
-## 11. Runtime Generators (`lib/runtime/generators.ts`)
+## 13. Runtime Generators (`lib/runtime/generators.ts`)
 
 ### `generateSQL(config)` → SQL string
 - CREATE TABLE statements compatible with SQLite + PostgreSQL
@@ -365,13 +501,20 @@ const PROVIDERS = {
 
 ---
 
-## 12. Key Conventions
+## 14. Key Conventions
 
 ### Naming
 - DB tables: lowercase plural (`users`, `generations`)
 - Prisma models: PascalCase (`User`, `Generation`)
 - API routes: `/api/{entity}` (kebab or singular)
 - UI routes: `/{page-name}`
+
+### Styling
+- All components use Tailwind classes with the forge palette tokens
+- No inline `style={}` in new code — use Tailwind classes
+- CSS variables in `app/globals.css` for legacy inline styles (SVGs, gradients)
+- `cn()` utility from `@/lib/utils` for conditional classes
+- shadcn/ui components in `components/ui/` use their own design tokens
 
 ### Error Handling
 - Pipeline stages catch LLM failures and fall back to deterministic parsers
@@ -381,7 +524,7 @@ const PROVIDERS = {
 ### Token Tracking
 - `callLLMText()` returns `{ text, inputTokens, outputTokens }`
 - `pipeline.ts` accumulates tokens across stages
-- `totalTokens` is correctly summed (was hardcoded to 0 before fix)
+- `totalTokens` is correctly summed
 
 ### State Management
 - No global state library — React hooks + server actions
@@ -395,7 +538,7 @@ const PROVIDERS = {
 
 ---
 
-## 13. Environment Variables
+## 15. Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -411,11 +554,11 @@ const PROVIDERS = {
 
 *At least one LLM key required, or `DETERMINISTIC_LLM=1`.*
 
-**Important:** Do NOT set `LLM_MODEL` unless you need a specific override. The provider config already has the correct default model. Setting `LLM_MODEL=meta/llama-3.3-70b-instruct` will override the NVIDIA model and break compilation.
+**Important:** Do NOT set `LLM_MODEL` unless you need a specific override. The provider config already has the correct default model.
 
 ---
 
-## 14. Known Gotchas & Things to Watch
+## 16. Known Gotchas
 
 1. **proxy.ts handles auth** — Next.js 16 renamed middleware to proxy. Dev mode bypasses ALL `/api/*` routes.
 
@@ -437,9 +580,20 @@ const PROVIDERS = {
 
 10. **Prompt analysis threshold** — Confidence < 0.4 triggers clarification. Short prompts with app-type keywords (CRM, LMS, etc.) pass through.
 
+11. **Two CSS files** — `app/globals.css` (design system + Tailwind @theme) and `styles/globals.css` (shadcn/ui oklch tokens). Both are imported by different parts of the app.
+
+12. **Tailwind v4** — No `tailwind.config.ts` file. Configuration is CSS-first via `@theme inline` in `styles/globals.css` and `@theme` in `app/globals.css`.
+
 ---
 
-## 15. How to Work on This Project
+## 17. How to Work on This Project
+
+### Modifying the UI
+1. Check `UI_AUDIT.md` for the design system (colors, type scale, spacing)
+2. All new components use Tailwind classes with forge palette tokens
+3. Only one primary action per screen (indigo accent button)
+4. Pipeline visualization uses teal accent (`secondary` token)
+5. Run `npx tsc --noEmit` to verify no type errors
 
 ### Adding a New Pipeline Stage
 1. Add the stage function in `lib/compiler/core.ts`
@@ -467,6 +621,6 @@ curl http://localhost:3000/api/evaluate  # Via API
 ### Testing Locally
 ```bash
 npm run dev                   # Start dev server
-# Compile endpoint available at http://localhost:3000/api/compile
-# Auth is bypassed in dev mode for /api/compile
+# Compile endpoint: http://localhost:3000/api/compile
+# Auth is bypassed in dev mode for /api/*
 ```

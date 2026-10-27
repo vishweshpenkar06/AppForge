@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { Search, Star } from 'lucide-react'
 
 interface Generation {
   id: string
@@ -8,6 +9,7 @@ interface Generation {
   status: string
   createdAt: string
   mode: string
+  isFavorite: boolean
 }
 
 interface GenerationHistoryProps {
@@ -15,11 +17,15 @@ interface GenerationHistoryProps {
   selectedId?: string | null
 }
 
+type Tab = 'all' | 'favorites'
+
 export function GenerationHistory({ onSelect, selectedId }: GenerationHistoryProps) {
   const [generations, setGenerations] = useState<Generation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState<Tab>('all')
 
   useEffect(() => {
     let cancelled = false
@@ -46,15 +52,44 @@ export function GenerationHistory({ onSelect, selectedId }: GenerationHistoryPro
     return () => { cancelled = true }
   }, [refreshKey])
 
+  const toggleFavorite = useCallback(async (id: string, current: boolean) => {
+    setGenerations((prev) =>
+      prev.map((g) => (g.id === id ? { ...g, isFavorite: !current } : g))
+    )
+    try {
+      await fetch('/api/generations/search', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isFavorite: !current }),
+      })
+    } catch {
+      setGenerations((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, isFavorite: current } : g))
+      )
+    }
+  }, [])
+
+  const filtered = useMemo(() => {
+    let list = generations
+    if (activeTab === 'favorites') {
+      list = list.filter((g) => g.isFavorite)
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      list = list.filter((g) => g.prompt.toLowerCase().includes(q))
+    }
+    return list
+  }, [generations, activeTab, searchQuery])
+
   if (loading && generations.length === 0) {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">History</p>
-          <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-mono text-forge-400 uppercase tracking-wider">History</p>
+          <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-elevated)] animate-pulse" />
+          <div key={i} className="h-16 rounded-lg border border-white/[0.06] bg-forge-800 skeleton" />
         ))}
       </div>
     )
@@ -63,10 +98,10 @@ export function GenerationHistory({ onSelect, selectedId }: GenerationHistoryPro
   if (error) {
     return (
       <div className="space-y-3">
-        <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">History</p>
-        <div className="p-4 rounded-lg border border-[var(--error)]/20 bg-[var(--error)]/5">
-          <p className="text-xs text-[var(--error)] mb-2">{error}</p>
-          <button onClick={() => setRefreshKey((v) => v + 1)} className="text-xs font-mono text-[var(--accent-primary)] hover:underline">
+        <p className="text-xs font-mono text-forge-400 uppercase tracking-wider">History</p>
+        <div className="p-4 rounded-lg border border-danger/20 bg-danger-subtle">
+          <p className="text-xs text-danger mb-2">{error}</p>
+          <button onClick={() => setRefreshKey((v) => v + 1)} className="text-xs font-mono text-accent-hover hover:underline focus-visible:ring-2 focus-visible:ring-accent/40">
             Retry
           </button>
         </div>
@@ -77,12 +112,10 @@ export function GenerationHistory({ onSelect, selectedId }: GenerationHistoryPro
   if (generations.length === 0) {
     return (
       <div className="space-y-3">
-        <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">History</p>
-        <div className="p-6 rounded-lg border border-dashed border-[var(--bg-border)] text-center">
-          <p className="text-xs text-[var(--text-muted)]">No generations yet</p>
-          <button onClick={() => setRefreshKey((v) => v + 1)} className="text-xs font-mono text-[var(--accent-primary)] hover:underline mt-2">
-            Refresh
-          </button>
+        <p className="text-xs font-mono text-forge-400 uppercase tracking-wider">History</p>
+        <div className="p-6 rounded-lg border border-dashed border-white/[0.06] text-center">
+          <p className="text-xs text-forge-400">No compilations yet.</p>
+          <p className="text-[11px] text-forge-500 mt-1">Your generation history will appear here.</p>
         </div>
       </div>
     )
@@ -91,37 +124,84 @@ export function GenerationHistory({ onSelect, selectedId }: GenerationHistoryPro
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider">History</p>
-        <button onClick={() => setRefreshKey((v) => v + 1)} className="text-xs font-mono text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
+        <p className="text-xs font-mono text-forge-400 uppercase tracking-wider">History</p>
+        <button onClick={() => setRefreshKey((v) => v + 1)} className="text-xs font-mono text-forge-400 hover:text-forge-300 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">
           Refresh
         </button>
       </div>
+
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-forge-500" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search prompts..."
+          className="w-full pl-8 pr-3 py-1.5 text-xs font-mono rounded-lg border border-white/[0.06] bg-forge-800 text-forge-100 placeholder:text-forge-500 focus:outline-none focus:ring-1 focus:ring-accent/40"
+        />
+      </div>
+
+      <div className="flex gap-1">
+        {(['all', 'favorites'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 px-2 py-1 text-[10px] font-mono rounded transition-colors focus-visible:ring-2 focus-visible:ring-accent/40
+              ${activeTab === tab
+                ? 'bg-accent/10 text-accent'
+                : 'text-forge-400 hover:text-forge-300'}`}
+          >
+            {tab === 'all' ? 'All' : 'Favorites'}
+          </button>
+        ))}
+      </div>
+
       <div className="space-y-2 max-h-[600px] overflow-y-auto">
-        {generations.map((gen) => (
+        {filtered.length === 0 && (
+          <div className="p-4 rounded-lg border border-dashed border-white/[0.06] text-center">
+            <p className="text-xs text-forge-400">
+              {searchQuery ? 'No matches found.' : activeTab === 'favorites' ? 'No favorites yet.' : 'No results.'}
+            </p>
+          </div>
+        )}
+        {filtered.map((gen) => (
           <button
             key={gen.id}
             onClick={() => onSelect?.(gen.id)}
-            className={`w-full text-left p-4 rounded-lg border transition-all duration-150
+            className={`w-full text-left p-4 rounded-lg border transition-all duration-150 cursor-pointer
               ${selectedId === gen.id
-                ? 'border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/5'
-                : 'border-[var(--bg-border)] bg-[var(--bg-elevated)] hover:border-[var(--accent-primary)]/20 hover:bg-[var(--bg-surface)]'
-              }`}
+                ? 'border-accent/40 bg-accent-subtle'
+                : 'border-white/[0.06] bg-forge-800 hover:border-white/[0.12]'}`}
           >
             <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-mono text-[var(--text-primary)] line-clamp-2 leading-relaxed flex-1">
+              <p className="text-xs font-mono text-forge-50 line-clamp-2 leading-relaxed flex-1">
                 {gen.prompt.length > 60 ? `${gen.prompt.substring(0, 60)}...` : gen.prompt}
               </p>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-mono
-                ${['completed', 'success'].includes(gen.status)
-                  ? 'bg-[var(--success)]/10 text-[var(--success)]'
-                  : gen.status === 'pending'
-                  ? 'bg-[var(--warning)]/10 text-[var(--warning)]'
-                  : 'bg-[var(--error)]/10 text-[var(--error)]'
-                }`}>
-                {gen.status}
-              </span>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleFavorite(gen.id, gen.isFavorite)
+                  }}
+                  className="p-0.5 rounded hover:bg-white/[0.06] transition-colors focus-visible:ring-2 focus-visible:ring-accent/40"
+                  aria-label={gen.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  <Star
+                    className={`w-3.5 h-3.5 ${gen.isFavorite ? 'fill-amber-400 text-amber-400' : 'text-forge-500'}`}
+                  />
+                </button>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono
+                  ${['completed', 'success'].includes(gen.status)
+                    ? 'bg-success-subtle text-success'
+                    : gen.status === 'pending'
+                    ? 'bg-warning-subtle text-warning'
+                    : 'bg-danger-subtle text-danger'
+                  }`}>
+                  {gen.status}
+                </span>
+              </div>
             </div>
-            <p className="text-[10px] text-[var(--text-muted)] mt-2 font-mono">
+            <p className="text-[10px] text-forge-400 mt-2 font-mono">
               {new Date(gen.createdAt).toLocaleDateString()}
             </p>
           </button>

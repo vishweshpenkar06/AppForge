@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/db'
 import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import { createLogger } from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,
@@ -10,7 +11,7 @@ export async function GET(
   try {
     let userId: string | null = null
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.ENABLE_DEV_AUTH === 'true') {
       userId = 'dev-user'
     } else {
       const authResult = await auth()
@@ -24,7 +25,7 @@ export async function GET(
     const { id } = await params
 
     let user = null
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.ENABLE_DEV_AUTH !== 'true') {
       user = await getOrCreateCurrentUserRecord()
       if (!user || user.clerkId !== userId) {
         return NextResponse.json({ error: 'User not found in database' }, { status: 404 })
@@ -56,7 +57,7 @@ export async function GET(
     }
 
     // Ensure user owns this generation (skip in dev mode)
-    if (process.env.NODE_ENV === 'production' && generation.userId !== user.id) {
+    if (process.env.ENABLE_DEV_AUTH !== 'true' && generation.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -69,7 +70,8 @@ export async function GET(
       errorMessage: generation.errorMessage,
     })
   } catch (error) {
-    console.error('[API Error] /api/generations/[id]/status:', error)
+    const routeLogger = createLogger({ route: '/api/generations/[id]/status' })
+    routeLogger.error({ err: error, route: '/api/generations/[id]/status' }, 'Request failed')
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

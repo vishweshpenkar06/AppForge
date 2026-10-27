@@ -10,7 +10,7 @@ export default function BuilderPage() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">AppForge Builder</h1>
-          <p className="text-sm text-zinc-400">Describe your product and build a reproducible application blueprint.</p>
+          <p className="text-sm text-forge-400">Describe your product and build a reproducible application blueprint.</p>
         </div>
 
         <BuilderEditor />
