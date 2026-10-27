@@ -3,11 +3,12 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { shadcn } from '@clerk/ui/themes'
+import { Toaster } from '@/components/ui/sonner'
 import Navbar from './components/navbar'
 import './globals.css'
 
-const geist = Geist({ subsets: ['latin'] })
-const geistMono = Geist_Mono({ subsets: ['latin'] })
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://appforge.dev'
 
@@ -16,20 +17,16 @@ export const metadata: Metadata = {
   description:
     'Turn product ideas into validated database schemas, API layers, and component trees. 6-stage compiler with cross-layer validation.',
   metadataBase: new URL(SITE_URL),
+  icons: {
+    icon: '/icon.svg',
+    apple: '/apple-icon.png',
+  },
   openGraph: {
     title: 'AppForge — Natural Language Application Compiler',
     description:
       'Turn product ideas into validated database schemas, API layers, and component trees.',
     url: SITE_URL,
     siteName: 'AppForge',
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'AppForge — Natural Language Application Compiler',
-      },
-    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -38,7 +35,6 @@ export const metadata: Metadata = {
     title: 'AppForge — Natural Language Application Compiler',
     description:
       'Turn product ideas into validated database schemas, API layers, and component trees.',
-    images: ['/og-image.png'],
   },
 }
 
@@ -49,8 +45,13 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider appearance={{ theme: shadcn }}>
-      <html lang="en" suppressHydrationWarning>
-        <body className={`${geist.className} ${geistMono.className}`}>
+      <html
+        lang="en"
+        suppressHydrationWarning
+        data-scroll-behavior="smooth"
+        className={`${geist.variable} ${geistMono.variable}`}
+      >
+        <body className="antialiased">
 
           {/* Skip to content */}
           <a
@@ -62,11 +63,12 @@ export default function RootLayout({
 
           <Navbar />
 
-          <main id="main-content" className="pt-14 md:pt-14">
+          <main id="main-content" className="pt-12 md:pt-14">
             {children}
           </main>
 
           <Analytics />
+          <Toaster theme="dark" position="bottom-right" richColors closeButton />
         </body>
       </html>
     </ClerkProvider>

@@ -66,7 +66,7 @@ async function getRedis() {
 
 export interface CacheResult {
   hit: boolean
-  data?: unknown
+  data?: Record<string, unknown>
   cachedAt?: string
 }
 
@@ -94,7 +94,7 @@ export async function getCache(prompt: string, mode: string): Promise<CacheResul
     const entry = await prisma.cacheEntry.findUnique({ where: { cacheKey: key } })
     if (entry && entry.expiresAt > new Date()) {
       totalHits++
-      return { hit: true, data: entry.result, cachedAt: entry.createdAt.toISOString() }
+      return { hit: true, data: entry.result as Record<string, unknown>, cachedAt: entry.createdAt.toISOString() }
     }
     if (entry) {
       await prisma.cacheEntry.delete({ where: { cacheKey: key } }).catch(() => {})

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Pagination params
-    const limit = Math.min(Number(request.nextUrl.searchParams.get('limit') || '20'), 50)
+    const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit')) || 20, 1), 50)
     const cursor = request.nextUrl.searchParams.get('cursor')
 
     const generations = await prisma.generation.findMany({

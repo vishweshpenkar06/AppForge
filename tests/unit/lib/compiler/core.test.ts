@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 // Must set env BEFORE importing ai.ts (which checks keys at module load)
 process.env.DETERMINISTIC_LLM = '1'
@@ -28,6 +28,8 @@ const MOCK_INTENT: Intent = {
   dataModels: ['users', 'contacts'],
   complexities: [],
   assumptions: ['test fixture'],
+  premiumFeatures: [],
+  userFlows: [],
 }
 
 const MOCK_DESIGN: SystemDesign = {

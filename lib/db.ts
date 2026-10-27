@@ -59,7 +59,7 @@ export async function syncUserFromClerk(clerkId: string, email: string, displayN
             { existingClerkId: existing.clerkId, newClerkId: clerkId, email },
             'Email collision detected — rejecting sync to prevent account takeover',
           )
-          return existing
+          return null
         }
         return await prisma.user.update({
           where: { id: existing.id },

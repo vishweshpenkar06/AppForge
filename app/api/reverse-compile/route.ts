@@ -50,10 +50,16 @@ function parseRepoUrl(url: string): { owner: string; repo: string; branch: strin
     if (parts.length < 2) return null
     const owner = parts[0]!
     const repo = parts[1]!
+    // Keep path segments inside the GitHub REST namespace.
+    const SAFE_SEGMENT = /^[A-Za-z0-9_.-]+$/
+    if (!SAFE_SEGMENT.test(owner) || !SAFE_SEGMENT.test(repo)) return null
+
     // Allow optional /tree/branch suffix
     let branch = 'HEAD'
     if (parts.length >= 4 && parts[2] === 'tree') {
-      branch = parts[3] ?? 'HEAD'
+      branch = parts.slice(3).join('/') || 'HEAD'
+      // Branch names may contain slashes, but never traversal segments.
+      if (!/^[A-Za-z0-9_./-]+$/.test(branch) || branch.includes('..')) return null
     }
     return { owner, repo, branch }
   } catch {
@@ -182,13 +188,12 @@ export async function POST(request: NextRequest) {
       .slice(0, 15)
 
     const fileContents: string[] = []
-    const fetchPromises = toFetch.map(async (e) => {
+    await Promise.all(toFetch.map(async (e) => {
       const content = await fetchFile(owner, repo, e.path, branch)
       if (content) {
         fileContents.push(`### ${e.path}\n\`\`\`\n${content}\n\`\`\``)
       }
-    })
-    await Promise.all(fetchPromises)
+    }))
 
     // ── 3. Build file tree string ──────────────────────────
     const treeStr = buildFileTree(entries.slice(0, TREE_SOFT_LIMIT))

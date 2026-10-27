@@ -106,17 +106,16 @@ export async function GET(
       // Folder 1: config
       zip.file('config/appforge-config.json', JSON.stringify(config, null, 2))
 
-      // Folder 2: database — from artifacts or config
-      const sqlContent = artifacts?.['prisma.schema']
+      // Folder 2: database — real SQL and/or Prisma schema
+      const prismaContent = artifacts?.['prisma.schema']
         || config?.implementationPlan?.prismaSchema
-        || config?.runtime?.sql
         || ''
+      const sqlContent = config?.runtime?.sql || ''
       if (sqlContent) {
         zip.file('database/schema.sql', sqlContent)
-        // Also include prisma schema if it looks like prisma format
-        if (sqlContent.includes('model ') || sqlContent.includes('generator ')) {
-          zip.file('database/schema.prisma', sqlContent)
-        }
+      }
+      if (prismaContent) {
+        zip.file('database/schema.prisma', prismaContent)
       }
 
       // Folder 3: backend — Express server from artifacts or runtime
@@ -171,22 +170,17 @@ export async function GET(
       }
 
       // Check all possible doc locations
-      const docSources = [
-        artifacts,
-        config?.planningDocs,
-        config?.docs,
-      ].find(Boolean) as Record<string, string> | undefined
+      const docSources: Record<string, string> = {
+        ...(config?.docs || {}),
+        ...(config?.planningDocs || {}),
+        ...(artifacts || {}),
+      }
 
-      console.log('[Export] Doc keys found:', docSources ? Object.keys(docSources) : 'none')
-      console.log('[Export] Runtime keys:', config?.runtime ? Object.keys(config.runtime) : 'none')
-      console.log('[Export] Artifacts keys:', artifacts ? Object.keys(artifacts) : 'none')
-
-      if (docSources && typeof docSources === 'object') {
-        for (const [key, content] of Object.entries(docSources)) {
-          if (typeof content === 'string' && content.length > 0) {
-            const fileName = DOC_FILE_NAMES[key] || DOC_FILE_NAMES[key.toLowerCase()] || `${key}.md`
-            zip.file(`docs/${fileName}`, content)
-          }
+      for (const [key, content] of Object.entries(docSources)) {
+        if (typeof content === 'string' && content.length > 0) {
+          const fileName = DOC_FILE_NAMES[key] || DOC_FILE_NAMES[key.toLowerCase()]
+          // Only known planning docs — artifacts also contain code files.
+          if (fileName) zip.file(`docs/${fileName}`, content)
         }
       }
 

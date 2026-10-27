@@ -52,23 +52,30 @@ export async function GET(
   const chunks: Buffer[] = []
   const archive = archiver('zip', { zlib: { level: 9 } })
 
-  await new Promise<void>((resolve, reject) => {
-    archive.on('data', (chunk: Buffer) => chunks.push(chunk))
-    archive.on('end', resolve)
-    archive.on('error', reject)
+  let zipBuffer: Buffer
+  try {
+    await new Promise<void>((resolve, reject) => {
+      archive.on('data', (chunk: Buffer) => chunks.push(chunk))
+      archive.on('end', resolve)
+      archive.on('error', reject)
 
-    for (const [filePath, content] of Object.entries(artifacts)) {
-      archive.append(content, { name: filePath })
-    }
-    archive.finalize()
-  })
+      for (const [filePath, content] of Object.entries(artifacts)) {
+        if (typeof content === 'string') archive.append(content, { name: filePath })
+      }
+      archive.finalize()
+    })
+    zipBuffer = Buffer.concat(chunks)
+  } catch (error) {
+    console.error('[generated/download] Failed to build archive:', error)
+    return NextResponse.json({ error: 'Failed to build archive' }, { status: 500 })
+  }
 
-  const zipBuffer = Buffer.concat(chunks)
+  const safeName = gid.replace(/[^A-Za-z0-9_-]/g, '')
 
   return new Response(zipBuffer, {
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="${gid}.zip"`,
+      'Content-Disposition': `attachment; filename="${safeName}.zip"`,
     },
   })
 }

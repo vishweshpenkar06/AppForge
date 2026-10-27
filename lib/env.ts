@@ -10,7 +10,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1, 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required'),
 
   // LLM Providers (at least one required)
-  NVIDIA_NIM_API_KEY: z.string().optional(),
+  NVIDIA_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
   FEATHERLESS_API_KEY: z.string().optional(),
 
@@ -60,10 +60,10 @@ export function getEnv(): Env {
   }
 
   // Warn if no LLM provider keys are set
-  const hasLLMKey = result.data.NVIDIA_NIM_API_KEY || result.data.GROQ_API_KEY || result.data.FEATHERLESS_API_KEY
+  const hasLLMKey = result.data.NVIDIA_API_KEY || result.data.GROQ_API_KEY || result.data.FEATHERLESS_API_KEY
   if (!hasLLMKey && result.data.DETERMINISTIC_LLM !== '1') {
     console.warn(
-      '[env] WARNING: No LLM provider API keys set. Set DETERMINISTIC_LLM=1 or provide at least one of: NVIDIA_NIM_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY'
+      '[env] WARNING: No LLM provider API keys set. Set DETERMINISTIC_LLM=1 or provide at least one of: NVIDIA_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY'
     )
   }
 

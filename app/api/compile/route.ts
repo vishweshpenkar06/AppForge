@@ -186,7 +186,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
   try {
     const { prompt, mode = 'balanced' } = (await request.json()) as CompileRequest
 
-    if (!prompt || prompt.trim().length === 0) {
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
       return NextResponse.json(
         { success: false, error: 'Prompt cannot be empty' },
         { status: 400 }
@@ -200,11 +200,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
       )
     }
 
+    if (!['fast', 'balanced', 'precise'].includes(mode)) {
+      return NextResponse.json(
+        { success: false, error: 'Mode must be one of: fast, balanced, precise' },
+        { status: 400 }
+      )
+    }
+
     // ── Cache check ──────────────────────────────────────────────
-    const { hit: cacheHit, data: cachedResult } = await getCache(prompt, mode)
+    const { hit: cacheHit, data: cachedResult } = await getCache(prompt, `${mode}:compile`)
     if (cacheHit) {
       console.log(`[${userId}] Cache hit for prompt: ${prompt.substring(0, 50)}...`)
-      return NextResponse.json({ ...cachedResult, cached: true })
+      return NextResponse.json({ success: true, ...cachedResult, cached: true })
     }
 
     const startTime = Date.now()
@@ -366,7 +373,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         execution: { executable: true, issues: [], readyForDeployment: false },
         metrics: { latency: Date.now() - startTime, inputTokens: 0, outputTokens: 0, stageTimes: {} },
       }
-      await setCache(prompt, mode, snakeResponse).catch(() => {})
+      await setCache(prompt, `${mode}:compile`, snakeResponse).catch(() => {})
       return NextResponse.json(snakeResponse)
     }
 
@@ -629,7 +636,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CompileRe
         react: runtimeReact,
       },
     }
-    await setCache(prompt, mode, compileResponse).catch(() => {})
+    await setCache(prompt, `${mode}:compile`, compileResponse).catch(() => {})
     return NextResponse.json(compileResponse)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error during compilation'

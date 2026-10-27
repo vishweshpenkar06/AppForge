@@ -43,10 +43,10 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Cache check ──────────────────────────────────────────────
-    const { hit: cacheHit, data: cachedResult } = await getCache(prompt, mode)
+    const { hit: cacheHit, data: cachedResult } = await getCache(prompt, `${mode}:generate`)
     if (cacheHit) {
       console.log(`[Cache] Hit for generate prompt: ${prompt.substring(0, 50)}...`)
-      return NextResponse.json({ ...cachedResult, cached: true })
+      return NextResponse.json({ success: true, ...cachedResult, cached: true })
     }
 
     // Create or sync the database user on demand so webhooks are not a hard dependency.
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     generateApplication(generation.id, prompt, mode)
       .then(async (result) => {
         if (result.success) {
-          await setCache(prompt, mode, {
+          await setCache(prompt, `${mode}:generate`, {
             jobId: generation.id,
             status: 'completed',
             config: result.appConfig,

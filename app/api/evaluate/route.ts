@@ -1,13 +1,26 @@
 /**
- * GET /api/evaluate — return persisted eval run history
+ * GET /api/evaluate — return the current user's persisted eval run history
  * POST /api/evaluate — run evaluation, persist, and return results
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { runEvaluation, formatReport } from '@/lib/compiler/evaluation'
+import { runEvaluation } from '@/lib/compiler/evaluation'
 import { createLogger } from '@/lib/logger'
 import { prisma } from '@/lib/db'
+import { getOrCreateCurrentUserRecord } from '@/lib/clerk-user'
+import { checkRateLimit } from '@/lib/rate-limit'
+
+async function resolveUser() {
+  if (process.env.ENABLE_DEV_AUTH === 'true') {
+    return prisma.user.upsert({
+      where: { clerkId: 'dev-user' },
+      update: {},
+      create: { clerkId: 'dev-user', email: 'dev@appforge.local', displayName: 'Dev User' },
+    })
+  }
+  return getOrCreateCurrentUserRecord()
+}
 
 export async function GET(_request: NextRequest): Promise<NextResponse> {
   return handleHistory()
@@ -20,7 +33,12 @@ export async function POST(_request: NextRequest): Promise<NextResponse> {
 async function handleHistory(): Promise<NextResponse> {
   const routeLogger = createLogger({ route: '/api/evaluate/history' })
   try {
+    const user = await resolveUser()
+    // No session: show nothing rather than every user's runs.
+    if (!user) return NextResponse.json({ success: true, runs: [] })
+
     const runs = await prisma.evalRun.findMany({
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       take: 50,
       include: {
@@ -39,16 +57,28 @@ async function handleHistory(): Promise<NextResponse> {
 }
 
 async function handleRunEvaluation(): Promise<NextResponse> {
-  const { userId } = await auth()
-  const routeLogger = createLogger({ route: '/api/evaluate', userId })
+  const routeLogger = createLogger({ route: '/api/evaluate' })
 
   try {
-    const routeLogger = createLogger({ route: '/api/evaluate', userId })
+    const user = await resolveUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Evaluation runs every prompt against the full pipeline — throttle it.
+    const rl = checkRateLimit(`eval:${user.id}`)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Rate limited. Try again later.', resetAt: rl.resetAt.toISOString() },
+        { status: 429 },
+      )
+    }
+
     const report = await runEvaluation()
 
     const evalRun = await prisma.evalRun.create({
       data: {
-        userId: userId || null,
+        userId: user.id,
         name: `Eval #${Date.now()}`,
         description: `Success rate: ${report.successRate.toFixed(1)}%`,
         results: {

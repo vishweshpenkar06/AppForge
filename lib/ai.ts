@@ -56,11 +56,13 @@ function getProviderConfig(provider: Provider): ProviderConfig {
   return PROVIDERS[provider]
 }
 
-// Allow running in deterministic test mode without an external API key
+// Allow running in deterministic test mode without an external API key.
+// Missing keys are reported by /api/health and fail the individual LLM call,
+// rather than crashing every route that imports this module.
 const hasAnyKey = Object.values(PROVIDERS).some((p) => p.apiKey)
 if (!hasAnyKey && process.env.DETERMINISTIC_LLM !== '1') {
-  throw new Error(
-    'LLM API key is required. Set at least one of: NVIDIA_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY — or use DETERMINISTIC_LLM=1.'
+  console.warn(
+    '[ai] No LLM provider key set. Set at least one of: NVIDIA_API_KEY, GROQ_API_KEY, FEATHERLESS_API_KEY — or use DETERMINISTIC_LLM=1.'
   )
 }
 
@@ -279,23 +281,26 @@ export async function callLLM(options: LLMCallOptions) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 60000)
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        max_tokens: options.max_tokens,
-        temperature: options.temperature,
-        top_p: options.top_p ?? 0.7,
-      }),
-      signal: controller.signal,
-    })
-
-    clearTimeout(timeoutId)
+    let response: Response
+    try {
+      response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: options.max_tokens,
+          temperature: options.temperature,
+          top_p: options.top_p ?? 0.7,
+        }),
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -344,11 +349,13 @@ export async function callLLM(options: LLMCallOptions) {
   if (FALLBACK_PROVIDER) {
     try {
       console.warn(`[LLM] Primary '${ACTIVE_PROVIDER}' exhausted, trying fallback '${FALLBACK_PROVIDER}'`)
-      return await callProvider(FALLBACK_PROVIDER)
+      // Fallback providers use their own model names; the primary's model id is usually invalid there.
+      return await callProvider(FALLBACK_PROVIDER, getProviderConfig(FALLBACK_PROVIDER).defaultModel)
     } catch (fallbackError) {
       const latencyMs = Date.now() - startTime
       const err = lastPrimaryError instanceof Error ? lastPrimaryError : new Error('Unknown error')
-      err.message = `LLM call failed (primary: ${ACTIVE_PROVIDER}, fallback: ${FALLBACK_PROVIDER} also failed): ${err.message} (${latencyMs}ms)`
+      const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+      err.message = `LLM call failed (primary: ${ACTIVE_PROVIDER}, fallback: ${FALLBACK_PROVIDER} also failed): ${fallbackMessage}; primary error: ${err.message} (${latencyMs}ms)`
       throw err
     }
   }
@@ -517,7 +524,7 @@ export async function callLLMText({ system, prompt, model, maxTokens }: { system
   }
 
   // Otherwise call real LLM
-  const result = await callLLM({ model: model || getProviderConfig(ACTIVE_PROVIDER).defaultModel, max_tokens: maxTokens || 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], system })
+  const result = await callLLM({ model: model || getProviderConfig(ACTIVE_PROVIDER).defaultModel, max_tokens: maxTokens || 2000, temperature: 0.1, top_p: 0.7, messages: [{ role: 'user', content: prompt }], system })
   return { text: result.output, inputTokens: result.inputTokens, outputTokens: result.outputTokens }
 }
 

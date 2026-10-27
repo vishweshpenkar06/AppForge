@@ -47,22 +47,24 @@ export default function ReverseCompilePage() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-10 md:px-8">
-      <div className="mx-auto max-w-3xl">
+    <div className="relative min-h-screen px-4 py-10 md:px-8 overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-64 aurora opacity-40 pointer-events-none" aria-hidden />
+      <div className="relative mx-auto max-w-3xl">
         {/* ── Header ──────────────────────────────────────────── */}
         <div className="mb-8">
           <Link
             href="/compiler"
-            className="inline-flex items-center gap-1.5 text-xs text-forge-400 hover:text-forge-200 transition-colors mb-4"
+            className="inline-flex items-center gap-1.5 text-[11.5px] text-forge-500 hover:text-forge-200 transition-colors mb-5 no-underline font-mono"
           >
             <ArrowLeft className="size-3" />
-            Back to Compiler
+            Back to compiler
           </Link>
-          <h1 className="text-2xl font-bold text-forge-50 flex items-center gap-2">
+          <p className="font-mono text-[10px] text-accent/80 uppercase tracking-[0.2em] m-0 mb-2">Reverse mode</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-forge-50 flex items-center gap-2.5 m-0 tracking-tight">
             <GitBranch className="size-6 text-accent" />
             Reverse Compile
           </h1>
-          <p className="mt-2 text-sm text-forge-400">
+          <p className="mt-2 text-sm text-forge-400 leading-relaxed max-w-xl">
             Point at a public GitHub repo and get an architectural summary — entities,
             endpoints, pages, and auth — rendered in the same generation detail view.
           </p>
@@ -78,7 +80,7 @@ export default function ReverseCompilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Input
                 placeholder="https://github.com/owner/repo"
                 value={repoUrl}
@@ -87,11 +89,13 @@ export default function ReverseCompilePage() {
                   if (e.key === 'Enter') handleSubmit()
                 }}
                 disabled={phase === 'loading'}
-                className="flex-1 font-mono text-sm"
+                aria-label="GitHub repository URL"
+                className="flex-1 font-mono text-sm h-10"
               />
               <Button
                 onClick={handleSubmit}
                 disabled={!repoUrl.trim() || phase === 'loading'}
+                className="h-10"
               >
                 {phase === 'loading' ? (
                   <>
@@ -99,11 +103,11 @@ export default function ReverseCompilePage() {
                     Analyzing…
                   </>
                 ) : (
-                  'Reverse Compile'
+                  'Reverse compile'
                 )}
               </Button>
             </div>
-            <p className="mt-2 text-[11px] text-forge-500">
+            <p className="mt-3 text-[11px] text-forge-500 leading-relaxed">
               Public repos only for MVP. Unauthenticated GitHub API requests are
               rate-limited to 60/hr — set <code className="text-forge-400">GITHUB_TOKEN</code> for higher limits.
             </p>
@@ -112,9 +116,9 @@ export default function ReverseCompilePage() {
 
         {/* ── Error ───────────────────────────────────────────── */}
         {phase === 'error' && (
-          <Card className="mb-8 border-danger/20">
+          <Card className="mb-8 border-danger/25 bg-danger-subtle" role="alert">
             <CardContent>
-              <p className="text-sm text-danger">{errorMsg}</p>
+              <p className="text-sm text-danger m-0">{errorMsg}</p>
             </CardContent>
           </Card>
         )}

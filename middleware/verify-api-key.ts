@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { verifyApiKey, extractApiKeyFromHeader } from '@/lib/api-key-auth'
 import { prisma } from '@/lib/db'
 

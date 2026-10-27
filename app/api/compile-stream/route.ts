@@ -81,11 +81,14 @@ export async function POST(request: NextRequest): Promise<Response> {
     return createStreamError('Invalid request body', 400)
   }
 
-  if (!prompt || prompt.trim().length === 0) {
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return createStreamError('Prompt cannot be empty', 400)
   }
   if (prompt.length > 5000) {
     return createStreamError('Prompt exceeds maximum length (5000 characters)', 400)
+  }
+  if (!['fast', 'balanced', 'precise'].includes(mode)) {
+    return createStreamError('Mode must be one of: fast, balanced, precise', 400)
   }
 
   let generation: { id: string } | null = null

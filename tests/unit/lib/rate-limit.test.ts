@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { checkRateLimit, buildRateLimitKey } from '@/lib/rate-limit'
 
 describe('rate-limit', () => {

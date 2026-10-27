@@ -13,6 +13,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.clerk.com',
       },
+      {
+        protocol: 'https',
+        hostname: '**.clerk.accounts.dev',
+      },
     ],
   },
   experimental: {
@@ -29,14 +33,17 @@ const nextConfig = {
       headers: [
         {
           key: 'Content-Security-Policy',
+          // Clerk serves its browser bundle from the instance host, which is
+          // *.clerk.accounts.dev on dev instances and *.clerk.com on production ones.
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.com https://clerk.telemetry.clerk.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.com https://*.clerk.accounts.dev https://clerk.telemetry.clerk.com https://va.vercel-scripts.com",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' https://*.clerk.com data: blob:",
-            "font-src 'self' https://*.clerk.com",
-            "connect-src 'self' https://*.clerk.com https://api.clerk.com wss://*.clerk.com",
-            "frame-src 'self' https://*.clerk.com",
+            "img-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://img.clerk.com data: blob:",
+            "font-src 'self' https://*.clerk.com https://*.clerk.accounts.dev",
+            "connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev https://api.clerk.com https://clerk-telemetry.com wss://*.clerk.com wss://*.clerk.accounts.dev",
+            "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev",
+            "worker-src 'self' blob:",
           ].join('; '),
         },
         {

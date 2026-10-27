@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const limit = Math.min(Number(request.nextUrl.searchParams.get('limit') || '20'), 50)
+    const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit')) || 20, 1), 50)
     const unreadOnly = request.nextUrl.searchParams.get('unread') === 'true'
 
     const where = { userId: user.id, ...(unreadOnly ? { read: false } : {}) }

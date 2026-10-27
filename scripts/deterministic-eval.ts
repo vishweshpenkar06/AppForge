@@ -1,7 +1,6 @@
 (async () => {
   process.env.DETERMINISTIC_LLM = '1'
 
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const ai = require('../lib/ai')
 
   const TEST_CASES = [

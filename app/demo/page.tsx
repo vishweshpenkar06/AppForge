@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { ArrowUpRight, Check, Copy } from 'lucide-react'
+import { toast } from 'sonner'
+import { Reveal } from '@/components/ui/motion'
 
 const DEMOS = [
   {
@@ -65,67 +68,90 @@ export default function DemoPage() {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(JSON.stringify(demo.output, null, 2))
-    setCopied(true); setTimeout(() => setCopied(false), 2000)
+    setCopied(true)
+    toast.success('Output copied')
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <div>
-      <div className="max-w-[1100px] mx-auto px-4 md:px-6 py-8 md:py-12">
+    <div className="relative">
+      <div className="absolute inset-x-0 top-0 h-64 aurora opacity-40 pointer-events-none" aria-hidden />
+      <div className="relative max-w-[1100px] mx-auto px-4 md:px-6 py-8 md:py-12">
         {/* Header */}
-        <p className="font-mono text-[11px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-2">Examples</p>
-        <h1 className="text-2xl font-bold text-forge-50 m-0 mb-2">Pre-compiled outputs</h1>
-        <p className="text-sm text-forge-300 m-0 mb-8">Real outputs from the compiler. No cherry-picking.</p>
+        <Reveal>
+          <p className="font-mono text-[10px] text-accent/80 uppercase tracking-[0.2em] m-0 mb-2">Examples</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-forge-50 m-0 mb-2 tracking-tight">Pre-compiled outputs</h1>
+          <p className="text-sm text-forge-400 m-0 mb-8">Real outputs from the compiler. No cherry-picking.</p>
+        </Reveal>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap" role="tablist">
-          {DEMOS.map((d, i) => (
-            <button key={i} onClick={() => setSelected(i)}
-              role="tab"
-              aria-selected={selected === i}
-              aria-controls="demo-output"
-              className={`px-4 py-2 rounded-xl text-sm font-mono cursor-pointer border-none transition-colors
-                ${selected === i ? 'bg-accent text-white' : 'bg-forge-800 text-forge-300 hover:bg-forge-700'}`}>{d.label}</button>
-          ))}
-        </div>
+        <Reveal delay={60} className="flex gap-1.5 mb-6 flex-wrap" >
+          <div className="flex gap-1.5 flex-wrap" role="tablist" aria-label="Example outputs">
+            {DEMOS.map((d, i) => (
+              <button
+                key={d.label}
+                type="button"
+                onClick={() => setSelected(i)}
+                role="tab"
+                aria-selected={selected === i}
+                aria-controls="demo-output"
+                className={`px-4 py-2 rounded-xl text-[12.5px] font-mono cursor-pointer border transition-all ${
+                  selected === i
+                    ? 'bg-accent text-forge-950 border-accent'
+                    : 'bg-forge-900/60 text-forge-300 border-white/[0.07] hover:bg-forge-800 hover:text-forge-100'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </Reveal>
 
         {/* Split view */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl overflow-hidden border border-white/[0.06]">
-          {/* Input */}
-          <div className="bg-forge-800 p-6">
-            <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-4">Prompt</p>
-            <p className="text-sm text-forge-300 font-mono leading-relaxed m-0">&quot;{demo.prompt}&quot;</p>
+        <Reveal delay={100}>
+          <div className="grid grid-cols-1 md:grid-cols-2 rounded-2xl overflow-hidden border border-white/[0.07] bg-forge-950/40">
+            {/* Input */}
+            <div className="p-6 border-b md:border-b-0 md:border-r border-white/[0.06]">
+              <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.12em] m-0 mb-4">Prompt</p>
+              <p className="text-[13px] text-forge-200 font-mono leading-relaxed m-0">&quot;{demo.prompt}&quot;</p>
 
-            <Link
-              href={`/compiler?prompt=${encodeURIComponent(demo.prompt)}`}
-              className="inline-flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-xs font-medium no-underline hover:bg-accent/20 transition-colors"
-            >
-              Try this prompt →
-            </Link>
+              <Link
+                href={`/compiler?prompt=${encodeURIComponent(demo.prompt)}`}
+                className="group inline-flex items-center gap-1.5 mt-5 px-3 py-1.5 rounded-lg bg-accent-subtle border border-accent/20 text-accent-hover text-[11.5px] font-medium no-underline hover:bg-accent/15 transition-colors"
+              >
+                Try this prompt
+                <ArrowUpRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </Link>
 
-            <div className="mt-6 pt-5 border-t border-white/[0.06]">
-              <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0 mb-3">Result</p>
-              <div className="flex gap-4 text-xs font-mono">
-                <span className="text-success">✓ {demo.output.validation?.score}/100</span>
-                <span className="text-forge-400">{demo.output.database?.tables?.length || 0} tables</span>
-                <span className="text-forge-400">{demo.output.api?.endpoints?.length || 0} endpoints</span>
+              <div className="mt-6 pt-5 border-t border-white/[0.06]">
+                <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.12em] m-0 mb-3">Result</p>
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11.5px] font-mono">
+                  <span className="text-success">✓ {demo.output.validation?.score}/100</span>
+                  <span className="text-forge-400">{demo.output.database?.tables?.length || 0} tables</span>
+                  <span className="text-forge-400">{demo.output.api?.endpoints?.length || 0} endpoints</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Output */}
-          <div id="demo-output" role="tabpanel" className="bg-forge-900 p-6 overflow-auto max-h-[600px]">
-            <div className="flex justify-between items-center mb-4">
-              <p className="font-mono text-[10px] text-forge-400 uppercase tracking-[0.1em] m-0">Output</p>
-              <button onClick={handleCopy}
-                className="text-[10px] font-mono text-forge-400 bg-transparent border-none cursor-pointer hover:text-forge-300 transition-colors focus-visible:ring-2 focus-visible:ring-accent/40">
-                {copied ? '✓ Copied' : 'Copy'}
-              </button>
+            {/* Output */}
+            <div id="demo-output" role="tabpanel" className="bg-forge-900/50 p-6 overflow-auto max-h-[600px]">
+              <div className="flex justify-between items-center mb-4">
+                <p className="font-mono text-[10px] text-forge-500 uppercase tracking-[0.12em] m-0">Output</p>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1.5 text-[10.5px] font-mono text-forge-400 bg-transparent border-none cursor-pointer hover:text-forge-200 transition-colors"
+                >
+                  {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="text-[11.5px] font-mono text-forge-300 leading-6 m-0 whitespace-pre-wrap">
+                {JSON.stringify(demo.output, null, 2)}
+              </pre>
             </div>
-            <pre className="text-xs font-mono text-forge-300 leading-7 m-0 whitespace-pre-wrap">
-              {JSON.stringify(demo.output, null, 2)}
-            </pre>
           </div>
-        </div>
+        </Reveal>
       </div>
     </div>
   )

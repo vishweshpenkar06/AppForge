@@ -97,6 +97,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateRes
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       return NextResponse.json({ error: 'URL must use http or https.' }, { status: 400 })
     }
+    // shortcut: literal private hosts only — a DNS name resolving to a private IP can
+    // still be used for SSRF. Resolve + pin egress if webhooks ever run in a sensitive network.
+    const host = parsed.hostname.toLowerCase()
+    const isPrivateHost =
+      host === 'localhost' ||
+      host === '0.0.0.0' ||
+      host === '::1' ||
+      host.endsWith('.localhost') ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+    if (isPrivateHost) {
+      return NextResponse.json({ error: 'URL must point to a public host.' }, { status: 400 })
+    }
   } catch {
     return NextResponse.json({ error: 'Invalid URL format.' }, { status: 400 })
   }

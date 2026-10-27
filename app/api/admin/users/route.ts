@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const search = request.nextUrl.searchParams.get('search') || ''
     const plan = request.nextUrl.searchParams.get('plan') as PlanTier | null
-    const limit = Math.min(Number(request.nextUrl.searchParams.get('limit') || '50'), 100)
+    const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit')) || 50, 1), 100)
     const cursor = request.nextUrl.searchParams.get('cursor')
 
     const where: Record<string, unknown> = {}

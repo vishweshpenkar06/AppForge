@@ -66,13 +66,17 @@ export function useCompileStream(): UseCompileStreamReturn {
       if (fallbackTriggered) return
       fallbackTriggered = true
       cleanup()
+      // Stop consuming the SSE stream so a late 'complete' cannot overwrite the sync result.
+      // shortcut: the server pipeline may keep running after this abort; move compiles to a
+      // persisted job queue if abandoned runs ever cost real money.
+      controller.abort()
 
       try {
         const r = await fetch('/api/compile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt, mode }),
-          signal: controller.signal,
+          signal: AbortSignal.timeout(180_000),
         })
         const d = await r.json()
         if (d.upgradeRequired) {
@@ -92,9 +96,6 @@ export function useCompileStream(): UseCompileStreamReturn {
       }
     }
 
-    // Use GET-based EventSource via query params in URL
-    // EventSource doesn't support POST, so we POST to get a job ID, then stream via GET
-    // But our SSE endpoint is POST-only, so we use fetch + ReadableStream parsing
     const runStream = async () => {
       try {
         const response = await fetch('/api/compile-stream', {
@@ -113,11 +114,28 @@ export function useCompileStream(): UseCompileStreamReturn {
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let buffer = ''
+        let eventType = ''
+        let sawEvent = false
 
-        // Set a generous fallback timeout — if no events arrive in 8s, assume SSE failed
-        fallbackTimeoutRef.current = setTimeout(() => {
-          if (!fallbackTriggered) fallbackToSync()
-        }, 8000)
+        // Before the first event: 8s fallback to the sync endpoint. After it: the stream
+        // is working, so a silent stall errors out instead of running a second compile.
+        // The gap between stage events is one stage (~60s LLM timeout), so 5min is safe.
+        // shortcut: no resume after a stall — retry recompiles; move to a job queue if
+        // abandoned runs start costing real money.
+        const armWatchdog = () => {
+          if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current)
+          fallbackTimeoutRef.current = setTimeout(() => {
+            if (fallbackTriggered) return
+            if (!sawEvent) {
+              fallbackToSync()
+              return
+            }
+            setError('Compilation stalled — check your connection and try again.')
+            setLoading(false)
+            controller.abort()
+          }, sawEvent ? 300_000 : 8_000)
+        }
+        armWatchdog()
 
         while (true) {
           const { done, value } = await reader.read()
@@ -127,7 +145,6 @@ export function useCompileStream(): UseCompileStreamReturn {
           const lines = buffer.split('\n')
           buffer = lines.pop() || ''
 
-          let eventType = ''
           for (const line of lines) {
             if (line.startsWith('event: ')) {
               eventType = line.slice(7).trim()
@@ -135,11 +152,8 @@ export function useCompileStream(): UseCompileStreamReturn {
               const raw = line.slice(6)
               try {
                 const data = JSON.parse(raw)
-                // Reset fallback timer on any event
-                if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current)
-                fallbackTimeoutRef.current = setTimeout(() => {
-                  if (!fallbackTriggered) fallbackToSync()
-                }, 8000)
+                sawEvent = true
+                armWatchdog()
 
                 switch (eventType) {
                   case 'stage-start':
@@ -187,12 +201,13 @@ export function useCompileStream(): UseCompileStreamReturn {
               } catch {
                 // Malformed JSON line — skip
               }
+              eventType = ''
             }
           }
         }
 
-        // Stream ended without a 'complete' event — possible issue
-        setLoading(false)
+        // Stream ended without a terminal event — fall back to the sync endpoint.
+        if (!fallbackTriggered) await fallbackToSync()
       } catch (e) {
         if (e instanceof Error && e.name !== 'AbortError') {
           // Network/fetch error — fallback to sync
